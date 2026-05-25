@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
 import { SiteFooter } from '@/components/site/site-footer';
+import { GlobalJsonLd } from '@/components/seo/global-jsonld';
 
 // Default metadata applies to every page; individual pages can override
 // any field via their own exported `metadata` object. This is what powers
@@ -55,6 +56,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900">
+        <GlobalJsonLd />
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />

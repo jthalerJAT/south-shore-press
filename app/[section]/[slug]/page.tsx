@@ -10,6 +10,7 @@ import {
 import { parseShortIdFromSlug, buildStoryPath } from '@/lib/slugify';
 import { SITE, SITE_SECTIONS } from '@/lib/site-config';
 import { parseYouTubeId, youTubeThumbnailUrl } from '@/lib/youtube';
+import { getSiteOrigin } from '@/lib/site-url';
 
 // ISR: published article content is essentially immutable, but editors do
 // occasionally fix typos / refresh the hero. 60s revalidate keeps the edge
@@ -111,45 +112,72 @@ export default async function StoryPage({ params }: { params: Params }) {
   const authorName = story.author?.display_name ?? story.byline ?? null;
   const heroAlt = story.headline;
 
-  // JSON-LD NewsArticle schema — Google News surfaces this prominently
-  // when judging story freshness, authorship, and publisher trust. The
-  // @id field needs to be an absolute URL, so we resolve the canonical
-  // path against the site's public origin.
-  const origin = (
-    process.env.NEXT_PUBLIC_SITE_URL ?? 'https://south-shore-press.vercel.app'
-  ).replace(/\/$/, '');
+  // JSON-LD: a @graph holding both the NewsArticle and a BreadcrumbList.
+  // Google News surfaces NewsArticle for indexing decisions; breadcrumbs
+  // give us nicer SERP presentation. Publisher is a @id reference back
+  // to the Organization emitted in GlobalJsonLd on every page.
+  const origin = getSiteOrigin();
   const canonicalPath = buildStoryPath({
     id: story.id,
     headline: story.headline,
     categories: story.categories,
   });
   const canonicalUrl = `${origin}${canonicalPath}`;
+  const heroImageUrl = (() => {
+    if (!story.hero_photo_url) return undefined;
+    const yt = parseYouTubeId(story.hero_photo_url);
+    return yt ? youTubeThumbnailUrl(yt) : story.hero_photo_url;
+  })();
+
   const jsonLd = {
     '@context': 'https://schema.org',
-    '@type': 'NewsArticle',
-    headline: story.headline,
-    description: story.subline ?? undefined,
-    image: story.hero_photo_url
-      ? [
-          parseYouTubeId(story.hero_photo_url)
-            ? youTubeThumbnailUrl(parseYouTubeId(story.hero_photo_url)!)
-            : story.hero_photo_url,
-        ]
-      : undefined,
-    datePublished: story.published_at ?? undefined,
-    dateModified: story.published_at ?? undefined,
-    author: authorName
-      ? [{ '@type': 'Person', name: authorName }]
-      : undefined,
-    publisher: {
-      '@type': 'NewsMediaOrganization',
-      name: SITE.publisher,
-    },
-    mainEntityOfPage: {
-      '@type': 'WebPage',
-      '@id': canonicalUrl,
-    },
-    articleSection: story.categories?.[0],
+    '@graph': [
+      {
+        '@type': 'NewsArticle',
+        '@id': `${canonicalUrl}#article`,
+        headline: story.headline,
+        description: story.subline ?? undefined,
+        image: heroImageUrl ? [heroImageUrl] : undefined,
+        datePublished: story.published_at ?? undefined,
+        dateModified: story.published_at ?? undefined,
+        author: authorName
+          ? [{ '@type': 'Person', name: authorName }]
+          : undefined,
+        // Reference the org defined by GlobalJsonLd in app/layout.tsx —
+        // avoids re-stating the publisher object on every story.
+        publisher: { '@id': `${origin}/#organization` },
+        mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
+        articleSection: story.categories?.[0],
+        isAccessibleForFree: true,
+      },
+      {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          {
+            '@type': 'ListItem',
+            position: 1,
+            name: 'Home',
+            item: `${origin}/`,
+          },
+          ...(sectionMeta
+            ? [
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  name: sectionMeta.label,
+                  item: `${origin}/${sectionMeta.slug}`,
+                },
+              ]
+            : []),
+          {
+            '@type': 'ListItem',
+            position: sectionMeta ? 3 : 2,
+            name: story.headline,
+            item: canonicalUrl,
+          },
+        ],
+      },
+    ],
   };
 
   return (

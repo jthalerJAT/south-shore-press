@@ -40,7 +40,10 @@ export async function getStoriesAuthoredBy(
     console.error('[getStoriesAuthoredBy]', error);
     return [];
   }
-  return (data ?? []) as EditorStoryRow[];
+  // Supabase types FK relations as arrays even when the cardinality is
+  // many-to-one (one author per story). Cast through `unknown` per
+  // Supabase's own escape-hatch guidance for this exact mismatch.
+  return (data ?? []) as unknown as EditorStoryRow[];
 }
 
 /** Every story in the system, newest first. Used by the editor / admin
@@ -56,7 +59,10 @@ export async function getAllStoriesForEditor(): Promise<EditorStoryRow[]> {
     console.error('[getAllStoriesForEditor]', error);
     return [];
   }
-  return (data ?? []) as EditorStoryRow[];
+  // Supabase types FK relations as arrays even when the cardinality is
+  // many-to-one (one author per story). Cast through `unknown` per
+  // Supabase's own escape-hatch guidance for this exact mismatch.
+  return (data ?? []) as unknown as EditorStoryRow[];
 }
 
 export type EditorStoryDetail = EditorStoryRow & {
@@ -79,5 +85,6 @@ export async function getStoryForEdit(
     console.error('[getStoryForEdit]', error);
     return null;
   }
-  return (data as EditorStoryDetail | null) ?? null;
+  // Same FK-relation cardinality mismatch as the list queries above.
+  return ((data ?? null) as unknown as EditorStoryDetail | null) ?? null;
 }

@@ -129,5 +129,8 @@ export async function getPublishedStoryByShortId(
     console.error('[getPublishedStoryByShortId]', error);
     return null;
   }
-  return (data as StoryDetail | null) ?? null;
+  // Cast through `unknown` — Supabase types FK relations as arrays even
+  // when the cardinality is many-to-one (one author per story); the
+  // runtime shape is a single object, matching our StoryDetail.
+  return ((data ?? null) as unknown as StoryDetail | null) ?? null;
 }

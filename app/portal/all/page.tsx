@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { StoriesTable } from '@/components/portal/stories-table';
+import { AllStoriesView } from '@/components/portal/all-stories-view';
 import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 
 export const metadata: Metadata = {
@@ -9,6 +10,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Server component: fetch the full story list, then hand off to the
+// client AllStoriesView which handles search/sort/filter via URL params.
+// Suspense boundary required because AllStoriesView uses
+// useSearchParams (Next.js 14 will otherwise warn at build time).
 export default async function PortalAllStoriesPage() {
   // Editors and admins only — journalists trying to deep-link here get
   // bounced to /portal?denied=1.
@@ -17,11 +22,9 @@ export default async function PortalAllStoriesPage() {
 
   return (
     <PortalShell user={user} activeTab="all" title="All Stories">
-      <StoriesTable
-        stories={stories}
-        showAuthor
-        emptyMessage="No stories in the system yet."
-      />
+      <Suspense fallback={null}>
+        <AllStoriesView stories={stories} />
+      </Suspense>
     </PortalShell>
   );
 }

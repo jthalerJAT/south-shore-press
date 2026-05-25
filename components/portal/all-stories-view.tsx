@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 
 type StatusFilter = 'all' | 'draft' | 'submitted' | 'published' | 'unpublished';
-type SortKey = 'headline' | 'section' | 'status' | 'author' | 'updated';
+type SortKey = 'date' | 'time' | 'title' | 'byline' | 'section' | 'status';
 type SortDir = 'asc' | 'desc';
 
 const STATUS_TABS: ReadonlyArray<{ key: StatusFilter; label: string }> = [
@@ -22,11 +22,21 @@ const STATUS_TABS: ReadonlyArray<{ key: StatusFilter; label: string }> = [
 ];
 
 /**
- * /portal/all "All Stories" view with full filter UX:
- *   - search box (matches headline / byline / author)
- *   - status filter tabs (with live counts)
+ * "All Stories" view with full filter UX. Used in two contexts:
+ *   - /portal/all       editor sees every story, all statuses (status
+ *                       filter tabs visible)
+ *   - /portal           journalist or editor sees their own DRAFTS only
+ *                       (parent passes hideStatusFilter, so the tab
+ *                       row is hidden)
+ *
+ * Features:
+ *   - search box (matches headline / subline / byline / author)
+ *   - status filter tabs (with live counts) — optional
  *   - section filter dropdown
  *   - click-to-sort column headers (asc/desc)
+ *
+ * Columns mirror the v1 spec: Date, Time Posted, Title, Byline,
+ * Section, Status. Defaults to reverse-chronological (date desc).
  *
  * All filter + sort state lives in the URL (?q=...&status=...&section=...
  * &sort=...&dir=...) so filter views are shareable, deep-linkable, and
@@ -34,7 +44,18 @@ const STATUS_TABS: ReadonlyArray<{ key: StatusFilter; label: string }> = [
  * works fine at the current 500-story cap on getAllStoriesForEditor;
  * if that grows we'll push the filter down into Supabase.
  */
-export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
+export function AllStoriesView({
+  stories,
+  hideStatusFilter = false,
+  emptyMessage = 'No stories match your filters.',
+}: {
+  stories: EditorStoryRow[];
+  /** Suppress the status tab row when every story is already a single
+   *  status (e.g. the journalist's drafts list). */
+  hideStatusFilter?: boolean;
+  /** Override the "no matches" copy — defaults to a generic filter msg. */
+  emptyMessage?: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -43,7 +64,7 @@ export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
   const q = searchParams.get('q') ?? '';
   const statusFilter = (searchParams.get('status') ?? 'all') as StatusFilter;
   const sectionFilter = searchParams.get('section') ?? 'all';
-  const sortKey = (searchParams.get('sort') ?? 'updated') as SortKey;
+  const sortKey = (searchParams.get('sort') ?? 'date') as SortKey;
   const sortDir = (searchParams.get('dir') ?? 'desc') as SortDir;
 
   // Status counts always computed on the FULL set so tab counts don't
@@ -93,8 +114,11 @@ export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
     const sorted = [...result].sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
-        case 'headline':
+        case 'title':
           cmp = a.headline.localeCompare(b.headline);
+          break;
+        case 'byline':
+          cmp = (a.byline ?? '').localeCompare(b.byline ?? '');
           break;
         case 'section':
           cmp = (a.categories?.[0] ?? '').localeCompare(
@@ -104,13 +128,11 @@ export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
         case 'status':
           cmp = a.status.localeCompare(b.status);
           break;
-        case 'author':
-          cmp = (a.author?.display_name ?? '').localeCompare(
-            b.author?.display_name ?? ''
-          );
-          break;
-        case 'updated':
+        case 'date':
+        case 'time':
         default: {
+          // Date and Time both sort by the same underlying timestamp
+          // (the post time). Two display columns of one data field.
           const aT = new Date(a.published_at ?? a.created_at).getTime();
           const bT = new Date(b.published_at ?? b.created_at).getTime();
           cmp = aT - bT;
@@ -146,7 +168,7 @@ export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
       // (recency desc, everything else asc).
       updateParam({
         sort: key,
-        dir: key === 'updated' ? 'desc' : 'asc',
+        dir: key === 'date' || key === 'time' ? 'desc' : 'asc',
       });
     }
   }
@@ -180,40 +202,43 @@ export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
         </select>
       </div>
 
-      {/* Status filter tabs with live counts */}
-      <nav
-        aria-label="Filter by status"
-        className="flex items-center gap-1 border-b border-zinc-200 overflow-x-auto"
-      >
-        {STATUS_TABS.map((tab) => {
-          const isActive = statusFilter === tab.key;
-          return (
-            <button
-              key={tab.key}
-              type="button"
-              onClick={() => updateParam({ status: tab.key })}
-              className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
-                isActive
-                  ? 'border-brand-red text-brand-red'
-                  : 'border-transparent text-zinc-600 hover:text-zinc-900'
-              )}
-            >
-              {tab.label}
-              <span
+      {/* Status filter tabs with live counts — hidden when all stories
+          are a single status (e.g. journalist's drafts list). */}
+      {!hideStatusFilter && (
+        <nav
+          aria-label="Filter by status"
+          className="flex items-center gap-1 border-b border-zinc-200 overflow-x-auto"
+        >
+          {STATUS_TABS.map((tab) => {
+            const isActive = statusFilter === tab.key;
+            return (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => updateParam({ status: tab.key })}
                 className={cn(
-                  'inline-block min-w-[1.25rem] text-[10px] px-1.5 py-0.5 rounded font-semibold',
+                  'flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap',
                   isActive
-                    ? 'bg-brand-red text-white'
-                    : 'bg-zinc-100 text-zinc-600'
+                    ? 'border-brand-red text-brand-red'
+                    : 'border-transparent text-zinc-600 hover:text-zinc-900'
                 )}
               >
-                {statusCounts[tab.key]}
-              </span>
-            </button>
-          );
-        })}
-      </nav>
+                {tab.label}
+                <span
+                  className={cn(
+                    'inline-block min-w-[1.25rem] text-[10px] px-1.5 py-0.5 rounded font-semibold',
+                    isActive
+                      ? 'bg-brand-red text-white'
+                      : 'bg-zinc-100 text-zinc-600'
+                  )}
+                >
+                  {statusCounts[tab.key]}
+                </span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {/* Results count */}
       <div className="text-xs text-zinc-500">
@@ -235,22 +260,45 @@ export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
       {/* Table */}
       {visible.length === 0 ? (
         <div className="border border-dashed border-zinc-300 rounded p-8 text-center text-zinc-500">
-          {stories.length === 0
-            ? 'No stories in the system yet.'
-            : 'No stories match your filters.'}
+          {stories.length === 0 ? emptyMessage : 'No stories match your filters.'}
         </div>
       ) : (
         <div className="overflow-hidden border border-zinc-200 rounded-lg">
-          {/* Desktop table */}
+          {/* Desktop table — columns mirror v1 spec exactly:
+              Date | Time Posted | Title | Byline | Section | Status */}
           <table className="hidden sm:table w-full text-sm">
             <thead className="bg-zinc-50 border-b border-zinc-200">
               <tr>
                 <SortableTh
-                  label="Headline"
-                  k="headline"
+                  label="Date"
+                  k="date"
                   current={sortKey}
                   dir={sortDir}
                   onClick={toggleSort}
+                  className="w-28"
+                />
+                <SortableTh
+                  label="Time Posted"
+                  k="time"
+                  current={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                  className="w-28"
+                />
+                <SortableTh
+                  label="Title"
+                  k="title"
+                  current={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                />
+                <SortableTh
+                  label="Byline"
+                  k="byline"
+                  current={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                  className="w-40"
                 />
                 <SortableTh
                   label="Section"
@@ -266,98 +314,97 @@ export function AllStoriesView({ stories }: { stories: EditorStoryRow[] }) {
                   current={sortKey}
                   dir={sortDir}
                   onClick={toggleSort}
-                  className="w-32"
-                />
-                <SortableTh
-                  label="Author"
-                  k="author"
-                  current={sortKey}
-                  dir={sortDir}
-                  onClick={toggleSort}
-                  className="w-40"
-                />
-                <SortableTh
-                  label="Updated"
-                  k="updated"
-                  current={sortKey}
-                  dir={sortDir}
-                  onClick={toggleSort}
-                  className="w-32"
+                  className="w-28"
                 />
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
-              {visible.map((s) => (
-                <tr
-                  key={s.id}
-                  className="hover:bg-zinc-50 transition-colors"
-                >
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/portal/edit/${s.id}`}
-                      className="font-medium text-zinc-900 hover:text-brand-red"
-                    >
-                      {s.headline || (
-                        <span className="italic text-zinc-400">
-                          (untitled)
-                        </span>
-                      )}
-                    </Link>
-                    {s.subline ? (
-                      <div className="text-xs text-zinc-500 mt-0.5 line-clamp-1">
-                        {s.subline}
-                      </div>
-                    ) : null}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {s.categories?.[0] ?? '—'}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={s.status} />
-                  </td>
-                  <td className="px-4 py-3 text-zinc-600">
-                    {s.author?.display_name ?? '—'}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
-                    {formatDate(s.published_at ?? s.created_at)}
-                  </td>
-                </tr>
-              ))}
+              {visible.map((s) => {
+                const ts = s.published_at ?? s.created_at;
+                return (
+                  <tr
+                    key={s.id}
+                    className="hover:bg-zinc-50 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-zinc-600 text-xs whitespace-nowrap">
+                      {formatDate(ts)}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 text-xs whitespace-nowrap">
+                      {formatTime(ts)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Link
+                        href={`/portal/edit/${s.id}`}
+                        className="font-medium text-zinc-900 hover:text-brand-red"
+                      >
+                        {s.headline || (
+                          <span className="italic text-zinc-400">
+                            (untitled)
+                          </span>
+                        )}
+                      </Link>
+                      {s.subline ? (
+                        <div className="text-xs text-zinc-500 mt-0.5 line-clamp-1">
+                          {s.subline}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 text-xs">
+                      {s.byline ?? '—'}
+                    </td>
+                    <td className="px-4 py-3 text-zinc-600 text-xs">
+                      {(s.categories ?? []).join(', ') || '—'}
+                    </td>
+                    <td className="px-4 py-3">
+                      <StatusBadge status={s.status} />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
           {/* Mobile stack */}
           <ul className="sm:hidden divide-y divide-zinc-100">
-            {visible.map((s) => (
-              <li key={s.id}>
-                <Link
-                  href={`/portal/edit/${s.id}`}
-                  className="block px-4 py-3 hover:bg-zinc-50 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="font-medium text-zinc-900 line-clamp-2">
-                      {s.headline || (
-                        <span className="italic text-zinc-400">
-                          (untitled)
-                        </span>
-                      )}
+            {visible.map((s) => {
+              const ts = s.published_at ?? s.created_at;
+              return (
+                <li key={s.id}>
+                  <Link
+                    href={`/portal/edit/${s.id}`}
+                    className="block px-4 py-3 hover:bg-zinc-50 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="font-medium text-zinc-900 line-clamp-2">
+                        {s.headline || (
+                          <span className="italic text-zinc-400">
+                            (untitled)
+                          </span>
+                        )}
+                      </div>
+                      <StatusBadge status={s.status} />
                     </div>
-                    <StatusBadge status={s.status} />
-                  </div>
-                  <div className="mt-1 text-xs text-zinc-500 flex items-center gap-2 flex-wrap">
-                    <span>{s.categories?.[0] ?? '—'}</span>
-                    <span aria-hidden="true">·</span>
-                    {s.author?.display_name ? (
-                      <>
-                        <span>{s.author.display_name}</span>
-                        <span aria-hidden="true">·</span>
-                      </>
-                    ) : null}
-                    <time>{formatDate(s.published_at ?? s.created_at)}</time>
-                  </div>
-                </Link>
-              </li>
-            ))}
+                    <div className="mt-1 text-xs text-zinc-500 flex items-center gap-2 flex-wrap">
+                      <time>{formatDate(ts)}</time>
+                      <span aria-hidden="true">·</span>
+                      <time>{formatTime(ts)}</time>
+                      {(s.categories?.length ?? 0) > 0 ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>{(s.categories ?? []).join(', ')}</span>
+                        </>
+                      ) : null}
+                      {s.byline ? (
+                        <>
+                          <span aria-hidden="true">·</span>
+                          <span>{s.byline}</span>
+                        </>
+                      ) : null}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -413,5 +460,16 @@ function formatDate(iso: string | null): string {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
+  });
+}
+
+function formatTime(iso: string | null): string {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/New_York',
+    timeZoneName: 'short',
   });
 }

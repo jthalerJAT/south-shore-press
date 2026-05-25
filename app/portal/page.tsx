@@ -1,24 +1,33 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { requireUser } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { StoriesTable } from '@/components/portal/stories-table';
-import { getStoriesAuthoredBy } from '@/lib/queries/editor-stories';
+import { AllStoriesView } from '@/components/portal/all-stories-view';
+import { getMyDrafts } from '@/lib/queries/editor-stories';
 
 export const metadata: Metadata = {
   title: 'My stories',
   robots: { index: false, follow: false },
 };
 
-export default async function PortalMyStoriesPage({
+/**
+ * /portal "Story Editor" — drafts-only view per the v1 spec. Both
+ * journalists and editors see their own work-in-progress drafts here.
+ * Once a story leaves draft (submitted → published), it disappears
+ * from this list; editors can find anything via /portal/all.
+ *
+ * The "+ Start New Story" button lives in PortalShell's nav strip.
+ */
+export default async function PortalMyDraftsPage({
   searchParams,
 }: {
   searchParams: { denied?: string; deleted?: string };
 }) {
   const user = await requireUser('/portal');
-  const stories = await getStoriesAuthoredBy(user.id);
+  const drafts = await getMyDrafts(user.id);
 
   return (
-    <PortalShell user={user} activeTab="mine" title="My Stories">
+    <PortalShell user={user} activeTab="mine" title="My Drafts">
       {searchParams.denied ? (
         <FlashBox tone="red">
           You don&apos;t have permission for that page.
@@ -28,10 +37,16 @@ export default async function PortalMyStoriesPage({
         <FlashBox tone="green">Story deleted.</FlashBox>
       ) : null}
 
-      <StoriesTable
-        stories={stories}
-        emptyMessage="No stories yet. Click + Start New Story to get going."
-      />
+      {/* Same filter UI as /portal/all but with the status tab row
+          suppressed since every row here is a draft. Custom empty
+          message points users at the New Story button. */}
+      <Suspense fallback={null}>
+        <AllStoriesView
+          stories={drafts}
+          hideStatusFilter
+          emptyMessage="No drafts yet. Click + Start New Story to get going."
+        />
+      </Suspense>
     </PortalShell>
   );
 }

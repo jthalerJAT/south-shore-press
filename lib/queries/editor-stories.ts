@@ -46,6 +46,32 @@ export async function getStoriesAuthoredBy(
   return (data ?? []) as unknown as EditorStoryRow[];
 }
 
+/**
+ * Drafts authored by a given user (status = 'draft' only), newest first.
+ *
+ * Powers the /portal "Story Editor" page where journalists and editors
+ * see their own work-in-progress. Once a story moves from draft →
+ * submitted (journalist) or → published (editor), it leaves this list.
+ * If an editor later downgrades a story back to draft, it reappears in
+ * the original author's draft list.
+ */
+export async function getMyDrafts(
+  authorId: string
+): Promise<EditorStoryRow[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stories')
+    .select(ROW_COLUMNS)
+    .eq('author_id', authorId)
+    .eq('status', 'draft')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('[getMyDrafts]', error);
+    return [];
+  }
+  return (data ?? []) as unknown as EditorStoryRow[];
+}
+
 /** Every story in the system, newest first. Used by the editor / admin
  *  "All Stories" view. */
 export async function getAllStoriesForEditor(): Promise<EditorStoryRow[]> {

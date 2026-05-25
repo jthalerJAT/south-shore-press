@@ -227,17 +227,19 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
             {status === 'draft' || mode === 'create' ? 'Save Draft' : 'Save Changes'}
           </SubmitBtn>
 
-          {/* Journalist: Submit (draft → submitted) */}
+          {/* Journalist: Submit (draft → submitted). Label per v1 spec. */}
           {isJournalist && status === 'draft' ? (
             <SubmitBtn intent="submit" variant="secondary">
-              Submit for Review
+              Submit Story
             </SubmitBtn>
           ) : null}
 
-          {/* Editor/admin: Publish */}
+          {/* Editor/admin: Publish (covers first-publish AND re-publish
+              of an unpublished story). v1 spec uses "Publish Story"
+              consistently for both. */}
           {isEditor && status !== 'published' ? (
             <SubmitBtn intent="publish" variant="secondary">
-              {status === 'unpublished' ? 'Republish' : 'Publish'}
+              Publish Story
             </SubmitBtn>
           ) : null}
 

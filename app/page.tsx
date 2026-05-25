@@ -1,26 +1,19 @@
-import Link from 'next/link';
-import { StoryCard } from '@/components/story/story-card';
+import { HeroCarousel } from '@/components/story/hero-carousel';
+import { TopStoriesRail } from '@/components/story/top-stories-rail';
 import { SectionRail } from '@/components/story/section-rail';
 import {
   getLatestPublishedStories,
   getPublishedStoriesBySection,
+  getTopStories,
 } from '@/lib/queries/stories';
 import { SITE_SECTIONS } from '@/lib/site-config';
 
-// Server-rendered Homepage. Pulls:
-//   - The 13 most-recent published stories overall (1 hero + 4 secondary +
-//     8 "Latest" rail), then
-//   - For each top-priority section, the latest 4 in that section.
-//
-// `revalidate = 60` triggers ISR — Vercel rebuilds the page at most once a
-// minute. Reads served from the edge cache after that, which is how we'll
-// scale to 1M views/day without melting Supabase. Phase 4 will tune this
-// per section if needed.
+// ISR — Vercel rebuilds the page at most once a minute, then serves
+// everything from the edge cache. That's how we'll absorb traffic
+// spikes without pounding Supabase.
 export const revalidate = 60;
 
-// Sections that get rails on the homepage, in order of prominence.
-// Anything in SITE_SECTIONS not listed here is reachable via header nav
-// + footer + category index pages.
+// Per-section rails below the hero block, in display order.
 const HOMEPAGE_SECTION_SLUGS = [
   'local',
   'sports',
@@ -31,28 +24,32 @@ const HOMEPAGE_SECTION_SLUGS = [
 ];
 
 export default async function HomePage() {
-  // Fetch latest cross-section first; then in parallel pull each section's
-  // top stories. Promise.all keeps the homepage waterfall flat.
-  const latest = await getLatestPublishedStories(13);
+  // Fan-out parallel queries: 5 hero stories, 10 top-stories
+  // (offset 5 so they don't duplicate the hero set), plus 4 cards
+  // for each section rail. Promise.all keeps the homepage waterfall
+  // flat — total DB time = max() of all queries, not sum().
+  const [heroStories, topStories, sectionRails] = await Promise.all([
+    getLatestPublishedStories(5),
+    getTopStories(5, 10),
+    Promise.all(
+      HOMEPAGE_SECTION_SLUGS.map(async (slug) => {
+        const stories = await getPublishedStoriesBySection(slug, 4);
+        const section = SITE_SECTIONS.find((s) => s.slug === slug);
+        return { slug, title: section?.label ?? slug, stories };
+      })
+    ),
+  ]);
 
-  const railsData = await Promise.all(
-    HOMEPAGE_SECTION_SLUGS.map(async (slug) => {
-      const stories = await getPublishedStoriesBySection(slug, 4);
-      const section = SITE_SECTIONS.find((s) => s.slug === slug);
-      return { slug, title: section?.label ?? slug, stories };
-    })
-  );
-
-  // Empty-state — keeps the "rebuilding" message visible while there are
-  // no published stories on v2 yet. Drops out as soon as the editor
-  // publishes the first one.
-  if (latest.length === 0) {
+  // Empty-state — keeps the "rebuilding" message visible while the
+  // DB hasn't published anything yet. Disappears the moment the
+  // first story goes live.
+  if (heroStories.length === 0) {
     return (
       <section className="max-w-3xl mx-auto px-6 py-16 sm:py-24 text-center">
-        <div className="text-xs uppercase tracking-widest text-brand-red font-semibold">
+        <div className="text-xs uppercase tracking-widest text-brand-red font-bold">
           v2 — under construction
         </div>
-        <h1 className="mt-3 font-headline text-4xl sm:text-5xl font-bold tracking-tight text-zinc-900">
+        <h1 className="mt-3 font-headline text-4xl sm:text-5xl font-extrabold tracking-tight text-zinc-900">
           We&apos;re rebuilding for speed, search, and scale.
         </h1>
         <p className="mt-6 text-base sm:text-lg text-zinc-600 leading-relaxed">
@@ -74,37 +71,30 @@ export default async function HomePage() {
     );
   }
 
-  const [hero, ...rest] = latest;
-  const secondary = rest.slice(0, 4);
-  const latestRail = rest.slice(4);
-
   return (
-    <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
-      {/* Top: 1 hero (8 cols) + 4 secondary (4 cols, stacked) */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+      {/*
+        HERO + TOP STORIES BLOCK
+        ------------------------
+        Two-column grid at lg+. The hero owns the row height via
+        aspect-video on its image area; the Top Stories rail uses an
+        absolute child pinned to the row so it always matches the
+        hero's height regardless of how many stories are in it
+        (the inner <ul> handles its own scroll). Below lg both stack.
+      */}
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:items-stretch">
         <div className="lg:col-span-8">
-          <StoryCard story={hero} variant="feature" />
+          <HeroCarousel stories={heroStories} />
         </div>
-        {secondary.length > 0 ? (
-          <aside className="lg:col-span-4 flex flex-col gap-6 lg:border-l lg:border-zinc-200 lg:pl-8">
-            {secondary.map((s) => (
-              <StoryCard key={s.id} story={s} variant="standard" />
-            ))}
-          </aside>
-        ) : null}
+        <div className="lg:col-span-4 lg:relative lg:min-h-0">
+          <div className="lg:absolute lg:inset-0">
+            <TopStoriesRail stories={topStories} />
+          </div>
+        </div>
       </section>
 
-      {/* Latest rail — cross-section, chronological */}
-      {latestRail.length > 0 ? (
-        <SectionRail
-          title="Latest"
-          sectionSlug={HOMEPAGE_SECTION_SLUGS[0]}
-          stories={latestRail}
-        />
-      ) : null}
-
-      {/* Per-section rails */}
-      {railsData.map((rail) => (
+      {/* SECTION RAILS — full-width, stacked below */}
+      {sectionRails.map((rail) => (
         <SectionRail
           key={rail.slug}
           title={rail.title}
@@ -112,15 +102,6 @@ export default async function HomePage() {
           stories={rail.stories}
         />
       ))}
-
-      <div className="mt-16 text-center">
-        <Link
-          href="/local"
-          className="inline-block text-sm uppercase tracking-widest font-semibold text-brand-red hover:text-brand-red-dark transition-colors"
-        >
-          Browse all sections →
-        </Link>
-      </div>
     </div>
   );
 }

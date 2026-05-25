@@ -71,6 +71,35 @@ export async function getLatestPublishedStories(
   return (data ?? []) as StoryListItem[];
 }
 
+/**
+ * Recent stories for the "Top Stories" sidebar on the homepage.
+ *
+ * For now this is just `most-recent-after-offset` — by passing
+ * offset=5 + limit=10 from the homepage, we get positions 6-15 in the
+ * published list (the hero carousel uses 1-5). When we add view counts
+ * or an editor-pinned flag we'll point this at that signal instead.
+ *
+ * Range params on Supabase: .range(from, to) is inclusive on both ends.
+ */
+export async function getTopStories(
+  offset: number,
+  limit: number
+): Promise<StoryListItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stories')
+    .select(LIST_COLUMNS)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .order('published_at', { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) {
+    console.error('[getTopStories]', error);
+    return [];
+  }
+  return (data ?? []) as StoryListItem[];
+}
+
 /** Most recent N published stories in a given section. The section comes
  *  from the URL — we match against the `categories` array (Postgres
  *  `contains` semantics via the `cs` Supabase operator). */

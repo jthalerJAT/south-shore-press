@@ -15,20 +15,22 @@ type Props = {
 export function SectionRail({ title, sectionSlug, stories }: Props) {
   if (stories.length === 0) return null;
 
+  // v1 section-block treatment: bold serif title on the left, red
+  // "VIEW ALL →" link on the right, no underline below the row.
   return (
-    <section className="mt-12">
-      <div className="flex items-end justify-between border-b-2 border-brand-red pb-2 mb-6">
-        <h2 className="font-headline text-2xl font-bold uppercase tracking-tight text-zinc-900">
+    <section className="mt-10 sm:mt-12">
+      <div className="flex items-baseline justify-between gap-4 mb-4 sm:mb-5">
+        <h2 className="font-headline text-2xl sm:text-[26px] font-extrabold text-zinc-900">
           {title}
         </h2>
         <Link
           href={`/${sectionSlug}`}
-          className="text-xs uppercase tracking-widest font-semibold text-brand-red hover:text-brand-red-dark transition-colors"
+          className="text-[11px] uppercase tracking-widest font-bold text-brand-red hover:text-brand-red-dark transition-colors whitespace-nowrap"
         >
-          More {title} →
+          View All →
         </Link>
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
         {stories.slice(0, 4).map((story) => (
           <StoryCard key={story.id} story={story} variant="standard" />
         ))}

@@ -192,23 +192,26 @@ export default async function StoryPage({ params }: { params: Params }) {
       {sectionMeta ? (
         <Link
           href={`/${sectionMeta.slug}`}
-          className="text-xs uppercase tracking-widest text-brand-red font-semibold hover:text-brand-red-dark transition-colors"
+          className="text-[11px] uppercase tracking-widest text-brand-red font-bold hover:text-brand-red-dark transition-colors"
         >
           {sectionMeta.label}
         </Link>
       ) : null}
 
-      <h1 className="mt-3 font-headline text-3xl sm:text-4xl md:text-5xl font-bold leading-tight tracking-tight text-zinc-900">
+      {/* v1 headline scale: ~38px, weight 800, tight leading. Tailwind's
+          text-4xl is 36px so we use an explicit value at lg. */}
+      <h1 className="mt-3 font-headline text-3xl sm:text-4xl lg:text-[38px] font-extrabold leading-[1.15] tracking-tight text-zinc-900">
         {story.headline}
       </h1>
 
       {story.subline ? (
-        <p className="mt-4 text-lg sm:text-xl text-zinc-600 leading-relaxed">
+        <p className="mt-4 font-headline text-xl sm:text-2xl text-zinc-600 leading-snug italic">
           {story.subline}
         </p>
       ) : null}
 
-      <div className="mt-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-zinc-500">
+      {/* Byline + date row, with bottom border underline (matches v1) */}
+      <div className="mt-6 pb-5 border-b border-zinc-200 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-zinc-500 font-medium">
         {authorName ? <span>By {authorName}</span> : null}
         {authorName && formattedDate ? <span aria-hidden="true">·</span> : null}
         {formattedDate ? (
@@ -216,18 +219,21 @@ export default async function StoryPage({ params }: { params: Params }) {
         ) : null}
       </div>
 
-      <div className="mt-8">
+      {/* 8px rounded corners on hero — matches v1's --radius */}
+      <div className="mt-7">
         <HeroMedia url={story.hero_photo_url} alt={heroAlt} variant="hero" priority />
       </div>
 
-      <div className="mt-8 prose-story">
+      {/* Body: v1 scale (16px) but with a slightly loosened line-height
+          for long-form readability. Paragraph spacing matches v1's 18px. */}
+      <div className="mt-7">
         {paragraphs.length === 0 ? (
           <p className="text-zinc-500 italic">No body content.</p>
         ) : (
           paragraphs.map((p, i) => (
             <p
               key={i}
-              className="text-lg leading-relaxed text-zinc-800 mb-5 last:mb-0"
+              className="text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0"
             >
               {p}
             </p>

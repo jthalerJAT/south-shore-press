@@ -4,7 +4,9 @@ import { parseYouTubeId, youTubeEmbedUrl } from '@/lib/youtube';
 type Props = {
   url: string | null | undefined;
   alt: string;
-  /** Controls layout. 'hero' = full-bleed 16:9, 'card' = 4:3 thumbnail. */
+  /** Controls layout. 'hero' = full-bleed 16:9 with rounded corners (story
+   *  detail), 'card' = 16:10 thumbnail (homepage + category grids — matches
+   *  v1's card aspect). */
   variant?: 'hero' | 'card';
   /** Mark the hero image as priority so LCP is fast on the story page. */
   priority?: boolean;
@@ -26,7 +28,7 @@ export function HeroMedia({ url, alt, variant = 'hero', priority }: Props) {
         className={
           variant === 'hero'
             ? 'aspect-video w-full bg-zinc-100'
-            : 'aspect-[4/3] w-full bg-zinc-100'
+            : 'aspect-[16/10] w-full bg-zinc-100'
         }
         aria-hidden="true"
       />
@@ -41,7 +43,7 @@ export function HeroMedia({ url, alt, variant = 'hero', priority }: Props) {
   if (variant === 'card') {
     const src = ytId ? `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg` : url;
     return (
-      <div className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-100">
+      <div className="relative aspect-[16/10] w-full overflow-hidden bg-zinc-100">
         <Image
           src={src}
           alt={alt}
@@ -71,7 +73,7 @@ export function HeroMedia({ url, alt, variant = 'hero', priority }: Props) {
   // for photo.
   if (ytId) {
     return (
-      <div className="relative aspect-video w-full overflow-hidden bg-black">
+      <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-black">
         <iframe
           src={youTubeEmbedUrl(ytId)}
           title={alt}
@@ -85,7 +87,7 @@ export function HeroMedia({ url, alt, variant = 'hero', priority }: Props) {
   }
 
   return (
-    <div className="relative aspect-video w-full overflow-hidden bg-zinc-100">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-zinc-100">
       <Image
         src={url}
         alt={alt}

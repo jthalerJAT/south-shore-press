@@ -1,12 +1,30 @@
 import type { Metadata } from 'next';
+import { Playfair_Display, Source_Sans_3 } from 'next/font/google';
 import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
 import { SiteFooter } from '@/components/site/site-footer';
 import { GlobalJsonLd } from '@/components/seo/global-jsonld';
 
+// v1 typography ported via next/font — self-hosted, no external Google
+// Fonts request on render, no FOUT/FOIT. The CSS variables are wired
+// into tailwind.config.ts so `font-serif`, `font-sans`, `font-headline`
+// resolve to the right family without inline style props.
+const playfair = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['400', '700', '800'],
+  variable: '--font-playfair',
+  display: 'swap',
+});
+
+const sourceSans = Source_Sans_3({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-source-sans',
+  display: 'swap',
+});
+
 // Default metadata applies to every page; individual pages can override
-// any field via their own exported `metadata` object. This is what powers
-// SEO and social link previews on the public-facing pages.
+// any field via their own exported `metadata` object.
 export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL ?? 'https://south-shore-press.vercel.app'
@@ -54,8 +72,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900">
+    <html
+      lang="en"
+      className={`${playfair.variable} ${sourceSans.variable}`}
+    >
+      <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900 font-sans">
         <GlobalJsonLd />
         <SiteHeader />
         <main className="flex-1">{children}</main>

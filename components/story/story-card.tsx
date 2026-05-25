@@ -58,24 +58,32 @@ export function StoryCard({ story, variant = 'standard' }: Props) {
     );
   }
 
+  // v1-style card: subtle border, content padding, hover lift + border
+  // shift. Whole surface is clickable and the headline transitions to
+  // brand red on hover.
   return (
-    <Link href={href} className="group block">
+    <Link
+      href={href}
+      className="group block bg-white border border-zinc-200 hover:border-zinc-300 rounded-lg overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+    >
       <HeroMedia
         url={story.hero_photo_url}
         alt={story.headline}
         variant="card"
       />
-      <div className="mt-3">
+      <div className="px-4 pt-3 pb-4">
         {story.categories?.[0] ? (
-          <div className="text-[10px] uppercase tracking-widest text-brand-red font-semibold">
+          <div className="text-[10px] uppercase tracking-widest text-brand-red font-bold">
             {story.categories[0]}
           </div>
         ) : null}
-        <h3 className="mt-1 font-headline text-lg font-bold leading-snug text-zinc-900 group-hover:text-brand-red transition-colors line-clamp-3">
+        <h3 className="mt-1 font-headline text-[15px] font-bold leading-snug text-zinc-900 group-hover:text-brand-red transition-colors line-clamp-3">
           {story.headline}
         </h3>
         {story.byline ? (
-          <div className="mt-1.5 text-xs text-zinc-500">By {story.byline}</div>
+          <div className="mt-2 text-[11px] text-zinc-500 font-medium">
+            By {story.byline}
+          </div>
         ) : null}
       </div>
     </Link>

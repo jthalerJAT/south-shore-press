@@ -70,10 +70,24 @@ const config: Config = {
         sm: 'calc(var(--radius) - 4px)',
       },
       fontFamily: {
-        // Newspaper-style serif for body + headlines, system sans for UI chrome.
-        serif: ['Georgia', '"Times New Roman"', 'serif'],
-        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
-        headline: ['Georgia', '"Times New Roman"', 'serif'],
+        // v1 typography stack — Playfair Display for headlines, Source
+        // Sans 3 for body and UI chrome. CSS variables are injected by
+        // next/font in app/layout.tsx; the fallbacks here cover any
+        // pre-hydration paint.
+        serif: ['var(--font-playfair)', 'Georgia', '"Times New Roman"', 'serif'],
+        sans: [
+          'var(--font-source-sans)',
+          'system-ui',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'sans-serif',
+        ],
+        headline: [
+          'var(--font-playfair)',
+          'Georgia',
+          '"Times New Roman"',
+          'serif',
+        ],
       },
       maxWidth: {
         '8xl': '88rem',

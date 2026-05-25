@@ -32,7 +32,14 @@ export function TopStoriesRail({ stories }: { stories: StoryListItem[] }) {
         </h2>
       </div>
 
-      <ul className="flex-1 min-h-0 lg:overflow-y-auto divide-y divide-zinc-100">
+      {/* flex-1 + min-h-0 lets the ul shrink below its content height
+          inside the flex column (required for overflow-y-auto to
+          engage). ssp-scroll gives us a thin, always-styled scrollbar
+          with `scrollbar-gutter: stable` so the gutter is reserved
+          whether or not the content currently overflows — newly
+          published stories won't reflow the rail width when they
+          push it past the threshold. */}
+      <ul className="flex-1 min-h-0 lg:overflow-y-auto ssp-scroll divide-y divide-zinc-100">
         {stories.map((story) => {
           const sectionSlug = story.categories?.[0] ?? null;
           const sectionLabel = sectionSlug

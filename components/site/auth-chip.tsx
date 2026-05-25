@@ -70,7 +70,7 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
       <div className="flex items-center">
         <Link
           href="/signin"
-          className="inline-flex items-center border border-zinc-900 px-4 py-1.5 text-[11px] uppercase tracking-widest font-bold text-zinc-900 hover:bg-zinc-900 hover:text-white transition-colors"
+          className="inline-flex items-center border border-zinc-900 px-4 py-2 text-[11px] uppercase tracking-widest font-bold text-zinc-900 hover:bg-zinc-900 hover:text-white transition-colors"
         >
           Sign In
         </Link>
@@ -136,7 +136,7 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
       <form action={signOutAction}>
         <button
           type="submit"
-          className="inline-flex items-center border border-zinc-900 px-4 py-1.5 text-[11px] uppercase tracking-widest font-bold text-zinc-900 hover:bg-zinc-900 hover:text-white transition-colors"
+          className="inline-flex items-center border border-zinc-900 px-4 py-2 text-[11px] uppercase tracking-widest font-bold text-zinc-900 hover:bg-zinc-900 hover:text-white transition-colors"
         >
           Sign Out
         </button>

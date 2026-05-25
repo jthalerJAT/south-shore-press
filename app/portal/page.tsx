@@ -1,65 +1,58 @@
 import type { Metadata } from 'next';
 import { requireUser } from '@/lib/auth';
-import { signOutAction } from '@/app/signin/actions';
+import { PortalShell } from '@/components/portal/portal-shell';
+import { StoriesTable } from '@/components/portal/stories-table';
+import { getStoriesAuthoredBy } from '@/lib/queries/editor-stories';
 
 export const metadata: Metadata = {
-  title: 'Newsroom portal',
+  title: 'My stories',
   robots: { index: false, follow: false },
 };
 
-// Phase 5 commit 1 stub. Confirms the auth round-trip works end-to-end.
-// Subsequent commits replace this with the journalist drafts list
-// + editor all-stories table.
-
-export default async function PortalPage({
+export default async function PortalMyStoriesPage({
   searchParams,
 }: {
-  searchParams: { denied?: string };
+  searchParams: { denied?: string; deleted?: string };
 }) {
   const user = await requireUser('/portal');
+  const stories = await getStoriesAuthoredBy(user.id);
 
   return (
-    <section className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
-      <div className="text-xs uppercase tracking-widest text-brand-red font-semibold">
-        Newsroom
-      </div>
-      <h1 className="mt-2 font-headline text-3xl sm:text-4xl font-bold text-zinc-900">
-        Portal
-      </h1>
-
+    <PortalShell user={user} activeTab="mine" title="My Stories">
       {searchParams.denied ? (
-        <div
-          role="alert"
-          className="mt-6 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2"
-        >
+        <FlashBox tone="red">
           You don&apos;t have permission for that page.
-        </div>
+        </FlashBox>
+      ) : null}
+      {searchParams.deleted ? (
+        <FlashBox tone="green">Story deleted.</FlashBox>
       ) : null}
 
-      <div className="mt-8 p-6 bg-zinc-50 border border-zinc-200 rounded">
-        <div className="text-sm text-zinc-500">Signed in as</div>
-        <div className="mt-1 text-base text-zinc-900 font-medium">
-          {user.displayName ?? user.email}
-        </div>
-        <div className="mt-0.5 text-sm text-zinc-500">{user.email}</div>
-        <div className="mt-2 inline-block text-[10px] uppercase tracking-widest font-semibold px-2 py-0.5 bg-brand-red text-white rounded">
-          {user.role}
-        </div>
+      <StoriesTable
+        stories={stories}
+        emptyMessage="No stories yet. Click + Start New Story to get going."
+      />
+    </PortalShell>
+  );
+}
 
-        <form action={signOutAction} className="mt-6">
-          <button
-            type="submit"
-            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-white rounded transition-colors"
-          >
-            Sign out
-          </button>
-        </form>
-      </div>
-
-      <p className="mt-8 text-sm text-zinc-500">
-        The full editor portal is shipping in the next commit. This stub
-        confirms the auth round-trip works.
-      </p>
-    </section>
+function FlashBox({
+  tone,
+  children,
+}: {
+  tone: 'red' | 'green';
+  children: React.ReactNode;
+}) {
+  const styles =
+    tone === 'red'
+      ? 'text-red-700 bg-red-50 border-red-200'
+      : 'text-emerald-700 bg-emerald-50 border-emerald-200';
+  return (
+    <div
+      role={tone === 'red' ? 'alert' : 'status'}
+      className={`mb-4 text-sm border rounded px-3 py-2 ${styles}`}
+    >
+      {children}
+    </div>
   );
 }

@@ -35,7 +35,7 @@ export const SITE = {
   // External profiles. Placeholder URLs — replace with real handles before
   // launching Phase 6 (social integrations).
   social: {
-    x: 'https://x.com/southshorepress',
+    x: 'https://x.com/SSPNewsroom',
     youtube: 'https://www.youtube.com/@southshorepress',
     instagram: 'https://www.instagram.com/southshorepress',
   },

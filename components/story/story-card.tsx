@@ -61,28 +61,50 @@ export function StoryCard({ story, variant = 'standard' }: Props) {
   // v1-style card: subtle border, content padding, hover lift + border
   // shift. Whole surface is clickable and the headline transitions to
   // brand red on hover.
+  //
+  // Layout note: card is a flex column so byline + date can be
+  // bottom-justified inside the content area via `mt-auto`. The card
+  // itself uses h-full so when CSS Grid stretches all tiles in a row
+  // to equal height, the bylines line up across the row regardless
+  // of how many lines each headline wraps to.
+  const formattedDate = story.published_at
+    ? new Date(story.published_at).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
+
+  const bylineParts = [
+    story.byline ? `By ${story.byline}` : null,
+    formattedDate,
+  ].filter(Boolean) as string[];
+  const bylineText = bylineParts.join(' · ');
+
   return (
     <Link
       href={href}
-      className="group block bg-white border border-zinc-200 hover:border-zinc-300 rounded-lg overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
+      className="group flex flex-col h-full bg-white border border-zinc-200 hover:border-zinc-300 rounded-lg overflow-hidden hover:-translate-y-0.5 hover:shadow-md transition-all duration-200"
     >
       <HeroMedia
         url={story.hero_photo_url}
         alt={story.headline}
         variant="card"
       />
-      <div className="px-4 pt-3 pb-4">
-        {story.categories?.[0] ? (
-          <div className="text-[10px] uppercase tracking-widest text-brand-red font-bold">
-            {story.categories[0]}
-          </div>
-        ) : null}
-        <h3 className="mt-1 font-headline text-[15px] font-bold leading-snug text-zinc-900 group-hover:text-brand-red transition-colors line-clamp-3">
-          {story.headline}
-        </h3>
-        {story.byline ? (
-          <div className="mt-2 text-[11px] text-zinc-500 font-medium">
-            By {story.byline}
+      <div className="px-4 pt-3 pb-4 flex-1 flex flex-col">
+        <div>
+          {story.categories?.[0] ? (
+            <div className="text-[10px] uppercase tracking-widest text-brand-red font-bold">
+              {story.categories[0]}
+            </div>
+          ) : null}
+          <h3 className="mt-1 font-headline text-[15px] font-bold leading-snug text-zinc-900 group-hover:text-brand-red transition-colors line-clamp-3">
+            {story.headline}
+          </h3>
+        </div>
+        {bylineText ? (
+          <div className="mt-auto pt-3 text-[11px] text-zinc-500 font-medium">
+            {bylineText}
           </div>
         ) : null}
       </div>

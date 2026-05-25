@@ -21,7 +21,7 @@ type StoryDefaults = {
 
 type Props = {
   mode: 'create' | 'edit';
-  role: 'journalist' | 'editor' | 'admin';
+  role: 'journalist' | 'editor' | 'admin' | 'master admin';
   defaults?: StoryDefaults;
   /** Read-only banner content shown above the form, e.g. saved confirmation. */
   flash?: string | null;
@@ -55,8 +55,12 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
   const [state, formAction] = useFormState(action, { error: null });
 
   const status = defaults?.status ?? 'draft';
-  const isEditor = role === 'editor' || role === 'admin';
-  const isJournalist = role === 'journalist';
+  // 'master admin' is treated as an editor-tier role too — see
+  // canManageAllStories in lib/auth.ts. Anyone NOT in that set is a
+  // journalist (or an unknown role, which we treat as journalist).
+  const isEditor =
+    role === 'editor' || role === 'admin' || role === 'master admin';
+  const isJournalist = !isEditor;
 
   // Read-only states: journalist looking at their own published/unpublished
   // story (editor must downgrade first), OR journalist looking at someone

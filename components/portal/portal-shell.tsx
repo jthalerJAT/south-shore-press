@@ -21,8 +21,18 @@ const TABS: Array<{
   // Roles allowed to see this tab.
   roles: ReadonlyArray<UserRole>;
 }> = [
-  { key: 'mine', label: 'My Stories', href: '/portal', roles: ['journalist', 'editor', 'admin'] },
-  { key: 'all', label: 'All Stories', href: '/portal/all', roles: ['editor', 'admin'] },
+  {
+    key: 'mine',
+    label: 'My Stories',
+    href: '/portal',
+    roles: ['journalist', 'editor', 'admin', 'master admin'],
+  },
+  {
+    key: 'all',
+    label: 'All Stories',
+    href: '/portal/all',
+    roles: ['editor', 'admin', 'master admin'],
+  },
 ];
 
 export function PortalShell({

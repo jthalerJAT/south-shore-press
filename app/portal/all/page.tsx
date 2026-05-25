@@ -17,7 +17,10 @@ export const metadata: Metadata = {
 export default async function PortalAllStoriesPage() {
   // Editors and admins only — journalists trying to deep-link here get
   // bounced to /portal?denied=1.
-  const user = await requireRole(['editor', 'admin'], '/portal/all');
+  const user = await requireRole(
+    ['editor', 'admin', 'master admin'],
+    '/portal/all'
+  );
   const stories = await getAllStoriesForEditor();
 
   return (

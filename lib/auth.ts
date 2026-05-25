@@ -10,7 +10,28 @@ import { createClient } from '@/lib/supabase/server';
  * 'admin' } (lowercase strings, mirrors v1).
  */
 
-export type UserRole = 'journalist' | 'editor' | 'admin';
+export type UserRole =
+  | 'journalist'
+  | 'editor'
+  | 'admin'
+  | 'master admin';
+
+/**
+ * Roles allowed to edit any story (not just their own), publish,
+ * unpublish, downgrade, and view the All Stories table. Add new
+ * elevated-permission roles here in one place — the AuthChip,
+ * requireRole gates, and server-action permission checks all
+ * consult `canManageAllStories` instead of hardcoding role names.
+ */
+export const EDITOR_TIER_ROLES: ReadonlyArray<UserRole> = [
+  'editor',
+  'admin',
+  'master admin',
+];
+
+export function canManageAllStories(role: UserRole): boolean {
+  return EDITOR_TIER_ROLES.includes(role);
+}
 
 export type AuthenticatedUser = {
   id: string;
@@ -38,12 +59,19 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 
   if (!profile) return null;
 
+  // Normalize the role: lowercase + replace underscores with spaces so
+  // we accept "MASTER ADMIN", "master_admin", "Master Admin", etc. as
+  // the same canonical "master admin" value.
+  const normalizedRole = String(profile.role ?? '')
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .trim() as UserRole;
+
   return {
     id: profile.id,
     email: profile.email,
     displayName: profile.display_name,
-    // Normalize defensively in case any legacy row has uppercase values.
-    role: String(profile.role).toLowerCase() as UserRole,
+    role: normalizedRole,
   };
 }
 

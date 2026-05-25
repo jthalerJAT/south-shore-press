@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { getCurrentUser } from '@/lib/auth';
+import { getCurrentUser, type UserRole } from '@/lib/auth';
 import { SITE_SECTIONS } from '@/lib/site-config';
 
 /**
@@ -61,7 +61,7 @@ function parseStoryFormData(formData: FormData) {
 function resolveNextStatus(
   currentStatus: 'draft' | 'submitted' | 'published' | 'unpublished' | null,
   intent: string,
-  role: 'journalist' | 'editor' | 'admin'
+  role: UserRole
 ): {
   status: 'draft' | 'submitted' | 'published' | 'unpublished';
   setPublishedAt: 'now' | 'preserve';

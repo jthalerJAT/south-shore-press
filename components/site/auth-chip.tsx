@@ -9,7 +9,7 @@ type User = {
   id: string;
   email: string;
   displayName: string | null;
-  role: 'journalist' | 'editor' | 'admin';
+  role: 'journalist' | 'editor' | 'admin' | 'master admin';
 };
 
 /**
@@ -78,7 +78,11 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
     );
   }
 
-  const isEditor = user.role === 'editor' || user.role === 'admin';
+  // master admin gets the same nav as editor/admin
+  const isEditor =
+    user.role === 'editor' ||
+    user.role === 'admin' ||
+    user.role === 'master admin';
   const firstName =
     user.displayName?.split(/\s+/)[0] ?? user.email.split('@')[0];
 

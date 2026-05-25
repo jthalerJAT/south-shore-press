@@ -35,6 +35,7 @@ export default async function PortalEditStoryPage({
   const canEdit =
     user.role === 'editor' ||
     user.role === 'admin' ||
+    user.role === 'master admin' ||
     (user.role === 'journalist' && story.author_id === user.id);
 
   return (

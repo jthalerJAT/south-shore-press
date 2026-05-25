@@ -89,15 +89,12 @@ export function SiteHeader() {
       {/* DESKTOP */}
       <div className="hidden lg:block">
         {/* MAIN HEADER BOX — 4 corners + centered logo/tagline.
-            py-4 (16px each side) gives all 4 corner items the same
-            distance to the closest line (top edge / divider below).
-            Unboxed text uses `leading-none` so its bounding box hugs
-            the visible characters — without this the half-leading
-            above/below the glyphs makes the unboxed text look
-            offset relative to the boxed items whose padding sits
-            on the actual box edge. */}
+            py-2 (8px each side) keeps the four corner items tight
+            against their closest line, matching v1. Unboxed text
+            uses `leading-none` so its bounding box hugs the visible
+            characters and aligns with the boxed items' edges. */}
         <div className="max-w-8xl mx-auto px-6">
-          <div className="flex items-stretch py-4">
+          <div className="flex items-stretch py-2">
             {/* LEFT COLUMN */}
             <div className="flex-1 flex flex-col justify-between min-w-0">
               <div>
@@ -111,10 +108,10 @@ export function SiteHeader() {
               <HeaderClock className="text-xs leading-none uppercase tracking-widest text-zinc-600 font-medium" />
             </div>
 
-            {/* CENTER COLUMN — tagline (italic serif, v1 match)
-                above logo (v1's 72px height). */}
+            {/* CENTER COLUMN — small italic serif tagline above a
+                large logo. The logo dominates the center, matching v1. */}
             <div className="flex flex-col items-center justify-center px-6 shrink-0">
-              <div className="font-serif text-[11px] uppercase tracking-[0.25em] italic text-zinc-500 font-medium mb-2">
+              <div className="font-serif text-[10px] uppercase tracking-[0.2em] italic text-zinc-500 font-medium mb-1.5 leading-none">
                 {SITE.tagline}
               </div>
               <Link href="/" className="block group">
@@ -124,7 +121,7 @@ export function SiteHeader() {
                   width={700}
                   height={140}
                   priority
-                  className="h-[72px] w-auto group-hover:opacity-90 transition-opacity"
+                  className="h-[120px] w-auto group-hover:opacity-90 transition-opacity"
                 />
               </Link>
             </div>

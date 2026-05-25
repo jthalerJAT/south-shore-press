@@ -59,4 +59,23 @@
     @apply bg-background text-foreground;
     font-family: var(--font-serif);
   }
+
+  /* Hide all browser-default decorations on <input type="search">.
+     Chrome/Edge add a "clear" X button + a search decoration; Safari
+     adds an inset magnifier. We render our own magnifier and don't
+     want any of these. Without this rule some Edge builds were also
+     drawing scroll-affordance arrow indicators around the search
+     element when its container overflowed. */
+  input[type='search']::-webkit-search-cancel-button,
+  input[type='search']::-webkit-search-decoration,
+  input[type='search']::-webkit-search-results-button,
+  input[type='search']::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+  }
+  input[type='search'] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
 }

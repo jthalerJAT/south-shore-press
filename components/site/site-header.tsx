@@ -140,7 +140,11 @@ export function SiteHeader() {
         {/* TAB ROW — nav left, search + social right */}
         <div className="max-w-8xl mx-auto px-6">
           <div className="flex items-center justify-between h-11">
-            <nav aria-label="Sections" className="flex items-center -ml-3 overflow-x-auto">
+            {/* No `overflow-x-auto` here on purpose — Edge / some Chrome
+                builds draw scroll-affordance arrow indicators on the
+                left + right edges of any overflow-auto container. On
+                lg+ the nav always fits inside max-w-8xl. */}
+            <nav aria-label="Sections" className="flex items-center -ml-3 min-w-0">
               {NAV_ITEMS.map((item) => {
                 const isActive =
                   item.href === '/'

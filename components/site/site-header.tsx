@@ -3,24 +3,30 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { Menu, X, Search, User } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Menu, X, Search } from 'lucide-react';
 import { SITE, SITE_SECTIONS } from '@/lib/site-config';
 import { cn } from '@/lib/utils';
+import { HeaderClock } from './header-clock';
+import { AuthChip } from './auth-chip';
 
 /**
- * v1-style 3-zone masthead, light theme:
- *   Top utility row    — date · social icons · sign in · search
- *   Center brand row   — logo image + tagline below (centered)
- *   Bottom nav row     — uppercase section links with red 3px active underline
+ * v1-style masthead. Desktop layout (lg+):
  *
- * Mobile (<lg): collapses to a single-row masthead with logo + hamburger.
- * The hamburger opens a slide-down panel with section links + utility.
+ *   ┌──────────────────────────────────────────────────────────────────┐
+ *   │ EMAIL BRIEFINGS         (tagline italic)        AuthChip │
+ *   │                          [   LOGO   ]                          │
+ *   │ time · day, month dd, yyyy                  [SUBSCRIBE NOW]    │
+ *   ├──────────────────────────────────────────────────────────────────┤
+ *   │ HOME · LOCAL · STATE · ... · VIDEO VAULT       [search] [socials]│
+ *   ├──────────────────────────────────────────────────────────────────┤
  *
- * Built as a Client Component for the mobile menu state; the desktop
- * tree is mostly server-renderable HTML/CSS that hydrates instantly.
+ * 3-column flex; the side columns use flex-col with justify-between to
+ * push their two items to top + bottom. Center column hosts tagline +
+ * logo stacked vertically.
  *
- * Date is computed in render and shown to the day's granularity, so ISR
- * regeneration only invalidates the date once a day.
+ * Mobile (<lg): collapses to logo + search + hamburger. Slide-down panel
+ * exposes Email Briefings, Subscribe Now, sections, and the AuthChip.
  */
 
 const SOCIAL_LINKS: ReadonlyArray<{
@@ -57,20 +63,18 @@ const SOCIAL_LINKS: ReadonlyArray<{
   },
 ];
 
-function formatDateLong(d: Date): string {
-  return d.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
+// "HOME" gets prepended manually since it's not a section slug; it links
+// to "/" and is the active tab when pathname === '/'.
+const NAV_ITEMS = [
+  { label: 'Home', href: '/' },
+  ...SITE_SECTIONS.map((s) => ({ label: s.label, href: `/${s.slug}` })),
+] as const;
 
 export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
-  // Lock background scroll while the mobile panel is open (matches v1
-  // and the iOS Safari quirk where the body keeps scrolling underneath).
+  // Lock background scroll while the mobile panel is open (iOS Safari fix).
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
@@ -80,20 +84,87 @@ export function SiteHeader() {
     }
   }, [mobileOpen]);
 
-  // Date is generated at render. With ISR (60s on the homepage, 600s on
-  // sitemap, etc.) and short cache windows, this will refresh frequently
-  // enough that visitors see today's date.
-  const dateLabel = formatDateLong(new Date());
-
   return (
     <header className="sticky top-0 z-40 w-full bg-white border-b border-zinc-200 shadow-sm">
-      {/* DESKTOP: 3-zone masthead */}
+      {/* DESKTOP */}
       <div className="hidden lg:block">
-        {/* Top utility row */}
-        <div className="border-b border-zinc-100">
-          <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-9 text-xs">
-            <div className="text-zinc-500 font-medium">{dateLabel}</div>
-            <div className="flex items-center gap-5">
+        {/* MAIN HEADER BOX — 4 corners + centered logo/tagline */}
+        <div className="max-w-8xl mx-auto px-6">
+          <div className="flex items-stretch py-3">
+            {/* LEFT COLUMN */}
+            <div className="flex-1 flex flex-col justify-between min-w-0">
+              <div>
+                <Link
+                  href="/email-briefings"
+                  className="text-[11px] uppercase tracking-widest font-bold text-zinc-700 hover:text-brand-red transition-colors"
+                >
+                  Email Briefings
+                </Link>
+              </div>
+              <HeaderClock className="text-[11px] uppercase tracking-widest text-zinc-500 font-medium" />
+            </div>
+
+            {/* CENTER COLUMN — tagline above logo */}
+            <div className="flex flex-col items-center justify-center px-6 shrink-0">
+              <div className="text-[11px] uppercase tracking-[0.25em] italic text-zinc-500 font-medium mb-2">
+                {SITE.tagline}
+              </div>
+              <Link href="/" className="block group">
+                <Image
+                  src="/logo.png"
+                  alt={SITE.name}
+                  width={700}
+                  height={140}
+                  priority
+                  className="h-24 w-auto group-hover:opacity-90 transition-opacity"
+                />
+              </Link>
+            </div>
+
+            {/* RIGHT COLUMN */}
+            <div className="flex-1 flex flex-col justify-between items-end min-w-0">
+              <AuthChip />
+              <Link
+                href="/subscribe"
+                className="inline-flex items-center px-5 py-2 text-[11px] uppercase tracking-widest font-bold text-white bg-brand-red hover:bg-brand-red-dark transition-colors"
+              >
+                Subscribe Now
+              </Link>
+            </div>
+          </div>
+        </div>
+
+        {/* DIVIDER */}
+        <div className="border-t border-zinc-200" />
+
+        {/* TAB ROW — nav left, search + social right */}
+        <div className="max-w-8xl mx-auto px-6">
+          <div className="flex items-center justify-between h-11">
+            <nav aria-label="Sections" className="flex items-center -ml-3 overflow-x-auto">
+              {NAV_ITEMS.map((item) => {
+                const isActive =
+                  item.href === '/'
+                    ? pathname === '/'
+                    : pathname === item.href ||
+                      pathname?.startsWith(`${item.href}/`);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider border-b-[3px] -mb-px transition-colors whitespace-nowrap',
+                      isActive
+                        ? 'border-brand-red text-brand-red'
+                        : 'border-transparent text-zinc-700 hover:text-brand-red hover:border-brand-red'
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="flex items-center gap-4 shrink-0 pl-4">
+              <SearchBar />
               <div className="flex items-center gap-3" aria-label="Social">
                 {SOCIAL_LINKS.map((s) => (
                   <a
@@ -104,69 +175,29 @@ export function SiteHeader() {
                     aria-label={s.label}
                     className="text-zinc-500 hover:text-brand-red transition-colors"
                   >
-                    <s.icon className="w-3.5 h-3.5" />
+                    <s.icon className="w-4 h-4" />
                   </a>
                 ))}
               </div>
-              <Link
-                href="/signin"
-                className="flex items-center gap-1 text-zinc-600 hover:text-brand-red font-semibold uppercase tracking-wider transition-colors"
-              >
-                <User className="w-3.5 h-3.5" />
-                Sign in
-              </Link>
-              <SearchBar />
             </div>
           </div>
         </div>
 
-        {/* Center brand row */}
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center">
-          <Link href="/" className="inline-block group">
-            <Image
-              src="/logo.png"
-              alt={SITE.name}
-              width={400}
-              height={72}
-              priority
-              className="h-14 w-auto mx-auto group-hover:opacity-90 transition-opacity"
-            />
-            <div className="mt-1 text-[11px] uppercase tracking-[0.2em] italic text-zinc-500 font-medium">
-              {SITE.tagline}
-            </div>
-          </Link>
-        </div>
-
-        {/* Bottom nav row */}
-        <nav
-          aria-label="Sections"
-          className="border-t border-zinc-200"
-        >
-          <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-center gap-1">
-            {SITE_SECTIONS.map((section) => (
-              <Link
-                key={section.slug}
-                href={`/${section.slug}`}
-                className="px-3 py-2.5 text-[11.5px] font-bold uppercase tracking-wider text-zinc-700 hover:text-brand-red border-b-[3px] border-transparent hover:border-brand-red transition-colors"
-              >
-                {section.label}
-              </Link>
-            ))}
-          </div>
-        </nav>
+        {/* BOTTOM DIVIDER (under tabs) */}
+        <div className="border-t border-zinc-200" />
       </div>
 
-      {/* MOBILE: single-row masthead + hamburger */}
+      {/* MOBILE */}
       <div className="lg:hidden">
-        <div className="max-w-8xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 flex items-center justify-between py-3">
           <Link href="/" onClick={() => setMobileOpen(false)} className="block">
             <Image
               src="/logo.png"
               alt={SITE.name}
-              width={300}
-              height={48}
+              width={500}
+              height={100}
               priority
-              className="h-9 w-auto"
+              className="h-14 w-auto"
             />
           </Link>
           <div className="flex items-center gap-1">
@@ -184,42 +215,70 @@ export function SiteHeader() {
               aria-expanded={mobileOpen}
               className="p-2 text-zinc-700 hover:text-brand-red transition-colors"
             >
-              {mobileOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
+              {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
-        {/* Slide-down panel */}
+        {/* Mobile slide-down panel */}
         <div
           className={cn(
             'overflow-hidden transition-[max-height] duration-300 ease-in-out bg-white border-t border-zinc-200',
-            mobileOpen ? 'max-h-[85vh]' : 'max-h-0'
+            mobileOpen ? 'max-h-[90vh]' : 'max-h-0'
           )}
         >
-          <nav aria-label="Sections (mobile)" className="px-4 py-3 flex flex-col">
-            {SITE_SECTIONS.map((section) => (
+          <div className="px-4 py-3 flex flex-col gap-3">
+            {/* Top utility links */}
+            <div className="flex items-center justify-between text-[11px] uppercase tracking-widest font-bold text-zinc-700">
               <Link
-                key={section.slug}
-                href={`/${section.slug}`}
+                href="/email-briefings"
                 onClick={() => setMobileOpen(false)}
-                className="px-3 py-3 text-base font-semibold uppercase tracking-wide text-zinc-800 hover:text-brand-red hover:bg-zinc-50 rounded transition-colors border-b border-zinc-100 last:border-0"
+                className="hover:text-brand-red transition-colors"
               >
-                {section.label}
+                Email Briefings
               </Link>
-            ))}
-            <Link
-              href="/signin"
-              onClick={() => setMobileOpen(false)}
-              className="mt-3 inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-bold uppercase tracking-wider text-white bg-brand-red hover:bg-brand-red-dark rounded transition-colors"
-            >
-              <User className="w-4 h-4" />
-              Sign in
-            </Link>
-            <div className="mt-4 pt-3 border-t border-zinc-100 flex items-center justify-center gap-5">
+              <Link
+                href="/subscribe"
+                onClick={() => setMobileOpen(false)}
+                className="inline-flex items-center px-3 py-1.5 text-white bg-brand-red hover:bg-brand-red-dark transition-colors"
+              >
+                Subscribe
+              </Link>
+            </div>
+
+            {/* Sections */}
+            <nav aria-label="Sections (mobile)" className="flex flex-col">
+              {NAV_ITEMS.map((item) => {
+                const isActive =
+                  item.href === '/'
+                    ? pathname === '/'
+                    : pathname === item.href ||
+                      pathname?.startsWith(`${item.href}/`);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      'px-3 py-3 text-base font-semibold uppercase tracking-wide transition-colors border-b border-zinc-100 last:border-0',
+                      isActive
+                        ? 'text-brand-red'
+                        : 'text-zinc-800 hover:text-brand-red'
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* AuthChip — adapts to mobile variant */}
+            <div className="pt-2">
+              <AuthChip variant="mobile" />
+            </div>
+
+            {/* Social row */}
+            <div className="pt-3 border-t border-zinc-100 flex items-center justify-center gap-5">
               {SOCIAL_LINKS.map((s) => (
                 <a
                   key={s.label}
@@ -233,19 +292,16 @@ export function SiteHeader() {
                 </a>
               ))}
             </div>
-            <div className="mt-3 text-center text-xs text-zinc-500">
-              {dateLabel}
-            </div>
-          </nav>
+
+            {/* Clock */}
+            <HeaderClock className="text-center text-[11px] uppercase tracking-widest text-zinc-500 font-medium" />
+          </div>
         </div>
       </div>
     </header>
   );
 }
 
-/** Compact search input visually similar to v1's rounded pill. Submits
- *  to /search?q=... which is a placeholder route until real search
- *  lands. */
 function SearchBar() {
   return (
     <form action="/search" method="GET" className="flex items-center">
@@ -258,9 +314,9 @@ function SearchBar() {
           name="q"
           type="search"
           placeholder="Search…"
-          className="bg-zinc-100 hover:bg-zinc-200/70 focus:bg-white border border-transparent focus:border-zinc-300 rounded-full pl-7 pr-3 py-1 text-xs w-36 focus:outline-none focus:ring-1 focus:ring-brand-red transition-colors"
+          className="bg-zinc-100 hover:bg-zinc-200/70 focus:bg-white border border-transparent focus:border-zinc-300 rounded-full pl-8 pr-3 py-1.5 text-xs w-44 focus:outline-none focus:ring-1 focus:ring-brand-red transition-colors"
         />
-        <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-zinc-500 pointer-events-none" />
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-500 pointer-events-none" />
       </div>
     </form>
   );

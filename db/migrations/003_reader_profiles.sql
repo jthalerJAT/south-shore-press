@@ -100,7 +100,7 @@ BEGIN
   VALUES (
     NEW.id,
     NEW.email,
-    'reader'::text,
+    'reader',                          -- no ::text cast; PG resolves to the enum
     ARRAY['reader']::text[],
     v_display,
     v_first,

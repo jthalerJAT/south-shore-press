@@ -125,14 +125,18 @@ export async function getPublishedStoriesBySection(
 
 /**
  * Fetch a single published story by the 8-char short id (first 8 hex
- * chars of the UUID, dashes stripped). UUIDs aren't natively prefix-
- * searchable in Postgres, so we cast to text and use LIKE — fine at the
- * scale of one DB row per request, and the planner uses the PK index for
- * the equality bits.
+ * chars of the UUID). UUIDs aren't natively prefix-searchable through
+ * the Supabase JS / PostgREST surface — `.filter('id::text', 'like', ...)`
+ * does NOT work (PostgREST doesn't accept `column::type` in the column
+ * field of the filter helper, so the cast is rejected and every query
+ * errors). Use a byte-range query instead: uuid comparison in Postgres
+ * is lexicographic, so `id >= '<short>-0000-...-0' AND id <= '<short>-
+ * ffff-...-f'` matches exactly the UUIDs whose first 8 hex chars equal
+ * the short id, and the PK index is used efficiently.
  *
- * Collision handling: in the extremely unlikely event two stories share a
- * short id, we pick the most-recent published one. This can be hardened
- * once we add a real `slug` column.
+ * Collision handling: in the extremely unlikely event two stories share
+ * a short id, we pick the most-recent published one. This can be
+ * hardened once we add a real `slug` column.
  */
 export async function getPublishedStoryByShortId(
   shortId: string
@@ -140,16 +144,16 @@ export async function getPublishedStoryByShortId(
   if (!/^[a-f0-9]{8}$/.test(shortId)) return null;
 
   const supabase = createClient();
-  // Re-introduce the dash so the prefix matches the canonical UUID text
-  // form. UUID v4 always has a dash after the first 8 chars.
-  const idPrefix = `${shortId.slice(0, 8)}-%`;
+  const lower = `${shortId}-0000-0000-0000-000000000000`;
+  const upper = `${shortId}-ffff-ffff-ffff-ffffffffffff`;
 
   const { data, error } = await supabase
     .from('stories')
     .select(DETAIL_COLUMNS)
     .eq('status', 'published')
     .not('published_at', 'is', null)
-    .filter('id::text', 'like', idPrefix)
+    .gte('id', lower)
+    .lte('id', upper)
     .order('published_at', { ascending: false })
     .limit(1)
     .maybeSingle();

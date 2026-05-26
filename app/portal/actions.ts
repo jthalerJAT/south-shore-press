@@ -132,8 +132,29 @@ export async function createStoryAction(
     .single();
 
   if (error || !data) {
-    console.error('[createStoryAction]', error);
-    return { error: error?.message ?? 'Failed to create story.' };
+    // Log every field of the Supabase error so we can diagnose from the
+    // Vercel runtime logs even when the truncated table view hides the
+    // detail. PostgrestError shape: { message, details, hint, code }.
+    console.error('[createStoryAction]', {
+      message: error?.message,
+      details: error?.details,
+      hint: error?.hint,
+      code: error?.code,
+      userId: user.id,
+      userRole: user.role,
+      intent,
+      nextStatus: next.status,
+      payloadHeadline: parsed.headline,
+      payloadCategories: parsed.categories,
+    });
+    // Surface the most useful piece of info in the UI. Postgres codes
+    // worth knowing: 42501 = RLS / permission denied, 23502 = NOT NULL
+    // violation, 23503 = FK violation, 23514 = CHECK violation.
+    const detail =
+      [error?.message, error?.details, error?.hint]
+        .filter(Boolean)
+        .join(' — ') || 'Failed to create story.';
+    return { error: detail };
   }
 
   revalidatePath('/portal');
@@ -208,8 +229,22 @@ export async function updateStoryAction(
     .eq('id', id);
 
   if (updErr) {
-    console.error('[updateStoryAction]', updErr);
-    return { error: updErr.message };
+    console.error('[updateStoryAction]', {
+      message: updErr.message,
+      details: updErr.details,
+      hint: updErr.hint,
+      code: updErr.code,
+      storyId: id,
+      userId: user.id,
+      userRole: user.role,
+      intent,
+      nextStatus: next.status,
+    });
+    const detail =
+      [updErr.message, updErr.details, updErr.hint]
+        .filter(Boolean)
+        .join(' — ') || 'Failed to save story.';
+    return { error: detail };
   }
 
   revalidatePath('/portal');

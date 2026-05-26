@@ -27,7 +27,12 @@ export default async function PortalMyDraftsPage({
   const drafts = await getMyDrafts(user.id);
 
   return (
-    <PortalShell user={user} activeTab="mine" title="My Drafts">
+    <PortalShell
+      user={user}
+      activeTab="mine"
+      title="My Drafts"
+      backLink={{ href: '/', label: 'Homepage' }}
+    >
       {searchParams.denied ? (
         <FlashBox tone="red">
           You don&apos;t have permission for that page.

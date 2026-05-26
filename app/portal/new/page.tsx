@@ -12,7 +12,12 @@ export default async function PortalNewStoryPage() {
   const user = await requireUser('/portal/new');
 
   return (
-    <PortalShell user={user} activeTab="new" title="New Story">
+    <PortalShell
+      user={user}
+      activeTab="new"
+      title="New Story"
+      backLink={{ href: '/portal', label: 'My Drafts' }}
+    >
       <StoryForm
         mode="create"
         role={user.role}

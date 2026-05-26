@@ -1,33 +1,97 @@
 import type { Metadata } from 'next';
-import { Suspense } from 'react';
+import Link from 'next/link';
+import { Users, LayoutGrid, FileEdit, ArrowRight } from 'lucide-react';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { AllStoriesView } from '@/components/portal/all-stories-view';
-import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 
 export const metadata: Metadata = {
-  title: 'All stories',
+  title: 'Editor Portal',
   robots: { index: false, follow: false },
 };
 
-// Server component: fetch the full story list, then hand off to the
-// client AllStoriesView which handles search/sort/filter via URL params.
-// Suspense boundary required because AllStoriesView uses
-// useSearchParams (Next.js 14 will otherwise warn at build time).
-export default async function PortalAllStoriesPage() {
-  // Editors and admins only — journalists trying to deep-link here get
-  // bounced to /portal?denied=1.
+/**
+ * Editor Portal landing — three-card hub per v1 spec.
+ *
+ *   Credentials   → designate user roles (journalist / editor / admin)
+ *   Site Layout   → assign stories to specific slots on the public site
+ *   Edit Stories  → searchable + sortable table of every story
+ *
+ * Each sub-page renders its own back arrow pointing to this landing.
+ */
+export default async function EditorPortalLandingPage() {
   const user = await requireRole(
     ['editor', 'admin', 'master admin'],
     '/portal/all'
   );
-  const stories = await getAllStoriesForEditor();
+
+  const tiles: Array<{
+    href: string;
+    title: string;
+    description: string;
+    icon: typeof Users;
+    badge?: string;
+  }> = [
+    {
+      href: '/portal/all/credentials',
+      title: 'Credentials',
+      description:
+        'Promote or demote users between journalist, editor, and admin roles.',
+      icon: Users,
+      badge: 'Coming soon',
+    },
+    {
+      href: '/portal/all/site-layout',
+      title: 'Site Layout',
+      description:
+        'Pin stories to specific slots on the homepage and section pages.',
+      icon: LayoutGrid,
+      badge: 'Coming soon',
+    },
+    {
+      href: '/portal/all/edit-stories',
+      title: 'Edit Stories',
+      description:
+        'Search, sort, and edit every story in the system. Click a row to open the editor.',
+      icon: FileEdit,
+    },
+  ];
 
   return (
-    <PortalShell user={user} activeTab="all" title="All Stories">
-      <Suspense fallback={null}>
-        <AllStoriesView stories={stories} />
-      </Suspense>
+    <PortalShell
+      user={user}
+      activeTab="all"
+      title="Editor Portal"
+      backLink={{ href: '/', label: 'Homepage' }}
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+        {tiles.map((tile) => (
+          <Link
+            key={tile.href}
+            href={tile.href}
+            className="group block bg-white border border-zinc-200 hover:border-brand-red rounded-lg p-6 hover:shadow-md transition-all"
+          >
+            <div className="flex items-start justify-between">
+              <div className="w-10 h-10 flex items-center justify-center bg-zinc-100 group-hover:bg-brand-red/10 text-zinc-700 group-hover:text-brand-red rounded transition-colors">
+                <tile.icon className="w-5 h-5" />
+              </div>
+              {tile.badge ? (
+                <span className="text-[10px] uppercase tracking-widest font-bold text-zinc-500 bg-zinc-100 px-1.5 py-0.5 rounded">
+                  {tile.badge}
+                </span>
+              ) : null}
+            </div>
+            <h2 className="mt-5 font-headline text-xl font-bold text-zinc-900 group-hover:text-brand-red transition-colors">
+              {tile.title}
+            </h2>
+            <p className="mt-2 text-sm text-zinc-600 leading-relaxed">
+              {tile.description}
+            </p>
+            <div className="mt-4 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-brand-red opacity-0 group-hover:opacity-100 transition-opacity">
+              Open <ArrowRight className="w-3 h-3" />
+            </div>
+          </Link>
+        ))}
+      </div>
     </PortalShell>
   );
 }

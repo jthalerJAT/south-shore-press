@@ -38,11 +38,21 @@ export default async function PortalEditStoryPage({
     user.role === 'master admin' ||
     (user.role === 'journalist' && story.author_id === user.id);
 
+  // Pick the most sensible back-link target based on role: editors
+  // likely came from the Edit Stories table, journalists from their
+  // own drafts list. (Smarter would be a ?from= referrer param, but
+  // this default is right >90% of the time.)
+  const backHref =
+    user.role === 'journalist'
+      ? { href: '/portal', label: 'My Drafts' }
+      : { href: '/portal/all/edit-stories', label: 'Edit Stories' };
+
   return (
     <PortalShell
       user={user}
       activeTab="editing"
       title={story.headline || 'Untitled'}
+      backLink={backHref}
     >
       <div className="flex items-center gap-3 mb-6">
         <StatusBadge status={story.status} />

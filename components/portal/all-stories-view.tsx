@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, type MouseEvent } from 'react';
 import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { Search, ArrowUp, ArrowDown } from 'lucide-react';
@@ -203,11 +203,14 @@ export function AllStoriesView({
       </div>
 
       {/* Status filter tabs with live counts — hidden when all stories
-          are a single status (e.g. journalist's drafts list). */}
+          are a single status (e.g. journalist's drafts list).
+          No `overflow-x-auto` here on purpose — Edge / some Chrome
+          builds render scroll-affordance arrows on the right side
+          when overflow-auto is set; flex-wrap is safer + cleaner. */}
       {!hideStatusFilter && (
         <nav
           aria-label="Filter by status"
-          className="flex items-center gap-1 border-b border-zinc-200 overflow-x-auto"
+          className="flex flex-wrap items-center gap-1 border-b border-zinc-200"
         >
           {STATUS_TABS.map((tab) => {
             const isActive = statusFilter === tab.key;
@@ -265,9 +268,13 @@ export function AllStoriesView({
       ) : (
         <div className="overflow-hidden border border-zinc-200 rounded-lg">
           {/* Desktop table — columns mirror v1 spec exactly:
-              Date | Time Posted | Title | Byline | Section | Status */}
-          <table className="hidden sm:table w-full text-sm">
-            <thead className="bg-zinc-50 border-b border-zinc-200">
+              Date | Time Posted | Title | Byline | Section | Status
+              Wrapped in a max-h scroller with sticky thead so the
+              column headers stay visible while editors scroll a
+              long story list. */}
+          <div className="hidden sm:block max-h-[65vh] overflow-y-auto ssp-scroll">
+          <table className="w-full text-sm">
+            <thead className="bg-zinc-50 border-b border-zinc-200 sticky top-0 z-10">
               <tr>
                 <SortableTh
                   label="Date"
@@ -321,10 +328,22 @@ export function AllStoriesView({
             <tbody className="divide-y divide-zinc-100">
               {visible.map((s) => {
                 const ts = s.published_at ?? s.created_at;
+                const href = `/portal/edit/${s.id}`;
+                // Whole-row click: navigate to the edit page. We still
+                // keep the title cell as a real <Link> so keyboard users
+                // can tab-and-Enter, and so the URL appears on hover.
+                // onClick ignores propagation from anchors/buttons inside
+                // the row so we don't double-fire.
+                const onRowClick = (e: MouseEvent<HTMLTableRowElement>) => {
+                  const el = e.target as HTMLElement;
+                  if (el.closest('a, button, input, select')) return;
+                  router.push(href);
+                };
                 return (
                   <tr
                     key={s.id}
-                    className="hover:bg-zinc-50 transition-colors"
+                    onClick={onRowClick}
+                    className="hover:bg-zinc-50 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3 text-zinc-600 text-xs whitespace-nowrap">
                       {formatDate(ts)}
@@ -334,7 +353,7 @@ export function AllStoriesView({
                     </td>
                     <td className="px-4 py-3">
                       <Link
-                        href={`/portal/edit/${s.id}`}
+                        href={href}
                         className="font-medium text-zinc-900 hover:text-brand-red"
                       >
                         {s.headline || (
@@ -363,6 +382,7 @@ export function AllStoriesView({
               })}
             </tbody>
           </table>
+          </div>
 
           {/* Mobile stack */}
           <ul className="sm:hidden divide-y divide-zinc-100">

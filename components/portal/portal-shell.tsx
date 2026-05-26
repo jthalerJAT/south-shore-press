@@ -2,12 +2,13 @@ import Link from 'next/link';
 import { signOutAction } from '@/app/signin/actions';
 import type { UserRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { BackLink, type BackLinkSpec } from './back-link';
 
 /**
  * Top chrome for /portal/* pages. Shows:
- *   - Page title + current user pill
- *   - Tabs: My Stories | All Stories (editor+) | + Start New Story
- *   - Sign out
+ *   - Optional "← Back to X" link (one level up the portal hierarchy)
+ *   - Page title + current user pill + Sign Out
+ *   - Tabs: Story Editor | Editor Portal (editor+) | + Start New Story
  *
  * The active tab is passed in by each page (we can't sniff pathname from
  * a server component without next/headers gymnastics, and this is simpler).
@@ -23,13 +24,13 @@ const TABS: Array<{
 }> = [
   {
     key: 'mine',
-    label: 'My Stories',
+    label: 'Story Editor',
     href: '/portal',
     roles: ['journalist', 'editor', 'admin', 'master admin'],
   },
   {
     key: 'all',
-    label: 'All Stories',
+    label: 'Editor Portal',
     href: '/portal/all',
     roles: ['editor', 'admin', 'master admin'],
   },
@@ -40,6 +41,7 @@ export function PortalShell({
   activeTab,
   children,
   title,
+  backLink,
 }: {
   user: {
     email: string;
@@ -49,9 +51,20 @@ export function PortalShell({
   activeTab: Tab;
   children: React.ReactNode;
   title?: string;
+  /** Optional back-link rendered at the very top of the shell. Provide
+   *  for any sub-page (e.g. /portal/all/edit-stories points back to
+   *  /portal/all). Omit on root portal pages if you don't want a back
+   *  arrow there. */
+  backLink?: BackLinkSpec;
 }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {backLink ? (
+        <div className="mb-4">
+          <BackLink {...backLink} />
+        </div>
+      ) : null}
+
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <div className="text-xs uppercase tracking-widest text-brand-red font-semibold">

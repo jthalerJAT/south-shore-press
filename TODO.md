@@ -5,6 +5,59 @@ the ones blocking domain cutover from v1.
 
 ---
 
+## Reader auth — recently shipped on `feat/reader-auth` (2026-05-26)
+
+- [x] Migration `003_reader_profiles.sql` — adds first/last/phone/address +
+  Stripe + subscription columns to `profiles`, adds `'reader'` to the
+  role enum, installs the `handle_new_auth_user` trigger that auto-
+  creates a profile row from `auth.users` insert.
+- [x] `/signup` self-registration page (first/last/email/phone/address +
+  password). Email confirmation required.
+- [x] `/forgot-password` + `/reset-password` (Supabase magic-link reset
+  via `/auth/callback`).
+- [x] `/account` tabbed editor (Profile · Payment · Subscription · Security)
+  with "Hi, [Name]" link in the masthead.
+- [x] Stripe SetupIntent + save-card flow (conditional on
+  `STRIPE_SECRET_KEY` env). UI gracefully hides when keys aren't set.
+- [x] Sign-out fix — `<SignOutButton>` client wrapper uses
+  `router.refresh()` so the AuthChip rehydrates after the cookie clear.
+- [x] Readers section on `/portal/all/credentials` (display-only;
+  search by name/email/city; shows phone/address/card/subscription
+  status/signup date).
+
+### Reader auth follow-ups (not yet built)
+
+- [ ] **Apply migration 003 in Supabase Studio.** It's a no-op for
+  data — additive columns + a new trigger + role enum value. Run as the
+  whole file; Supabase auto-commits each statement so ALTER TYPE ADD
+  VALUE works.
+- [ ] **Enable email confirmation in Supabase Auth settings**
+  (Authentication → Email Auth → "Confirm email" toggle). Already the
+  default on new projects; verify it's still on.
+- [ ] **Set Stripe env vars in Vercel** once the SSP Stripe account
+  exists: `STRIPE_SECRET_KEY` (server-only) and
+  `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`. Without them, /account → Payment
+  shows a "not configured" notice and the API returns 503.
+- [ ] **Stripe webhook handler** to keep `subscription_status` /
+  `subscription_tier` / `subscription_started_at` in sync after a
+  successful Stripe Checkout. Endpoint: `/api/stripe/webhook` with
+  signature verification via `STRIPE_WEBHOOK_SECRET`.
+- [ ] **Card collection on the signup form itself.** Today the card UX
+  lives only on /account → Payment because the Supabase auth session
+  doesn't exist between `signUp` and email confirmation. To add a card
+  pre-confirmation, accept a Stripe-tokenized PaymentMethod at signup,
+  store transiently keyed on the email, and attach in the
+  `handle_new_auth_user` trigger (or in a one-shot handler the user
+  hits on first sign-in).
+- [ ] **Custom-branded reset-password email**. Today Supabase sends its
+  default template. To match GPC's branded HTML, configure Supabase
+  Custom SMTP (Resend) + edit the recovery template.
+- [ ] **Account deletion** — give readers a "Delete my account" button
+  in /account → Security that calls `supabase.auth.admin.deleteUser`
+  via a server action using the service-role key.
+
+---
+
 ## Editor Portal polish
 
 - [ ] **Image upload** (Cloudinary). User explicitly asked to skip this
@@ -34,9 +87,10 @@ the ones blocking domain cutover from v1.
 - [ ] **Bulk publish / delete** in `/portal/all/edit-stories` — select
   multiple rows + apply action. Quality-of-life when there are 30+
   stories/day.
-- [ ] **First/last name on profiles.** Today we split `display_name`
-  on the last whitespace. Cleaner: real `first_name` + `last_name`
-  columns and migration to backfill from `display_name`.
+- [x] **First/last name on profiles.** Added in migration 003 (reader
+  auth) alongside phone + address columns. Editorial flows still split
+  `display_name` for back-compat; can be migrated to read `first_name` /
+  `last_name` directly when convenient.
 
 ---
 

@@ -82,6 +82,30 @@ app/
         actions.ts            setPinAction / clearPinAction
   sitemap.ts / robots.ts      Auto-generated sitemap + robots
   news-sitemap.xml/route.ts   Google News sitemap (custom XML format)
+  signup/                     Reader self-registration (first/last/email/phone/address/password)
+    page.tsx
+    actions.ts                signUpAction → supabase.auth.signUp w/ metadata
+    sign-up-form.tsx
+  forgot-password/            "Email me a reset link" form
+    page.tsx / actions.ts / forgot-password-form.tsx
+  reset-password/             Landing for the reset link; sets new password
+    page.tsx / actions.ts / reset-password-form.tsx
+  auth/callback/route.ts      Exchanges Supabase email-link `?code=...` for a session
+  account/                    Tabbed profile manager (gated to any authed user)
+    layout.tsx                requireUser('/account')
+    page.tsx                  Profile tab — edit name/phone/address
+    profile-form.tsx
+    actions.ts                updateProfileAction
+    payment/                  Stripe SetupIntent add/replace card
+      page.tsx
+      payment-card-section.tsx
+    subscription/             Free vs paid status + link to /subscribe
+      page.tsx
+    security/                 Change password (verifies current first)
+      page.tsx / actions.ts / change-password-form.tsx
+  api/
+    payments/setup-intent/route.ts  POST → create+cache Stripe Customer, return clientSecret
+    payments/save-card/route.ts     POST { paymentMethodId } → attach + cache last4/brand
 
 components/
   site/
@@ -97,6 +121,8 @@ components/
     story-card.tsx            Reusable card (16:10 image, bottom-justified byline+date)
     section-rail.tsx          "Local / Sports / etc." rows below hero
     hero-media.tsx            Renders photo via next/image OR YouTube iframe
+  site/
+    sign-out-button.tsx       Client wrapper: signOutAction + router.refresh() (fixes chip staleness)
   portal/
     portal-shell.tsx          Top chrome for /portal/* pages (back arrow + tabs + sign out)
     back-link.tsx             Reusable "← Back to X" link
@@ -105,7 +131,10 @@ components/
     all-stories-view.tsx      Full filter UX (used by /portal/all/edit-stories)
     status-badge.tsx          DRAFT / SUBMITTED / PUBLISHED / UNPUBLISHED pill
     credentials-table.tsx     Sticky-header table with checkboxes + save + confirm modal
+    readers-table.tsx         Display-only readers list rendered below CredentialsTable
     site-layout-board.tsx     dnd-kit drag-drop slot editor
+  account/
+    account-shell.tsx         Tabbed chrome for /account/* (Profile · Payment · Subscription · Security)
 
 lib/
   supabase/
@@ -161,7 +190,10 @@ Open <http://localhost:3000>.
 - **Required env vars** in Vercel:
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-  - `NEXT_PUBLIC_SITE_URL` (production domain, used in sitemap + JSON-LD)
+  - `NEXT_PUBLIC_SITE_URL` (production domain, used in sitemap, JSON-LD, and auth email redirect URLs)
+- **Optional env vars** (gracefully degrade if missing):
+  - `STRIPE_SECRET_KEY` — server-side, required for `/api/payments/*` to function
+  - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — client-side; without it, `/account → Payment` shows a "not configured" notice
 - **Domain alias** today: `south-shore-press.vercel.app`. Cutover from
   v1's `southshorepress.vercel.app` is Phase 8 (pending).
 
@@ -176,6 +208,7 @@ paste into Supabase Studio's SQL Editor manually.
 |---|---|---|
 | `001_site_layout_pins.sql` | Creates `site_layout_pins` table for editor pinning | ✅ Run |
 | `002_profiles_roles_array.sql` | Adds `profiles.roles text[]` + SECURITY DEFINER admin check | ✅ Run |
+| `003_reader_profiles.sql` | Adds `reader` role + first/last/phone/address + Stripe columns + auto-create trigger on `auth.users` | ⏳ Pending — run in Supabase Studio |
 
 **Hard rule for new migrations:** any RLS policy that needs to consult
 the same table it's defined on **must** use a `SECURITY DEFINER`
@@ -194,10 +227,15 @@ highest-priv role from `roles[]`) so v1 continues to work.
 
 | Role | Can | Cannot |
 |---|---|---|
+| `reader` | Read public stories; manage own profile + payment + subscription | Access /portal anything |
 | `journalist` | Edit own drafts; submit for review | Publish; see other journalists' work |
 | `editor` | Edit/publish/unpublish any story; downgrade to draft | Manage user roles |
 | `admin` | Everything editor can + manage editor/journalist roles on non-admin users | Modify other admins; grant/revoke Admin role |
 | `master admin` | Anything in the UI except modify another master admin | (Master admin status only changes via direct SQL) |
+
+Readers are created via public self-signup at `/signup`. Editor-tier
+accounts (journalist+) are still provisioned manually in Supabase by
+an existing admin.
 
 The `canManageUser` and `canManageRole` helpers in `lib/auth.ts`
 enforce the hierarchy server-side. The Credentials UI mirrors the

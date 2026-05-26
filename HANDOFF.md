@@ -4,7 +4,8 @@ The README tells you what's where. This file tells you **why it's like
 this**, so you don't accidentally undo a careful decision when picking
 up a new feature.
 
-Written 2026-05-25 at the end of a long session. Update as you go.
+Written 2026-05-25 at the end of a long session. Updated 2026-05-26
+when reader auth landed. Update as you go.
 
 ---
 
@@ -47,7 +48,14 @@ or rename columns that v1 reads**:
   sync (writes the highest-priv role from `roles[]` into it)
 
 What v2 added (additive only, doesn't break v1):
-- `profiles.roles text[]` — multi-role array
+- `profiles.roles text[]` — multi-role array (mig 002)
+- `'reader'` value in the role enum + first_name / last_name / phone /
+  street_address / city / state / zip_code / stripe_customer_id /
+  has_payment_method / payment_method_last4 / payment_method_brand /
+  subscription_status / subscription_tier / subscription_started_at /
+  created_at columns on `profiles` (mig 003). v1 never reads any of
+  these. The `handle_new_auth_user` trigger on `auth.users` auto-fills
+  the columns when a new account signs up via /signup.
 - `site_layout_pins` — new table, v1 doesn't know about it
 
 ---
@@ -283,3 +291,78 @@ If you add a section in `site-config.ts`, also add it to
 - Real search backend not built
 - No image upload UI; no real subscribe flow; no real email
   briefings signup
+- Stripe webhook not built — `subscription_status` and friends on
+  `profiles` only get populated once we add `/api/stripe/webhook`
+
+---
+
+## Reader auth — design decisions (shipped 2026-05-26)
+
+### Why sign-out needed a client wrapper
+
+The bare `<form action={signOutAction}>` pattern clears the auth cookie
+correctly, but the `AuthChip` is a client component whose `/api/me`
+fetch only re-runs when `pathname` changes. Sign Out from `/` redirects
+to `/` — same pathname — so the chip stayed showing "Hi, [Name]" until
+a hard refresh. Fix: `<SignOutButton>` swallows the `NEXT_REDIRECT`
+throw, then calls `router.push('/') + router.refresh()` which DOES
+trigger a re-fetch. Used in `components/site/auth-chip.tsx` and
+`components/portal/portal-shell.tsx`.
+
+### Why card collection lives on /account, not /signup
+
+Supabase Auth requires email confirmation before the session is
+established. `signUp` returns success but the user isn't logged in
+yet — they click the confirm link first. That means we can't call
+`/api/payments/setup-intent` from the signup flow (the endpoint needs
+`getCurrentUser` to return a real user). Putting card UX on
+/account → Payment sidesteps this — the user signs in once with their
+new password, then adds a card with one extra click.
+
+If we want card-at-signup later, two paths:
+1. Disable email confirmation in Supabase Auth (faster onboarding,
+   invites typo/disposable-email accounts).
+2. Accept a Stripe PaymentMethod token at signup, store transiently
+   keyed on the email, and attach it in `handle_new_auth_user` (or in
+   a one-shot first-login handler).
+
+### Why the magic-link reset over GPC's 6-digit code
+
+GPC has a 6-digit code in a custom `password_reset_tokens` table +
+its own Resend-sent email. v2 uses Supabase Auth's built-in
+`resetPasswordForEmail` instead, which sends a magic link →
+`/auth/callback?next=/reset-password` → user lands signed in with a
+recovery session, sets new password via `auth.updateUser`. This is
+the same outcome with ~1/4 the code and no schema additions. If we
+ever need to match GPC's code-input UX precisely, we'd replicate the
+custom token table + a sendResetEmail Resend wrapper.
+
+### Why /account/security verifies current password
+
+`supabase.auth.updateUser({ password })` doesn't ask for the old one
+by default — a borrowed session cookie could rotate the password
+without the legitimate owner knowing. The action in
+`app/account/security/actions.ts` re-runs `signInWithPassword` with
+the current password first; failure aborts the update.
+
+### Why the role enum extension is in its own DO block
+
+`ALTER TYPE ... ADD VALUE` can't be used in the same transaction it
+was added in (PG limitation). Supabase Studio's SQL editor auto-
+commits each statement, but if someone wraps `003_reader_profiles.sql`
+in `BEGIN/COMMIT` manually, the trigger function later in the file
+will fail to insert 'reader'. The migration's top comment calls this
+out explicitly. Defensive detection (looks up the enum's `typname`
+via `pg_type` join) handles the case where v1's enum was named
+something other than `user_role`.
+
+### Why readers excluded from the editorial Credentials table
+
+Three reasons: (1) the existing CredentialsTable's role-toggle
+checkboxes don't apply to readers; (2) Credentials is admin-tier-only
+gated, but the column structure (name/email + 3 checkboxes) doesn't
+have room for phone/address/subscription columns readers need; (3) at
+scale we'll have orders-of-magnitude more readers than editorial
+staff, so combining them would drown the editorial table. The
+`/portal/all/credentials` page now renders both: editorial users up
+top, a separate Readers table below.

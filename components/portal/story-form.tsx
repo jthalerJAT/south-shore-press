@@ -87,12 +87,12 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         </div>
       ) : null}
 
-      {state.error ? (
+      {state?.error ? (
         <div
           role="alert"
           className="text-sm text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2"
         >
-          {state.error}
+          {state?.error}
         </div>
       ) : null}
 

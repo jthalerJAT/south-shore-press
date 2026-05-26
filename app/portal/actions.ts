@@ -29,6 +29,13 @@ const VALID_SECTIONS = new Set([
 
 const SPORTS_SUBCATEGORY_SLUGS = new Set(SPORTS_SUBCATEGORIES.map((s) => s.slug));
 
+// Only category slugs that correspond to actual page routes get a
+// revalidatePath() call. Sub-cats like 'pro-sports' are tags only —
+// they don't have their own /pro-sports page, so revalidatePath would
+// either no-op (fine) or in some edge cases blow up the server action
+// and leave the client's useFormState in an undefined state.
+const ROUTE_SECTION_SLUGS = new Set(SITE_SECTIONS.map((s) => s.slug));
+
 type FormResult = { error: string | null; id?: string };
 
 /** Strip + validate the form payload that's common to create and update. */
@@ -273,11 +280,17 @@ export async function updateStoryAction(
   revalidatePath('/portal');
   revalidatePath('/portal/all');
   revalidatePath('/');
-  // Revalidate the public story page so freshly-edited content surfaces
-  // immediately instead of waiting for the 60s ISR window.
+  // Revalidate the public section pages affected by the story so freshly
+  // edited content surfaces immediately instead of waiting for the 60s
+  // ISR window. Only sections with their own /[section] route get
+  // revalidated — sports sub-cats like /pro-sports don't have a route
+  // and revalidatePath() against a non-existent path can blow up the
+  // action in some Next 14 edge cases.
   if (parsed.categories) {
     for (const section of parsed.categories) {
-      revalidatePath(`/${section}`);
+      if (ROUTE_SECTION_SLUGS.has(section)) {
+        revalidatePath(`/${section}`);
+      }
     }
   }
   redirect(`/portal/edit/${id}?saved=1`);

@@ -1,8 +1,8 @@
 import Link from 'next/link';
-import { signOutAction } from '@/app/signin/actions';
 import type { UserRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { BackLink, type BackLinkSpec } from './back-link';
+import { SignOutButton } from '@/components/site/sign-out-button';
 
 /**
  * Top chrome for /portal/* pages. Shows:
@@ -86,14 +86,9 @@ export function PortalShell({
               {user.email}
             </div>
           </div>
-          <form action={signOutAction}>
-            <button
-              type="submit"
-              className="px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
-            >
-              Sign out
-            </button>
-          </form>
+          <SignOutButton className="px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors disabled:opacity-60">
+            Sign out
+          </SignOutButton>
         </div>
       </div>
 

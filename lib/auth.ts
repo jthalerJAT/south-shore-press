@@ -6,11 +6,16 @@ import { createClient } from '@/lib/supabase/server';
  * Handlers, and Server Actions. The cookie store is read via the
  * @supabase/ssr server client; middleware ensures the cookies are fresh.
  *
- * Role discriminator is `profiles.role` ∈ { 'journalist', 'editor',
- * 'admin' } (lowercase strings, mirrors v1).
+ * Role discriminator is `profiles.role` ∈ { 'reader', 'journalist',
+ * 'editor', 'admin', 'master admin' } (lowercase strings).
+ *
+ * 'reader' was added in migration 003 to support public self-signup.
+ * Readers have no portal access — they only see /account on the
+ * public side of the site.
  */
 
 export type UserRole =
+  | 'reader'
   | 'journalist'
   | 'editor'
   | 'admin'
@@ -46,12 +51,14 @@ export type AuthenticatedUser = {
 };
 
 /** Priority order for picking the "primary" single role from a roles
- *  array. Earlier entries win. */
+ *  array. Earlier entries win. 'reader' is last because it grants no
+ *  editorial permissions. */
 const ROLE_PRIORITY: ReadonlyArray<UserRole> = [
   'master admin',
   'admin',
   'editor',
   'journalist',
+  'reader',
 ];
 
 /** Pick the highest-privilege role from an array; null if empty. */
@@ -68,6 +75,7 @@ export function normalizeRole(raw: unknown): UserRole | null {
   if (raw === null || raw === undefined) return null;
   const normalized = String(raw).toLowerCase().replace(/_/g, ' ').trim();
   if (
+    normalized === 'reader' ||
     normalized === 'journalist' ||
     normalized === 'editor' ||
     normalized === 'admin' ||
@@ -126,6 +134,9 @@ export function canManageUser(
  *   - Only master admin can grant or revoke the Admin role.
  *     (A regular admin can manage Editor/Journalist roles for
  *     non-admin users, but never the Admin checkbox itself.)
+ *   - 'reader' is not a checkbox on the Credentials page — it's the
+ *     default tier for self-signed-up users, managed via /signup, not
+ *     by admins. The check here returns false defensively.
  */
 export function canManageRole(
   viewer: { id: string; roles: ReadonlyArray<UserRole> },
@@ -136,6 +147,8 @@ export function canManageRole(
   if (role === 'admin' && !isMasterAdmin(viewer)) return false;
   // We never offer the 'master admin' role via UI — extra belt for safety.
   if (role === 'master admin') return false;
+  // 'reader' is not user-toggleable from the Credentials page.
+  if (role === 'reader') return false;
   return true;
 }
 
@@ -174,8 +187,9 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
   }
 
   // Default single-role view: highest-priv role from the set, or
-  // 'journalist' so downstream code never crashes on `user.role`.
-  const role = pickHighestRole(roles) ?? 'journalist';
+  // 'reader' as the safe baseline so a misconfigured profile can't
+  // accidentally grant editorial access.
+  const role = pickHighestRole(roles) ?? 'reader';
 
   return {
     id: profile.id,

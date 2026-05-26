@@ -3,13 +3,13 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { signOutAction } from '@/app/signin/actions';
+import { SignOutButton } from './sign-out-button';
 
 type User = {
   id: string;
   email: string;
   displayName: string | null;
-  role: 'journalist' | 'editor' | 'admin' | 'master admin';
+  role: 'reader' | 'journalist' | 'editor' | 'admin' | 'master admin';
 };
 
 /**
@@ -20,10 +20,12 @@ type User = {
  * doesn't trip on hydration. Then we fetch /api/me to find out who the
  * user is. If they're logged in we swap to the role-aware menu:
  *
+ *   Reader:        Hi, [Name] (→ /account) · Sign Out
  *   Journalist:    Story Editor · Hi, [Name] · Sign Out
  *   Editor/Admin:  Story Editor · Editor Portal · Hi, [Name] · Sign Out
  *
- * "Story Editor" → /portal  (always)
+ * "Hi, [Name]" links to /account so the user can edit profile + payment.
+ * "Story Editor" → /portal  (journalist and up)
  * "Editor Portal" → /portal/all  (editors + admins; the all-stories table)
  */
 export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobile' }) {
@@ -78,7 +80,14 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
     );
   }
 
-  // master admin gets the same nav as editor/admin
+  // Reader: no portal links — just account + sign-out
+  // Journalist: Story Editor link
+  // Editor+: Story Editor + Editor Portal links
+  const isJournalistTier =
+    user.role === 'journalist' ||
+    user.role === 'editor' ||
+    user.role === 'admin' ||
+    user.role === 'master admin';
   const isEditor =
     user.role === 'editor' ||
     user.role === 'admin' ||
@@ -92,12 +101,14 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
         <div className="text-xs text-zinc-500 text-center">
           Signed in as <span className="font-medium text-zinc-900">{firstName}</span>
         </div>
-        <Link
-          href="/portal"
-          className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-white bg-brand-red hover:bg-brand-red-dark rounded transition-colors"
-        >
-          Story Editor
-        </Link>
+        {isJournalistTier ? (
+          <Link
+            href="/portal"
+            className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-white bg-brand-red hover:bg-brand-red-dark rounded transition-colors"
+          >
+            Story Editor
+          </Link>
+        ) : null}
         {isEditor ? (
           <Link
             href="/portal/all"
@@ -106,26 +117,27 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
             Editor Portal
           </Link>
         ) : null}
-        <form action={signOutAction}>
-          <button
-            type="submit"
-            className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
-          >
-            Sign Out
-          </button>
-        </form>
+        <Link
+          href="/account"
+          className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-zinc-900 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+        >
+          My Account
+        </Link>
+        <SignOutButton className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors disabled:opacity-60" />
       </div>
     );
   }
 
   return (
     <div className="flex items-center gap-4 text-[11px] uppercase tracking-widest font-bold text-zinc-700">
-      <Link
-        href="/portal"
-        className="hover:text-brand-red transition-colors"
-      >
-        Story Editor
-      </Link>
+      {isJournalistTier ? (
+        <Link
+          href="/portal"
+          className="hover:text-brand-red transition-colors"
+        >
+          Story Editor
+        </Link>
+      ) : null}
       {isEditor ? (
         <Link
           href="/portal/all"
@@ -134,17 +146,14 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
           Editor Portal
         </Link>
       ) : null}
-      <span className="font-normal text-zinc-500 normal-case tracking-normal">
+      <Link
+        href="/account"
+        className="font-normal text-zinc-500 normal-case tracking-normal hover:text-brand-red transition-colors"
+        aria-label="My account"
+      >
         Hi, {firstName}
-      </span>
-      <form action={signOutAction}>
-        <button
-          type="submit"
-          className="inline-flex items-center border border-zinc-900 px-4 py-2 text-[11px] uppercase tracking-widest font-bold text-zinc-900 hover:bg-zinc-900 hover:text-white transition-colors"
-        >
-          Sign Out
-        </button>
-      </form>
+      </Link>
+      <SignOutButton className="inline-flex items-center border border-zinc-900 px-4 py-2 text-[11px] uppercase tracking-widest font-bold text-zinc-900 hover:bg-zinc-900 hover:text-white transition-colors disabled:opacity-60" />
     </div>
   );
 }

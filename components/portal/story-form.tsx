@@ -23,7 +23,7 @@ type StoryDefaults = {
 
 type Props = {
   mode: 'create' | 'edit';
-  role: 'journalist' | 'editor' | 'admin' | 'master admin';
+  role: import('@/lib/auth').UserRole;
   defaults?: StoryDefaults;
   /** Read-only banner content shown above the form, e.g. saved confirmation. */
   flash?: string | null;

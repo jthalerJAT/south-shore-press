@@ -58,6 +58,65 @@ the ones blocking domain cutover from v1.
 
 ---
 
+## Metered paywall (proposed 2026-05-26)
+
+Limit readers to N free articles/month before requiring a paid
+subscription. Most of the schema is already in place from migration
+003 — this is mostly UI + Stripe wiring.
+
+**Already done (groundwork):**
+- `profiles.subscription_status` / `subscription_tier` /
+  `subscription_started_at` / `stripe_customer_id` /
+  `has_payment_method` columns
+- `/account → Payment` card capture via SetupIntent
+- `/account → Subscription` tab reads `subscription_status` and shows
+  a CTA to `/subscribe` when on the free tier
+- Stripe server SDK + client SDK installed; env-var gating already
+  in `getStripe()` / `isStripeEnabled()`
+
+**Still to build:**
+- [ ] **View counter.**
+  - Logged-in: `profiles.monthly_view_count` int + `view_count_reset_at`
+    timestamptz. Increment server-side on /[section]/[slug] render
+    (server action triggered from the page component). Reset on the 1st
+    of each month via a lazy check on increment.
+  - Anonymous: a long-lived first-party cookie holds an opaque id;
+    server stores counts in a small `anon_views` table keyed on (cookie_id,
+    year_month). Cookie can be cleared (acceptable leak per NYT-style
+    norms — most users won't bother).
+- [ ] **Gated render in `app/[section]/[slug]/page.tsx`.**
+  - Compute remaining free views server-side.
+  - If `subscription_status === 'active'` → full body, no gate.
+  - Else if remaining > 0 → full body + decrement + soft banner.
+  - Else → first ~200 words + `<PaywallOverlay>` (CTA to /subscribe).
+- [ ] **Real `/subscribe` page** (currently a 404 stub).
+  - Display tier(s) + monthly / annual pricing.
+  - On click: server action creates a Stripe Checkout Session keyed to
+    the user's `stripe_customer_id`, redirects to Stripe-hosted checkout.
+  - Success URL → `/account/subscription?welcome=1`.
+- [ ] **Stripe webhook** at `/api/stripe/webhook` (also blocks paid
+  card-on-file flow from the reader-auth follow-ups list).
+  - Listens for `customer.subscription.created` / `.updated` /
+    `.deleted` / `invoice.payment_failed` events.
+  - Verifies signature with `STRIPE_WEBHOOK_SECRET`.
+  - Updates `profiles.subscription_status` + `_tier` + `_started_at`
+    on the matching profile (lookup by `stripe_customer_id`).
+- [ ] **SEO escape hatch.** Google de-ranks paywalled content unless
+  you either (a) use Google's "Flexible Sampling" JSON-LD markers
+  (`isAccessibleForFree: false` + `cssSelector: ".paywall"`), or
+  (b) detect Googlebot UA and serve the full body. Most news sites
+  use (a). Without this, organic search traffic tanks.
+- [ ] **Decision work (not coding):** pricing (free article count per
+  month, monthly vs annual tiers, intro discount, NY State sales tax
+  handling, refund policy). Half a day of focused setup once the
+  product side is decided.
+
+**Estimated implementation:** half a day to one focused session for
+the MVP (single subscription tier, 5 free articles/month, hard wall,
+no SEO escape hatch yet). Add SEO + multi-tier in a follow-up.
+
+---
+
 ## Editor Portal polish
 
 - [ ] **Image upload** (Cloudinary). User explicitly asked to skip this

@@ -71,10 +71,13 @@ export async function generateMetadata({
       type: 'article',
       url: canonicalPath,
       publishedTime: story.published_at ?? undefined,
-      authors: story.author?.display_name
-        ? [story.author.display_name]
-        : story.byline
-          ? [story.byline]
+      // Prefer byline (what the editor set) over author.display_name
+      // (the account that saved the row) — same reasoning as the
+      // visible byline below.
+      authors: story.byline
+        ? [story.byline]
+        : story.author?.display_name
+          ? [story.author.display_name]
           : undefined,
       section: story.categories?.[0],
       images: ogImage ? [{ url: ogImage }] : undefined,
@@ -109,7 +112,12 @@ export default async function StoryPage({ params }: { params: Params }) {
     .map((p) => p.trim())
     .filter(Boolean);
 
-  const authorName = story.author?.display_name ?? story.byline ?? null;
+  // Always prefer the BYLINE the editor set on the story. The
+  // author.display_name (from the profiles join) is the account that
+  // saved the row, which is often a different person — e.g. an admin
+  // entering a piece on a contributor's behalf. Only fall back to the
+  // account name if the byline was left blank.
+  const authorName = story.byline ?? story.author?.display_name ?? null;
   const heroAlt = story.headline;
 
   // JSON-LD: a @graph holding both the NewsArticle and a BreadcrumbList.

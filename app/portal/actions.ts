@@ -32,15 +32,17 @@ function parseStoryFormData(formData: FormData) {
   const body = String(formData.get('body') ?? '');
   const hero_photo_url = String(formData.get('hero_photo_url') ?? '').trim();
 
-  // extra_photo_urls comes in as a textarea with one URL per line.
-  const extraRaw = String(formData.get('extra_photo_urls') ?? '');
-  const extra_photo_urls = extraRaw
-    .split(/\r?\n/)
-    .map((s) => s.trim())
+  // extra_photo_urls comes in as N inputs all named "extra_photo_url"
+  // (one per dynamic row in the editor). FormData.getAll() returns
+  // each value; we trim + drop empties. Always returns an array (never
+  // null) because the DB column is NOT NULL.
+  const extra_photo_urls = formData
+    .getAll('extra_photo_url')
+    .map((v) => String(v).trim())
     .filter(Boolean);
 
   // Categories are a set of checkboxes; FormData.getAll('categories')
-  // returns every checked one.
+  // returns every checked one. Always an array — DB column is NOT NULL.
   const categories = formData
     .getAll('categories')
     .map((v) => String(v))
@@ -52,8 +54,10 @@ function parseStoryFormData(formData: FormData) {
     byline: byline || null,
     body: body || null,
     hero_photo_url: hero_photo_url || null,
-    extra_photo_urls: extra_photo_urls.length > 0 ? extra_photo_urls : null,
-    categories: categories.length > 0 ? categories : null,
+    // Arrays kept as arrays (empty if user provided nothing) so we don't
+    // trip Postgres NOT NULL constraints on these columns.
+    extra_photo_urls,
+    categories,
   };
 }
 

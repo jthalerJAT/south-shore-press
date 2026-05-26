@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
+import { Plus, X } from 'lucide-react';
 import { createStoryAction, updateStoryAction, deleteStoryAction } from '@/app/portal/actions';
 import { SITE_SECTIONS } from '@/lib/site-config';
 import { StatusBadge } from './status-badge';
@@ -204,19 +206,14 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         />
       </Field>
 
-      {/* Extra photos */}
+      {/* Extra photos — dynamic list of URL inputs. Optional, unlimited. */}
       <Field
-        label="Additional photo URLs"
-        htmlFor="extra_photo_urls"
-        hint="Optional. One URL per line."
+        label="Additional photos"
+        hint="Optional. Click + Add another photo to add more URLs."
       >
-        <textarea
-          id="extra_photo_urls"
-          name="extra_photo_urls"
-          defaultValue={(defaults?.extra_photo_urls ?? []).join('\n')}
+        <ExtraPhotosField
+          defaultUrls={defaults?.extra_photo_urls ?? []}
           disabled={disabled}
-          rows={3}
-          className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm font-mono focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500"
         />
       </Field>
 
@@ -372,5 +369,83 @@ function DeleteButton({ headline }: { headline: string }) {
     >
       Delete
     </button>
+  );
+}
+
+/**
+ * Dynamic list of "additional photo URL" inputs. Each row is a single
+ * `<input name="extra_photo_url">` element so the server-side
+ * FormData.getAll('extra_photo_url') captures every value in submit
+ * order. The "+ Add another photo" button is always rendered at the
+ * bottom so editors can keep adding as many photos as they want.
+ *
+ * Pre-fills from `defaultUrls`. Empty rows are filtered out server-
+ * side, so it's safe to start the list with one empty row even on
+ * a brand-new story (gives users a visible target to paste into).
+ */
+function ExtraPhotosField({
+  defaultUrls,
+  disabled,
+}: {
+  defaultUrls: string[];
+  disabled: boolean;
+}) {
+  // Start with the pre-filled URLs, or a single empty row if none.
+  // Empty rows are valid — they get dropped on submit.
+  const [rows, setRows] = useState<string[]>(
+    defaultUrls.length > 0 ? defaultUrls : ['']
+  );
+
+  function addRow() {
+    setRows((prev) => [...prev, '']);
+  }
+  function removeRow(idx: number) {
+    setRows((prev) => prev.filter((_, i) => i !== idx));
+  }
+  function updateRow(idx: number, value: string) {
+    setRows((prev) => prev.map((v, i) => (i === idx ? value : v)));
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      {rows.map((url, idx) => (
+        <div key={idx} className="flex items-center gap-2">
+          <input
+            type="url"
+            name="extra_photo_url"
+            value={url}
+            onChange={(e) => updateRow(idx, e.target.value)}
+            disabled={disabled}
+            placeholder="https://…"
+            className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500"
+          />
+          {/* Only show Remove if there's more than one row OR the row has
+              content; otherwise the lone empty row stays as a paste target. */}
+          {rows.length > 1 || url ? (
+            <button
+              type="button"
+              onClick={() => removeRow(idx)}
+              disabled={disabled}
+              aria-label={`Remove photo ${idx + 1}`}
+              className="p-2 text-zinc-500 hover:text-red-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          ) : (
+            <span className="w-8" aria-hidden="true" />
+          )}
+        </div>
+      ))}
+      <div>
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={disabled}
+          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-brand-red border border-brand-red hover:bg-brand-red hover:text-white disabled:opacity-50 disabled:cursor-not-allowed rounded transition-colors"
+        >
+          <Plus className="w-3 h-3" /> Add another photo
+        </button>
+      </div>
+    </div>
   );
 }

@@ -32,41 +32,43 @@ CREATE INDEX IF NOT EXISTS profiles_roles_gin_idx
   ON profiles USING gin (roles);
 
 -- ----------
--- 4) RLS — let admins read all profiles + update profile roles. v1
---    likely already has policies on `profiles` for the user reading
---    their own row; these are additive (PostgreSQL combines policies
---    with OR), so existing access is preserved.
+-- 4) RLS — let admins read all profiles + update profile roles.
+--
+-- DO NOT inline `EXISTS (SELECT FROM profiles ...)` inside a policy
+-- ON profiles. PostgreSQL re-triggers the same SELECT policy on the
+-- inner query and detects infinite recursion (error 42P17), which
+-- kills every query that touches profiles — directly OR indirectly
+-- through joins / other policies that consult profiles.
+--
+-- Fix: wrap the admin check in a SECURITY DEFINER function. The
+-- function runs as its owner (postgres / table owner) and skips RLS
+-- on its inner SELECT, breaking the recursion. The function is also
+-- STABLE + search_path-locked for safety.
 -- ----------
+CREATE OR REPLACE FUNCTION public.is_credentials_admin(uid uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = uid
+      AND replace(lower(role::text), '_', ' ')
+          IN ('admin', 'master admin')
+  );
+$$;
+
 DROP POLICY IF EXISTS "admins can read all profiles" ON profiles;
 CREATE POLICY "admins can read all profiles"
   ON profiles
   FOR SELECT
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles me
-      WHERE me.id = auth.uid()
-        AND replace(lower(me.role::text), '_', ' ')
-            IN ('admin', 'master admin')
-    )
-  );
+  USING (public.is_credentials_admin(auth.uid()));
 
 DROP POLICY IF EXISTS "admins can update profile roles" ON profiles;
 CREATE POLICY "admins can update profile roles"
   ON profiles
   FOR UPDATE
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles me
-      WHERE me.id = auth.uid()
-        AND replace(lower(me.role::text), '_', ' ')
-            IN ('admin', 'master admin')
-    )
-  )
-  WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM profiles me
-      WHERE me.id = auth.uid()
-        AND replace(lower(me.role::text), '_', ' ')
-            IN ('admin', 'master admin')
-    )
-  );
+  USING (public.is_credentials_admin(auth.uid()))
+  WITH CHECK (public.is_credentials_admin(auth.uid()));

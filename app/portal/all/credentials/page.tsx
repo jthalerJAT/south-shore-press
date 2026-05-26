@@ -33,6 +33,7 @@ export default async function CredentialsPage() {
       <CredentialsTable
         initialProfiles={profiles}
         currentUserId={user.id}
+        currentUserRoles={user.roles}
       />
     </PortalShell>
   );

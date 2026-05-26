@@ -5,6 +5,7 @@ import { Search, ArrowUp, ArrowDown, Check, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { setUserRolesAction } from '@/app/portal/all/credentials/actions';
 import type { ProfileForCredentials } from '@/lib/queries/profiles';
+import type { UserRole } from '@/lib/auth';
 
 /**
  * Credentials table.
@@ -61,10 +62,15 @@ function isMasterAdmin(roles: ReadonlyArray<string>): boolean {
 export function CredentialsTable({
   initialProfiles,
   currentUserId,
+  currentUserRoles,
 }: {
   initialProfiles: ProfileForCredentials[];
   currentUserId: string;
+  /** Viewer's roles — drives the hierarchy locks (master admin sees
+   *  more rows as editable than a regular admin does). */
+  currentUserRoles: UserRole[];
 }) {
+  const viewerIsMaster = currentUserRoles.includes('master admin');
   // Draft state: per-profile-id Set of currently-checked roles. Local
   // state we manipulate while the admin toggles checkboxes; on Save we
   // diff against original and call the server action for each change.
@@ -90,12 +96,26 @@ export function CredentialsTable({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  // Pre-compute splits + master admin flags once.
+  // Pre-compute name split, master flag, and per-row / per-cell lock
+  // state once. Lock rules mirror server-side canManageUser /
+  // canManageRole (see lib/auth.ts):
+  //   - master admin row: fully locked (only SQL can change master admin)
+  //   - admin row + viewer is not master admin: fully locked
+  //   - editor/journalist row + viewer is regular admin: Admin checkbox
+  //     locked, Editor/Journalist editable
+  //   - self row: fully locked (no self-edit)
   const enriched = useMemo(() => {
     return initialProfiles.map((p) => {
       const { first, last } = splitName(p.display_name);
       const master = isMasterAdmin(p.roles ?? []);
-      const locked = master || p.id === currentUserId;
+      const isAdminRow = (p.roles ?? []).some(
+        (r) => normalize(r) === 'admin'
+      );
+      const isSelf = p.id === currentUserId;
+
+      // Row-level lock — true if NO cell on this row is editable
+      const rowLocked = isSelf || master || (isAdminRow && !viewerIsMaster);
+
       const originalRoles = new Set<RoleKey>();
       for (const r of p.roles ?? []) {
         const n = normalize(r);
@@ -103,9 +123,34 @@ export function CredentialsTable({
           originalRoles.add(n as RoleKey);
         }
       }
-      return { ...p, first, last, master, locked, originalRoles };
+
+      // Per-role disabled map
+      const roleDisabled: Record<RoleKey, boolean> = {
+        admin: rowLocked || !viewerIsMaster,
+        editor: rowLocked,
+        journalist: rowLocked,
+      };
+
+      // Lock badge to show next to the email (most specific reason wins)
+      let lockBadge: string | null = null;
+      if (master) lockBadge = 'MASTER ADMIN';
+      else if (isSelf) lockBadge = 'YOU';
+      else if (isAdminRow && !viewerIsMaster) lockBadge = 'ADMIN — MASTER ONLY';
+
+      return {
+        ...p,
+        first,
+        last,
+        master,
+        isAdminRow,
+        isSelf,
+        rowLocked,
+        roleDisabled,
+        lockBadge,
+        originalRoles,
+      };
     });
-  }, [initialProfiles, currentUserId]);
+  }, [initialProfiles, currentUserId, viewerIsMaster]);
 
   // Diff: figure out which profiles have unsaved changes vs original
   const changes = useMemo(() => {
@@ -118,12 +163,15 @@ export function CredentialsTable({
     };
     const list: Change[] = [];
     for (const p of enriched) {
-      if (p.locked) continue; // locked rows can't change
+      if (p.rowLocked) continue; // locked rows can't change at all
       const original = p.originalRoles;
       const next = draft.get(p.id) ?? new Set<RoleKey>();
       const gained: RoleKey[] = [];
       const lost: RoleKey[] = [];
       for (const r of ROLE_KEYS) {
+        // Skip role-level locks too: if this specific cell isn't
+        // editable, any diff is from an out-of-band source we ignore.
+        if (p.roleDisabled[r]) continue;
         if (next.has(r) && !original.has(r)) gained.push(r);
         if (!next.has(r) && original.has(r)) lost.push(r);
       }
@@ -317,15 +365,13 @@ export function CredentialsTable({
                 </tr>
               ) : (
                 visible.map((p) => {
-                  const isSelf = p.id === currentUserId;
-                  const isLocked = p.locked;
                   const currentRoles = draft.get(p.id) ?? new Set<RoleKey>();
                   return (
                     <tr
                       key={p.id}
                       className={cn(
                         'hover:bg-zinc-50 transition-colors',
-                        isLocked && 'bg-zinc-50/50'
+                        p.rowLocked && 'bg-zinc-50/50'
                       )}
                     >
                       <td className="px-4 py-3 text-zinc-900">{p.first || '—'}</td>
@@ -333,33 +379,40 @@ export function CredentialsTable({
                       <td className="px-4 py-3 text-zinc-700">
                         <div className="flex items-center gap-2">
                           <span>{p.email}</span>
-                          {p.master ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-brand-red text-white text-[9px] uppercase tracking-widest font-bold rounded">
-                              Master Admin
-                            </span>
-                          ) : null}
-                          {isSelf ? (
-                            <span className="inline-block px-1.5 py-0.5 bg-zinc-700 text-white text-[9px] uppercase tracking-widest font-bold rounded">
-                              You
+                          {p.lockBadge ? (
+                            <span
+                              className={cn(
+                                'inline-block px-1.5 py-0.5 text-[9px] uppercase tracking-widest font-bold rounded',
+                                p.master
+                                  ? 'bg-brand-red text-white'
+                                  : p.isSelf
+                                    ? 'bg-zinc-700 text-white'
+                                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                              )}
+                            >
+                              {p.lockBadge}
                             </span>
                           ) : null}
                         </div>
                       </td>
-                      {ROLE_KEYS.map((rk) => (
-                        <td key={rk} className="px-4 py-3 text-center">
-                          <RoleCheckbox
-                            checked={
-                              isLocked
-                                ? p.master ||
-                                  p.originalRoles.has(rk) ||
-                                  false
-                                : currentRoles.has(rk)
-                            }
-                            disabled={isLocked}
-                            onChange={() => toggleRole(p.id, rk)}
-                          />
-                        </td>
-                      ))}
+                      {ROLE_KEYS.map((rk) => {
+                        const cellDisabled = p.roleDisabled[rk];
+                        return (
+                          <td key={rk} className="px-4 py-3 text-center">
+                            <RoleCheckbox
+                              checked={
+                                cellDisabled
+                                  ? p.master ||
+                                    p.originalRoles.has(rk) ||
+                                    false
+                                  : currentRoles.has(rk)
+                              }
+                              disabled={cellDisabled}
+                              onChange={() => toggleRole(p.id, rk)}
+                            />
+                          </td>
+                        );
+                      })}
                     </tr>
                   );
                 })

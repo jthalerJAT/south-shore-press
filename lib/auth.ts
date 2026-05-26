@@ -87,6 +87,58 @@ export function canManageCredentials(user: {
   return user.roles.some((r) => r === 'admin' || r === 'master admin');
 }
 
+export function isMasterAdmin(user: { roles: ReadonlyArray<UserRole> }): boolean {
+  return user.roles.includes('master admin');
+}
+
+/**
+ * Can the viewer modify ANY role for the given target?
+ *
+ * Hierarchy rules (per spec):
+ *   - Master admin can manage any user EXCEPT another master admin
+ *     (master admin status is only changeable via SQL)
+ *   - Admin can manage editors and journalists only — NOT other
+ *     admins, NOT master admins
+ *   - Nobody can edit their own row (self-lockout protection)
+ *   - Editor / journalist viewers don't get here at all (page gate)
+ */
+export function canManageUser(
+  viewer: { id: string; roles: ReadonlyArray<UserRole> },
+  target: { id: string; roles: ReadonlyArray<UserRole> }
+): boolean {
+  if (target.id === viewer.id) return false;
+  if (!canManageCredentials(viewer)) return false;
+
+  // Master admin status only changes via SQL — nobody touches it here.
+  if (isMasterAdmin(target)) return false;
+
+  // Only master admin can manage other admins.
+  const targetIsAdmin = target.roles.includes('admin');
+  if (targetIsAdmin && !isMasterAdmin(viewer)) return false;
+
+  return true;
+}
+
+/**
+ * Can the viewer toggle THIS specific role on THIS target user?
+ *
+ * Additional constraint on top of canManageUser:
+ *   - Only master admin can grant or revoke the Admin role.
+ *     (A regular admin can manage Editor/Journalist roles for
+ *     non-admin users, but never the Admin checkbox itself.)
+ */
+export function canManageRole(
+  viewer: { id: string; roles: ReadonlyArray<UserRole> },
+  target: { id: string; roles: ReadonlyArray<UserRole> },
+  role: UserRole
+): boolean {
+  if (!canManageUser(viewer, target)) return false;
+  if (role === 'admin' && !isMasterAdmin(viewer)) return false;
+  // We never offer the 'master admin' role via UI — extra belt for safety.
+  if (role === 'master admin') return false;
+  return true;
+}
+
 /** Best-effort fetch of the signed-in user's auth row + profile. Returns
  *  null when the request is anonymous OR when no profile row exists yet
  *  (which would be a data-integrity issue, but doesn't crash the page). */

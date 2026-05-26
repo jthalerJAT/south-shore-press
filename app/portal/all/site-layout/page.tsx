@@ -1,6 +1,9 @@
 import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
+import { SiteLayoutBoard } from '@/components/portal/site-layout-board';
+import { getAllPins } from '@/lib/queries/site-layout';
+import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 
 export const metadata: Metadata = {
   title: 'Site Layout',
@@ -8,21 +11,33 @@ export const metadata: Metadata = {
 };
 
 /**
- * Editor Portal → Site Layout. Placeholder for the slot-assignment UI.
+ * Editor Portal → Site Layout. Drag stories from the left list onto
+ * slots on the right to pin them to specific positions on the public
+ * site. Unfilled slots fall back to recency-based defaults at render
+ * time.
  *
- * Eventual implementation:
- *   - New DB columns or table: a per-slot pinned story id (e.g.
- *     hero_slot_1..5, top_stories_pins[10])
- *   - This page: drag-and-drop or dropdown picker per slot, with
- *     live preview of the resulting homepage layout
- *   - Homepage query (getLatestPublishedStories / getTopStories)
- *     would fall back to recency only when slots are empty
+ * Server component fetches:
+ *   - All editor-visible stories (drafts + everything) so the left list
+ *     covers anything an editor might want to surface
+ *   - Current pin state for the whole site
+ * Hands both to the client SiteLayoutBoard which renders the dnd-kit
+ * drag/drop UI.
  */
 export default async function SiteLayoutPage() {
   const user = await requireRole(
     ['editor', 'admin', 'master admin'],
     '/portal/all/site-layout'
   );
+
+  // Fan-out the two queries.
+  const [allStories, pins] = await Promise.all([
+    getAllStoriesForEditor(),
+    getAllPins(),
+  ]);
+
+  // Only published stories can sit in slots (we don't want a draft
+  // accidentally showing on the homepage).
+  const publishedStories = allStories.filter((s) => s.status === 'published');
 
   return (
     <PortalShell
@@ -31,22 +46,7 @@ export default async function SiteLayoutPage() {
       title="Site Layout"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >
-      <div className="max-w-2xl mx-auto py-10 text-center">
-        <div className="inline-block bg-zinc-50 border border-zinc-200 rounded px-6 py-5">
-          <div className="text-xs uppercase tracking-widest text-zinc-500 font-semibold">
-            Coming soon
-          </div>
-          <h2 className="mt-2 font-headline text-xl font-bold text-zinc-900">
-            Story slot assignment
-          </h2>
-          <p className="mt-3 text-sm text-zinc-600 leading-relaxed">
-            This page will let editors pin specific stories to the hero
-            carousel, Top Stories rail, and individual section blocks on
-            the public homepage. Today those slots auto-populate from
-            recency.
-          </p>
-        </div>
-      </div>
+      <SiteLayoutBoard publishedStories={publishedStories} initialPins={pins} />
     </PortalShell>
   );
 }

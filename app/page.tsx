@@ -4,8 +4,8 @@ import { SectionRail } from '@/components/story/section-rail';
 import {
   getLatestPublishedStories,
   getPublishedStoriesBySection,
-  getTopStories,
 } from '@/lib/queries/stories';
+import { getAllPins, resolveSlotStories } from '@/lib/queries/site-layout';
 import { SITE_SECTIONS } from '@/lib/site-config';
 
 // ISR — Vercel rebuilds the page at most once a minute, then serves
@@ -14,7 +14,9 @@ import { SITE_SECTIONS } from '@/lib/site-config';
 export const revalidate = 60;
 
 // Per-section rails below the hero block, in display order.
+// Video Vault now sits first per editor request (was at the bottom).
 const HOMEPAGE_SECTION_SLUGS = [
+  'video-vault',
   'local',
   'sports',
   'state',
@@ -24,21 +26,49 @@ const HOMEPAGE_SECTION_SLUGS = [
 ];
 
 export default async function HomePage() {
-  // Fan-out parallel queries: 5 hero stories, 10 top-stories
-  // (offset 5 so they don't duplicate the hero set), plus 4 cards
-  // for each section rail. Promise.all keeps the homepage waterfall
-  // flat — total DB time = max() of all queries, not sum().
-  const [heroStories, topStories, sectionRails] = await Promise.all([
-    getLatestPublishedStories(5),
-    getTopStories(5, 10),
+  // Parallel fan-out: site-layout pin map + a broad pool of latest
+  // stories + 20 latest per homepage section. We fetch broader pools
+  // than we need so editor pins (which can reference older stories)
+  // are usually included; pins outside the pool silently fall back to
+  // recency. Pre-fetching by id is an MVP follow-up.
+  const [pins, latest, sectionFallbacks] = await Promise.all([
+    getAllPins(),
+    getLatestPublishedStories(50),
     Promise.all(
       HOMEPAGE_SECTION_SLUGS.map(async (slug) => {
-        const stories = await getPublishedStoriesBySection(slug, 4);
+        const stories = await getPublishedStoriesBySection(slug, 20);
         const section = SITE_SECTIONS.find((s) => s.slug === slug);
         return { slug, title: section?.label ?? slug, stories };
       })
     ),
   ]);
+
+  // Hero: 5 stories, pinned + recency-fill.
+  const heroStories = resolveSlotStories(
+    pins.filter((p) => p.slot_key === 'home.hero'),
+    latest,
+    5
+  );
+
+  // Top Stories rail: 10 stories. Default-fallback skips the first 5
+  // (the hero set) so editors don't see the same headlines in two
+  // places by default. Pins can still override either direction.
+  const topStories = resolveSlotStories(
+    pins.filter((p) => p.slot_key === 'home.top-stories'),
+    latest.slice(5),
+    10
+  );
+
+  // Per-section rails. Slot key is `home.<slug>`, e.g. home.local.
+  const sectionRails = sectionFallbacks.map(({ slug, title, stories }) => ({
+    slug,
+    title,
+    stories: resolveSlotStories(
+      pins.filter((p) => p.slot_key === `home.${slug}`),
+      stories,
+      4
+    ),
+  }));
 
   // Empty-state — keeps the "rebuilding" message visible while the
   // DB hasn't published anything yet. Disappears the moment the
@@ -93,7 +123,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* SECTION RAILS — full-width, stacked below */}
+      {/* SECTION RAILS — full-width, stacked below. Video Vault first. */}
       {sectionRails.map((rail) => (
         <SectionRail
           key={rail.slug}

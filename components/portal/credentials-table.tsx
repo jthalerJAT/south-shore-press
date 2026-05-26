@@ -131,11 +131,24 @@ export function CredentialsTable({
         journalist: rowLocked,
       };
 
-      // Lock badge to show next to the email (most specific reason wins)
+      // Badge to show next to the email. Lock badges win when a row is
+      // locked; otherwise a READER tag flags self-signed-up users who
+      // haven't been promoted to any editorial role yet (informational
+      // only — those rows ARE editable).
+      const hasAnyEditorialRole =
+        originalRoles.has('admin') ||
+        originalRoles.has('editor') ||
+        originalRoles.has('journalist') ||
+        master;
       let lockBadge: string | null = null;
+      let isReaderBadge = false;
       if (master) lockBadge = 'MASTER ADMIN';
       else if (isSelf) lockBadge = 'YOU';
       else if (isAdminRow && !viewerIsMaster) lockBadge = 'ADMIN — MASTER ONLY';
+      else if (!hasAnyEditorialRole) {
+        lockBadge = 'READER';
+        isReaderBadge = true;
+      }
 
       return {
         ...p,
@@ -147,6 +160,7 @@ export function CredentialsTable({
         rowLocked,
         roleDisabled,
         lockBadge,
+        isReaderBadge,
         originalRoles,
       };
     });
@@ -308,7 +322,7 @@ export function CredentialsTable({
                 : 'bg-zinc-200 text-zinc-500 cursor-not-allowed'
             )}
           >
-            {isPending ? 'Saving…' : 'Save'}
+            {isPending ? 'Saving…' : 'Save Status'}
           </button>
         </div>
       </div>
@@ -387,7 +401,9 @@ export function CredentialsTable({
                                   ? 'bg-brand-red text-white'
                                   : p.isSelf
                                     ? 'bg-zinc-700 text-white'
-                                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                                    : p.isReaderBadge
+                                      ? 'bg-zinc-100 text-zinc-600 border border-zinc-200'
+                                      : 'bg-amber-100 text-amber-800 border border-amber-200'
                               )}
                             >
                               {p.lockBadge}
@@ -530,6 +546,11 @@ function ConfirmModal({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const title =
+    changes.length === 1
+      ? `Are you sure you want to change ${changes[0].label}'s credentials?`
+      : `Are you sure you want to change credentials for ${changes.length} users?`;
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -543,10 +564,10 @@ function ConfirmModal({
             id="credentials-confirm-title"
             className="font-headline text-xl font-bold text-zinc-900"
           >
-            Confirm credential changes
+            {title}
           </h2>
           <p className="mt-1 text-sm text-zinc-600">
-            Review the {changes.length} change{changes.length === 1 ? '' : 's'} below. This action takes effect immediately.
+            Review the change{changes.length === 1 ? '' : 's'} below. This takes effect immediately.
           </p>
         </div>
         <ul className="flex-1 overflow-y-auto ssp-scroll divide-y divide-zinc-100">
@@ -578,16 +599,16 @@ function ConfirmModal({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-white rounded transition-colors"
+            className="px-4 py-2 text-sm font-bold uppercase tracking-widest text-zinc-700 border border-zinc-300 hover:bg-white rounded transition-colors"
           >
-            Cancel
+            No
           </button>
           <button
             type="button"
             onClick={onConfirm}
             className="px-5 py-2 text-sm font-bold uppercase tracking-widest text-white bg-brand-red hover:bg-brand-red-dark rounded transition-colors"
           >
-            Confirm
+            Yes
           </button>
         </div>
       </div>

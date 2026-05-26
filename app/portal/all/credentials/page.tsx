@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
+import { CredentialsTable } from '@/components/portal/credentials-table';
+import { getAllProfiles } from '@/lib/queries/profiles';
 
 export const metadata: Metadata = {
   title: 'Credentials',
@@ -8,20 +10,18 @@ export const metadata: Metadata = {
 };
 
 /**
- * Editor Portal → Credentials. Placeholder for the role-management
- * UI: list all profiles + their current role, dropdown to change.
+ * Editor Portal → Credentials. Admin & master admin only.
  *
- * Eventual implementation:
- *   - Server-side: getAllProfiles() + updateProfileRole(userId, role)
- *     server action gated to master admin
- *   - Client UI: searchable table with role dropdown per row, "Save"
- *     button or auto-save on change
+ * Lists every registered profile with toggleable Admin/Editor/
+ * Journalist checkboxes. Master admin users are shown as locked.
+ * Self-edit is blocked server-side too.
  */
 export default async function CredentialsPage() {
   const user = await requireRole(
     ['admin', 'master admin'],
     '/portal/all/credentials'
   );
+  const profiles = await getAllProfiles();
 
   return (
     <PortalShell
@@ -30,22 +30,10 @@ export default async function CredentialsPage() {
       title="Credentials"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >
-      <div className="max-w-2xl mx-auto py-10 text-center">
-        <div className="inline-block bg-zinc-50 border border-zinc-200 rounded px-6 py-5">
-          <div className="text-xs uppercase tracking-widest text-zinc-500 font-semibold">
-            Coming soon
-          </div>
-          <h2 className="mt-2 font-headline text-xl font-bold text-zinc-900">
-            User role management
-          </h2>
-          <p className="mt-3 text-sm text-zinc-600 leading-relaxed">
-            This page will list every account in the system with their
-            current role (journalist / editor / admin / master admin) and
-            let master admins promote or demote users. Wiring it up is
-            next.
-          </p>
-        </div>
-      </div>
+      <CredentialsTable
+        initialProfiles={profiles}
+        currentUserId={user.id}
+      />
     </PortalShell>
   );
 }

@@ -6,14 +6,18 @@ type Props = {
   title: string;
   sectionSlug: string;
   stories: StoryListItem[];
+  /** When true, render the section header + a "Coming soon" placeholder
+   *  even if stories[] is empty. Used for the lead section (Video Vault)
+   *  so its slot in the page order is always visible to readers. */
+  showWhenEmpty?: boolean;
 };
 
 /**
  * A titled rail of story cards. Used on the homepage to show "Local",
  * "Sports", etc. Each rail renders up to 4 cards in a responsive grid.
  */
-export function SectionRail({ title, sectionSlug, stories }: Props) {
-  if (stories.length === 0) return null;
+export function SectionRail({ title, sectionSlug, stories, showWhenEmpty = false }: Props) {
+  if (stories.length === 0 && !showWhenEmpty) return null;
 
   // v1 section-block treatment: bold serif title on the left, red
   // "View All →" link on the right, thin zinc divider line below
@@ -34,11 +38,17 @@ export function SectionRail({ title, sectionSlug, stories }: Props) {
       {/* `items-stretch` (CSS Grid default) makes all tiles in a row
           the same height, which lets StoryCard push its byline row
           to the bottom of every card uniformly via mt-auto. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
-        {stories.slice(0, 4).map((story) => (
-          <StoryCard key={story.id} story={story} variant="standard" />
-        ))}
-      </div>
+      {stories.length === 0 ? (
+        <div className="rounded border border-dashed border-zinc-300 bg-zinc-50 px-6 py-10 text-center text-sm text-zinc-500">
+          Stories coming soon.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6">
+          {stories.slice(0, 4).map((story) => (
+            <StoryCard key={story.id} story={story} variant="standard" />
+          ))}
+        </div>
+      )}
     </section>
   );
 }

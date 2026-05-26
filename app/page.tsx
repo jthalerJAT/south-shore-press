@@ -50,12 +50,16 @@ export default async function HomePage() {
     5
   );
 
-  // Top Stories rail: 10 stories. Default-fallback skips the first 5
-  // (the hero set) so editors don't see the same headlines in two
-  // places by default. Pins can still override either direction.
+  // Top Stories rail: 10 stories. PREFER non-hero stories so editors
+  // don't see the same headlines twice — but top up with the hero set
+  // when the published pool is small enough that strictly excluding
+  // them would leave the rail mostly empty. Pins always win.
+  const heroIds = new Set(heroStories.map((s) => s.id));
+  const nonHero = latest.filter((s) => !heroIds.has(s.id));
+  const heroForBackfill = latest.filter((s) => heroIds.has(s.id));
   const topStories = resolveSlotStories(
     pins.filter((p) => p.slot_key === 'home.top-stories'),
-    latest.slice(5),
+    [...nonHero, ...heroForBackfill],
     10
   );
 
@@ -123,13 +127,17 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* SECTION RAILS — full-width, stacked below. Video Vault first. */}
+      {/* SECTION RAILS — full-width, stacked below. Video Vault first.
+          Video Vault renders even when empty so its slot in the order
+          is preserved; other sections collapse out of the layout when
+          they have no published content. */}
       {sectionRails.map((rail) => (
         <SectionRail
           key={rail.slug}
           title={rail.title}
           sectionSlug={rail.slug}
           stories={rail.stories}
+          showWhenEmpty={rail.slug === 'video-vault'}
         />
       ))}
     </div>

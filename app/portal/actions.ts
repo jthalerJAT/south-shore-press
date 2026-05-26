@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser, type UserRole } from '@/lib/auth';
-import { SITE_SECTIONS } from '@/lib/site-config';
+import { SITE_SECTIONS, SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 
 /**
  * Server Actions for the newsroom portal. Every mutation flows through
@@ -20,7 +20,14 @@ import { SITE_SECTIONS } from '@/lib/site-config';
  *   any         → draft       (editor/admin downgrade)
  */
 
-const VALID_SECTIONS = new Set(SITE_SECTIONS.map((s) => s.slug));
+// All valid category slugs: header-nav sections + the sports sub-cats
+// (the latter aren't standalone pages but are still legal tags).
+const VALID_SECTIONS = new Set([
+  ...SITE_SECTIONS.map((s) => s.slug),
+  ...SPORTS_SUBCATEGORIES.map((s) => s.slug),
+]);
+
+const SPORTS_SUBCATEGORY_SLUGS = new Set(SPORTS_SUBCATEGORIES.map((s) => s.slug));
 
 type FormResult = { error: string | null; id?: string };
 
@@ -43,10 +50,22 @@ function parseStoryFormData(formData: FormData) {
 
   // Categories are a set of checkboxes; FormData.getAll('categories')
   // returns every checked one. Always an array — DB column is NOT NULL.
-  const categories = formData
+  // If any sports sub-category is checked, auto-add 'sports' so the
+  // story shows in the parent Sports rail + page (single source of
+  // truth: editor picks the most specific tag, system maintains the
+  // hierarchy).
+  const rawCategories = formData
     .getAll('categories')
     .map((v) => String(v))
     .filter((slug) => VALID_SECTIONS.has(slug));
+
+  const hasSportsSubcat = rawCategories.some((c) =>
+    SPORTS_SUBCATEGORY_SLUGS.has(c)
+  );
+  const categories =
+    hasSportsSubcat && !rawCategories.includes('sports')
+      ? [...rawCategories, 'sports']
+      : rawCategories;
 
   return {
     headline,

@@ -5,7 +5,7 @@ import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { Plus, X } from 'lucide-react';
 import { createStoryAction, updateStoryAction, deleteStoryAction } from '@/app/portal/actions';
-import { SITE_SECTIONS } from '@/lib/site-config';
+import { SITE_SECTIONS, SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 import { StatusBadge } from './status-badge';
 import { cn } from '@/lib/utils';
 
@@ -172,6 +172,42 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
                   className="accent-brand-red"
                 />
                 {section.label}
+              </label>
+            );
+          })}
+        </div>
+      </Field>
+
+      {/* Sports sub-categories. These auto-imply 'Sports' on save (the
+          server action will add it if any sub-cat is checked), so the
+          editor only needs to pick the finest-grained tag. */}
+      <Field
+        label="Sports sub-category"
+        hint="Picking any of these automatically tags the story as Sports too."
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {SPORTS_SUBCATEGORIES.map((sub) => {
+            const checked = defaults?.categories?.includes(sub.slug) ?? false;
+            return (
+              <label
+                key={sub.slug}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 border rounded cursor-pointer text-sm',
+                  checked
+                    ? 'border-brand-red bg-red-50 text-brand-red font-medium'
+                    : 'border-zinc-300 text-zinc-700 hover:bg-zinc-50',
+                  disabled && 'opacity-60 cursor-not-allowed'
+                )}
+              >
+                <input
+                  type="checkbox"
+                  name="categories"
+                  value={sub.slug}
+                  defaultChecked={checked}
+                  disabled={disabled}
+                  className="accent-brand-red"
+                />
+                {sub.label}
               </label>
             );
           })}

@@ -16,7 +16,13 @@ import type { StoryListItem } from '@/lib/queries/stories';
  * we wire view counts or an editor-pinned flag, the query swap
  * happens upstream and this component doesn't change.
  */
-export function TopStoriesRail({ stories }: { stories: StoryListItem[] }) {
+export function TopStoriesRail({
+  stories,
+  title = 'Top Stories',
+}: {
+  stories: StoryListItem[];
+  title?: string;
+}) {
   if (stories.length === 0) return null;
 
   return (
@@ -28,7 +34,7 @@ export function TopStoriesRail({ stories }: { stories: StoryListItem[] }) {
             className="w-3.5 h-3.5 text-brand-red fill-brand-red"
             aria-hidden="true"
           />
-          Top Stories
+          {title}
         </h2>
       </div>
 

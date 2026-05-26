@@ -13,7 +13,7 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { Search, X, GripVertical } from 'lucide-react';
-import { SITE_SECTIONS } from '@/lib/site-config';
+import { SITE_SECTIONS, SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Pin } from '@/lib/queries/site-layout';
@@ -69,12 +69,34 @@ const HOMEPAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   { key: 'home.national', title: 'Nation Rail', count: 4 },
 ];
 
-const SECTION_GROUPS: ReadonlyArray<SlotGroup> = SITE_SECTIONS.map((s) => ({
-  key: `section.${s.slug}`,
-  title: `${s.label} Page`,
-  description: `Top 3 stories on /${s.slug}`,
-  count: 3,
-}));
+// /sports has a custom layout (recent rail + 3 sub-section blocks), so
+// its slot groups don't match the generic "Top 3 stories" pattern. We
+// suppress the auto-generated section.sports group and replace it with
+// four explicit groups below.
+const SPORTS_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
+  {
+    key: 'section.sports.recent',
+    title: 'Sports Page — Recent Stories Rail',
+    description: '10 headlines in the right-side rail on /sports',
+    count: 10,
+  },
+  ...SPORTS_SUBCATEGORIES.map((sub) => ({
+    key: `section.sports.${sub.slug}`,
+    title: `Sports Page — ${sub.label} Block`,
+    description: `4 stories shown 2x2 in the ${sub.label} block on /sports`,
+    count: 4,
+  })),
+];
+
+const SECTION_GROUPS: ReadonlyArray<SlotGroup> = [
+  ...SITE_SECTIONS.filter((s) => s.slug !== 'sports').map((s) => ({
+    key: `section.${s.slug}`,
+    title: `${s.label} Page`,
+    description: `Top 3 stories on /${s.slug}`,
+    count: 3,
+  })),
+  ...SPORTS_PAGE_GROUPS,
+];
 
 export function SiteLayoutBoard({
   publishedStories,

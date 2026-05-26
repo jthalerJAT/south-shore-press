@@ -27,6 +27,22 @@ export const SITE_SECTIONS: ReadonlyArray<SiteSection> = [
   { slug: 'video-vault', label: 'Video Vault' },
 ] as const;
 
+/**
+ * Sports sub-categories. These are story-level tags, NOT standalone
+ * sections — there's no /local-sports page, and they don't appear in
+ * the header nav. They live inside /sports as collapsible blocks +
+ * help the editor classify sports coverage finer than the parent tag.
+ *
+ * When an editor checks any of these on the story form, the save
+ * action auto-adds 'sports' to the categories array so the story
+ * still shows in the homepage Sports rail + the /sports recent rail.
+ */
+export const SPORTS_SUBCATEGORIES: ReadonlyArray<SiteSection> = [
+  { slug: 'local-sports', label: 'Local Sports' },
+  { slug: 'pro-sports', label: 'Pro Sports' },
+  { slug: 'fantasy-sports', label: 'Fantasy Sports' },
+] as const;
+
 export const SITE = {
   name: 'The South Shore Press',
   tagline: 'From Long Island to the World',

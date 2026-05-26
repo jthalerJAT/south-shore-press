@@ -104,9 +104,15 @@ function invalidateCachesForSlot(slotKey: string) {
     revalidatePath('/');
   }
   // section.<slug> changes invalidate that section's index page.
+  // Supports both:
+  //   section.sports             → /sports
+  //   section.sports.recent      → /sports
+  //   section.sports.local-sports → /sports
+  // The leading slug after `section.` is the page that needs to refresh.
   if (slotKey.startsWith('section.')) {
-    const sectionSlug = slotKey.slice('section.'.length);
-    revalidatePath(`/${sectionSlug}`);
+    const path = slotKey.slice('section.'.length);
+    const leadSlug = path.split('.')[0];
+    revalidatePath(`/${leadSlug}`);
   }
   // The Site Layout page itself shows current pins.
   revalidatePath('/portal/all/site-layout');

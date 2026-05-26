@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { StoryCard } from '@/components/story/story-card';
 import type { StoryListItem } from '@/lib/queries/stories';
 
@@ -32,29 +31,25 @@ export function SportsSubsection({
 
   return (
     <section className="mt-8 first:mt-0">
-      <div className="flex items-baseline justify-between gap-4 pb-3 mb-5 border-b border-zinc-200">
+      {/* The section heading wraps the anchor id so deep links like
+          /sports#pro-sports scroll here. The Link removed — anchor
+          targets just need an element with the id. */}
+      <div
+        id={sectionSlug}
+        className="flex items-baseline justify-between gap-4 pb-3 mb-5 border-b border-zinc-200 scroll-mt-20"
+      >
         <h2 className="font-headline text-xl sm:text-2xl font-extrabold text-zinc-900">
           {title}
         </h2>
-        <div className="flex items-center gap-4">
-          {hasOverflow ? (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="text-[11px] uppercase tracking-widest font-bold text-brand-red hover:text-brand-red-dark transition-colors whitespace-nowrap"
-            >
-              {expanded ? '← Collapse' : 'View All →'}
-            </button>
-          ) : null}
-          <Link
-            href={`/sports#${sectionSlug}`}
-            className="hidden sm:inline text-[11px] uppercase tracking-widest font-medium text-zinc-500 hover:text-zinc-800 transition-colors whitespace-nowrap"
-            id={sectionSlug}
-            aria-hidden="true"
+        {hasOverflow ? (
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[11px] uppercase tracking-widest font-bold text-brand-red hover:text-brand-red-dark transition-colors whitespace-nowrap"
           >
-            {/* anchor target only */}
-          </Link>
-        </div>
+            {expanded ? '← Collapse' : 'View All →'}
+          </button>
+        ) : null}
       </div>
 
       {stories.length === 0 ? (

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useFormState, useFormStatus } from 'react-dom';
 import { signUpAction, type SignUpState } from './actions';
+import { PhoneField } from '@/components/ui/phone-field';
 
 const initialState: SignUpState = { error: null, success: false };
 
@@ -48,7 +49,7 @@ export function SignUpForm({ next: _next }: { next: string }) {
       </div>
 
       <Field label="Email" name="email" type="email" required autoComplete="email" />
-      <Field label="Phone" name="phone" type="tel" autoComplete="tel" />
+      <PhoneField label="Phone" name="phone" />
 
       <Field label="Street address" name="street_address" autoComplete="street-address" />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

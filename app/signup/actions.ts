@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getSiteOrigin } from '@/lib/site-url';
+import { normalizePhoneForStorage } from '@/lib/phone';
 
 export type SignUpState = {
   error: string | null;
@@ -28,7 +29,7 @@ export async function signUpAction(
   const firstName = String(formData.get('first_name') ?? '').trim();
   const lastName = String(formData.get('last_name') ?? '').trim();
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  const phone = String(formData.get('phone') ?? '').trim();
+  const phone = normalizePhoneForStorage(String(formData.get('phone') ?? ''));
   const streetAddress = String(formData.get('street_address') ?? '').trim();
   const city = String(formData.get('city') ?? '').trim();
   const state = String(formData.get('state') ?? '').trim();
@@ -60,7 +61,7 @@ export async function signUpAction(
       data: {
         first_name: firstName,
         last_name: lastName,
-        phone: phone || null,
+        phone: phone,
         street_address: streetAddress || null,
         city: city || null,
         state: state || null,

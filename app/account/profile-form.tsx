@@ -3,6 +3,7 @@
 import { useFormState, useFormStatus } from 'react-dom';
 import { updateProfileAction, type ProfileUpdateState } from './actions';
 import type { ReaderProfile } from '@/lib/queries/reader-profile';
+import { PhoneField } from '@/components/ui/phone-field';
 
 const initialState: ProfileUpdateState = { error: null, success: false };
 
@@ -30,13 +31,7 @@ export function ProfileForm({ profile }: { profile: ReaderProfile }) {
         />
       </div>
 
-      <Field
-        label="Phone"
-        name="phone"
-        type="tel"
-        defaultValue={profile.phone ?? ''}
-        autoComplete="tel"
-      />
+      <PhoneField label="Phone" name="phone" defaultValue={profile.phone ?? ''} />
 
       <Field
         label="Street address"

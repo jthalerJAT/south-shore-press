@@ -117,6 +117,101 @@ no SEO escape hatch yet). Add SEO + multi-tier in a follow-up.
 
 ---
 
+## Wishlist — Print Edition Issue Builder
+
+A weekly 32-page printed paper currently goes to the printer as a
+PDF assembled in third-party layout software (InDesign or similar).
+**End goal: replace that workflow entirely** — build the issue inside
+the editor portal, generate the final print-ready PDF from there,
+and retire the external layout app.
+
+Reviewed the May 27, 2026 issue (32 pages). Page-template catalog:
+- **Front cover / Sports back cover** (p1, p32) — hero photo + giant
+  headline + 3-teaser strip. Same template, different brand.
+- **Standard editorial** — 1-3 stories with photos + display ads.
+- **Op-ed / columns** (p2, p4) — 1-2 column opinion + display ad.
+- **Recurring contributor column** (p15 "Ask Nancy") — Q&A with
+  author headshot.
+- **South Shore Living** (p22) — sponsored real-estate column +
+  Recent Listings / Recent Sales ad blocks (recurring weekly).
+- **This Week in History** (p23) — date-column timeline.
+- **Classifieds** (p20) — text + small display ad grid.
+- **Legal Notices** (p18) — multi-column dense legal text. Submitted
+  today via `legals@southshorepress.com`.
+- **Comics "Funny Pages"** (p25) — 6-strip grid.
+- **Full-page house promo** (p3) — single-image full-page.
+
+Most pages are *recurring slots* — editor swaps content into a fixed
+template each week, not bespoke design.
+
+### Phase 1 — Issue Builder MVP (~3 days)
+- [ ] New `/portal/all/issue-builder` page. Same dnd-kit pattern as
+  Site Layout: list of stories/ads/legals on the left, 32 pages on
+  the right. Each page has a `template` field (front, editorial,
+  op-ed, sports, legals, classifieds, comics, full-page-ad).
+- [ ] Drag stories/ads/legals into per-template slots.
+- [ ] Export a JSON manifest + a printable PDF table-of-contents
+  ("page X: story Y, ad Z, …") that the layout-software operator
+  uses as a shopping list. Useful even before full PDF generation.
+
+### Phase 2 — Ad portal (~1 day)
+- [ ] New `ad_sales` role. Upload form: advertiser name, image,
+  dimensions, target section, week-of-issue (or "every week").
+- [ ] `ads` table with status (draft / approved / published) and a
+  weekly schedule.
+- [ ] Approved ads show as draggable chips in Phase 1's Ad column.
+- [ ] Recurring weekly ads (John Liberti Real Estate, Vector Sports,
+  etc.) auto-place themselves into their usual slot each issue —
+  editor only confirms.
+
+### Phase 3 — Legals intake (~1 day)
+- [ ] Replace the `legals@southshorepress.com` email workflow with
+  a structured submission form (advertiser, notice text, publication
+  date(s), billing info).
+- [ ] `legal_notices` table. Editor approves; on issue day, approved
+  notices auto-flow into the Legal Notices page template at the
+  correct point size + column width.
+- [ ] Per-publication billing report for AR.
+
+### Phase 4 — PDF generation (~1-2 weeks, the big one)
+This is the "retire the external layout app" payoff.
+- [ ] HTML+CSS templates per page type using print-specific CSS
+  (`@page`, `size: tabloid` or whatever broadsheet dims, bleed,
+  crop marks). Tailwind handles most of it; a print stylesheet
+  overrides the on-screen settings.
+- [ ] Puppeteer-based renderer: feeds each page template + its
+  manifest content → PDF page. Concatenate all 32 into the final
+  issue PDF via `pdf-lib` or `pdftk`.
+- [ ] Photo handling: source images from Cloudinary (when wired)
+  at print resolution (300 DPI minimum) with proper crop boxes.
+- [ ] Comics are publisher-supplied images — passthrough.
+- [ ] Image-flattened legal notices (if any come in as PDFs)
+  spliced into the output via pdf-lib's `mergePdf`.
+- [ ] Print quality gotchas: HTML→PDF renders in sRGB by default,
+  not CMYK. Most community-paper newsprint printers accept sRGB
+  PDFs and convert in their prepress; confirm with your printer
+  before relying on this. If they require CMYK, swap Puppeteer for
+  WeasyPrint or Prince (commercial, ~$3.8K/yr) which support proper
+  color management.
+
+### Phase 5 — Polish + ops
+- [ ] "Preview issue" — render a low-res PDF for editor proofing
+  before committing to the print-quality render.
+- [ ] Version history per issue (so a recall / late-stage edit can
+  re-render from a known state).
+- [ ] Send-to-printer integration: SFTP / email-to-print API,
+  whatever the printer accepts.
+- [ ] Issue archive — past issues browsable from `/print-archive`
+  on the public site, with PDF download per issue.
+
+**Estimated total:** 3-4 weeks of focused work for the full
+end-to-end. Phases 1+2+3 alone (~5-7 days) deliver a clear win
+even if Phase 4 is deferred or scaled back. Phase 4 is the
+"retire InDesign" line — start it once Phases 1-3 are battle-tested
+on a few issues so we know the manifest model is right.
+
+---
+
 ## Editor Portal polish
 
 - [ ] **Image upload** (Cloudinary). User explicitly asked to skip this

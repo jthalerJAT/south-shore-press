@@ -46,6 +46,11 @@ CREATE INDEX IF NOT EXISTS site_layout_pins_slot_idx
 -- SELECT: anyone (the public reader site needs to read pins to render
 --   the homepage; pins don't expose anything not already public).
 -- INSERT/UPDATE/DELETE: editor / admin / master admin only.
+--
+-- profiles.role is a custom enum (user_role), not text — `lower()` and
+-- text comparisons need an explicit `::text` cast first. `replace(_, ' ')`
+-- normalizes 'master_admin' -> 'master admin' so we match either enum
+-- spelling without caring how the DB labels it.
 ALTER TABLE site_layout_pins ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "anyone can read site layout pins" ON site_layout_pins;
@@ -62,13 +67,15 @@ CREATE POLICY "editors can manage site layout pins"
     EXISTS (
       SELECT 1 FROM profiles
       WHERE profiles.id = auth.uid()
-      AND lower(profiles.role) IN ('editor', 'admin', 'master admin')
+      AND replace(lower(profiles.role::text), '_', ' ')
+          IN ('editor', 'admin', 'master admin')
     )
   )
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM profiles
       WHERE profiles.id = auth.uid()
-      AND lower(profiles.role) IN ('editor', 'admin', 'master admin')
+      AND replace(lower(profiles.role::text), '_', ' ')
+          IN ('editor', 'admin', 'master admin')
     )
   );

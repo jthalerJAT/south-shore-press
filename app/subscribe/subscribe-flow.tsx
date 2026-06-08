@@ -3,32 +3,25 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  Elements,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from '@stripe/react-stripe-js';
-import type { StripeElementsOptions } from '@stripe/stripe-js';
+import { Elements, PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js';
 import { getClientStripe } from '@/lib/stripe/client';
 import { PLAN_DISPLAY, type PlanTier } from '@/lib/stripe/plans';
 import { PlanCards } from './plan-cards';
 import {
   AddressFieldset,
-  EMPTY_ADDRESS,
   addressMissingFields,
   type Address,
 } from './address-fieldset';
 
+const APPEARANCE = {
+  theme: 'stripe' as const,
+  variables: { colorPrimary: '#dc2626' },
+};
+
 type CreateResponse =
   | { mode: 'complete'; orderId: string; subscriptionId: string }
   | { mode: 'confirm'; orderId: string; subscriptionId: string; clientSecret: string }
-  | {
-      mode: 'requires_action';
-      orderId: string;
-      subscriptionId: string;
-      clientSecret: string;
-    };
+  | { mode: 'requires_action'; orderId: string; subscriptionId: string; clientSecret: string };
 
 export function SubscribeFlow({
   authed,
@@ -47,17 +40,41 @@ export function SubscribeFlow({
   cardLast4: string | null;
   cardBrand: string | null;
 }) {
-  const [selectedTier, setSelectedTier] = useState<PlanTier | null>(null);
-  const [delivery, setDelivery] = useState<Address>(autofill);
-  const [billing, setBilling] = useState<Address>(autofill);
-  const [billingSame, setBillingSame] = useState(true);
+  const router = useRouter();
+  const [selectedTier, setSelectedTierState] = useState<PlanTier | null>(null);
+  const [delivery, setDeliveryState] = useState<Address>(autofill);
+  const [billing, setBillingState] = useState<Address>(autofill);
+  const [billingSame, setBillingSameState] = useState(true);
   const [useExistingCard, setUseExistingCard] = useState(hasPaymentMethod);
   const [placed, setPlaced] = useState(false);
 
-  if (!authed) {
-    return <AuthGate />;
+  // The subscription's PaymentIntent client secret. Created on "Continue to
+  // payment"; Elements mounts against it. Reset to null whenever the plan or
+  // addresses change, so we never confirm a stale order.
+  const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [preparing, setPreparing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Wrapped setters that invalidate any prepared subscription.
+  function setSelectedTier(t: PlanTier) {
+    setSelectedTierState(t);
+    setClientSecret(null);
+    setError(null);
+  }
+  function setDelivery(a: Address) {
+    setDeliveryState(a);
+    setClientSecret(null);
+  }
+  function setBilling(a: Address) {
+    setBillingState(a);
+    setClientSecret(null);
+  }
+  function setBillingSame(v: boolean) {
+    setBillingSameState(v);
+    setClientSecret(null);
   }
 
+  if (!authed) return <AuthGate />;
   if (!paymentsEnabled) {
     return (
       <div className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
@@ -66,38 +83,105 @@ export function SubscribeFlow({
       </div>
     );
   }
+  if (placed) return <SuccessPanel />;
 
-  if (placed) {
-    return <SuccessPanel />;
+  function validateAddresses(): string | null {
+    const missing = addressMissingFields(delivery);
+    if (missing.length > 0) {
+      return `Please complete your delivery information: ${missing.join(', ')}.`;
+    }
+    if (!billingSame) {
+      const billingMissing = addressMissingFields(billing);
+      if (billingMissing.length > 0) {
+        return `Please complete your billing information: ${billingMissing.join(', ')}.`;
+      }
+    }
+    return null;
   }
 
-  const elementsOptions: StripeElementsOptions = selectedTier
-    ? {
-        mode: 'subscription',
-        amount: PLAN_DISPLAY[selectedTier].amount * 100,
-        currency: 'usd',
-        appearance: { theme: 'stripe', variables: { colorPrimary: '#dc2626' } },
+  async function createSubscription(existing: boolean): Promise<CreateResponse | null> {
+    const res = await fetch('/api/subscriptions/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planTier: selectedTier,
+        delivery,
+        billing: billingSame ? null : billing,
+        billingSameAsDelivery: billingSame,
+        useExistingCard: existing,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      setError(json.error ?? 'Could not place your order. Please try again.');
+      return null;
+    }
+    return json as CreateResponse;
+  }
+
+  // New-card path: create the subscription, then mount Elements on its
+  // PaymentIntent client secret.
+  async function handleContinueToPayment() {
+    setError(null);
+    const addrErr = validateAddresses();
+    if (addrErr) {
+      setError(addrErr);
+      return;
+    }
+    setPreparing(true);
+    const data = await createSubscription(false);
+    setPreparing(false);
+    if (!data) return;
+    if (data.mode === 'complete') {
+      router.refresh();
+      setPlaced(true);
+      return;
+    }
+    setClientSecret(data.clientSecret);
+  }
+
+  // Saved-card path: server charges the default card; we just handle any 3DS.
+  async function handlePlaceWithSavedCard() {
+    setError(null);
+    const addrErr = validateAddresses();
+    if (addrErr) {
+      setError(addrErr);
+      return;
+    }
+    setPreparing(true);
+    const data = await createSubscription(true);
+    if (!data) {
+      setPreparing(false);
+      return;
+    }
+    if (data.mode === 'requires_action') {
+      const stripe = await getClientStripe();
+      if (stripe) {
+        const { error: actionErr } = await stripe.handleNextAction({
+          clientSecret: data.clientSecret,
+        });
+        if (actionErr) {
+          setError(actionErr.message ?? 'Payment could not be completed.');
+          setPreparing(false);
+          return;
+        }
       }
-    : { mode: 'subscription', amount: 100, currency: 'usd' };
+    }
+    setPreparing(false);
+    router.refresh();
+    setPlaced(true);
+  }
 
   return (
     <div className="flex flex-col gap-10">
       <Section title="Choose your subscription">
-        <PlanCards
-          selected={selectedTier}
-          onSelect={setSelectedTier}
-          configured={configured}
-        />
+        <PlanCards selected={selectedTier} onSelect={setSelectedTier} configured={configured} />
       </Section>
 
       {selectedTier ? (
         <>
           <Section title="Delivery Information">
-            <AddressFieldset
-              idPrefix="delivery"
-              value={delivery}
-              onChange={setDelivery}
-            />
+            <AddressFieldset idPrefix="delivery" value={delivery} onChange={setDelivery} />
           </Section>
 
           <Section title="Billing Information">
@@ -112,214 +196,164 @@ export function SubscribeFlow({
             </label>
             {!billingSame ? (
               <div className="mt-4">
-                <AddressFieldset
-                  idPrefix="billing"
-                  value={billing}
-                  onChange={setBilling}
-                />
+                <AddressFieldset idPrefix="billing" value={billing} onChange={setBilling} />
               </div>
             ) : null}
           </Section>
 
-          {/* Elements is keyed by tier so a plan change remounts the
-              PaymentElement with the correct amount. */}
-          <Elements key={selectedTier} stripe={getClientStripe()} options={elementsOptions}>
-            <PaymentAndPlaceOrder
-              tier={selectedTier}
-              delivery={delivery}
-              billing={billing}
-              billingSame={billingSame}
-              useExistingCard={useExistingCard}
-              onChangeUseExistingCard={setUseExistingCard}
-              hasPaymentMethod={hasPaymentMethod}
-              cardLast4={cardLast4}
-              cardBrand={cardBrand}
-              onPlaced={() => setPlaced(true)}
-            />
-          </Elements>
+          <Section title="Payment Information">
+            {hasPaymentMethod ? (
+              <div className="mb-4 flex flex-col gap-2">
+                <label className="flex items-center gap-2 text-sm text-zinc-700">
+                  <input
+                    type="radio"
+                    name="card-choice"
+                    checked={useExistingCard}
+                    onChange={() => setUseExistingCard(true)}
+                    className="h-4 w-4 accent-brand-red"
+                  />
+                  Use card on file:{' '}
+                  <span className="font-medium text-zinc-900">
+                    {cardBrand?.toUpperCase() ?? 'Card'} ···· {cardLast4 ?? '????'}
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 text-sm text-zinc-700">
+                  <input
+                    type="radio"
+                    name="card-choice"
+                    checked={!useExistingCard}
+                    onChange={() => setUseExistingCard(false)}
+                    className="h-4 w-4 accent-brand-red"
+                  />
+                  Use a new card
+                </label>
+              </div>
+            ) : null}
+
+            {useExistingCard ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePlaceWithSavedCard}
+                  disabled={preparing}
+                  className={PLACE_BTN}
+                >
+                  {preparing ? 'Placing order…' : `Place Your Order — ${PLAN_DISPLAY[selectedTier].priceLine}`}
+                </button>
+                <Disclaimer tier={selectedTier} />
+              </>
+            ) : !clientSecret ? (
+              <>
+                <p className="text-sm text-zinc-600">
+                  Click below to load the secure card form for{' '}
+                  <strong>{PLAN_DISPLAY[selectedTier].priceLine}</strong>.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleContinueToPayment}
+                  disabled={preparing}
+                  className={`${PLACE_BTN} mt-3`}
+                >
+                  {preparing ? 'Loading…' : 'Continue to payment'}
+                </button>
+              </>
+            ) : (
+              <Elements
+                stripe={getClientStripe()}
+                options={{ clientSecret, appearance: APPEARANCE }}
+              >
+                <ConfirmForm
+                  tier={selectedTier}
+                  onPlaced={() => {
+                    router.refresh();
+                    setPlaced(true);
+                  }}
+                />
+              </Elements>
+            )}
+
+            {error ? (
+              <div
+                role="alert"
+                className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2"
+              >
+                {error}
+              </div>
+            ) : null}
+          </Section>
         </>
       ) : null}
     </div>
   );
 }
 
-function PaymentAndPlaceOrder({
-  tier,
-  delivery,
-  billing,
-  billingSame,
-  useExistingCard,
-  onChangeUseExistingCard,
-  hasPaymentMethod,
-  cardLast4,
-  cardBrand,
-  onPlaced,
-}: {
-  tier: PlanTier;
-  delivery: Address;
-  billing: Address;
-  billingSame: boolean;
-  useExistingCard: boolean;
-  onChangeUseExistingCard: (v: boolean) => void;
-  hasPaymentMethod: boolean;
-  cardLast4: string | null;
-  cardBrand: string | null;
-  onPlaced: () => void;
-}) {
+const PLACE_BTN =
+  'inline-flex items-center justify-center px-6 py-3 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold uppercase tracking-wide rounded transition-colors';
+
+/** The card form + Place Your Order, mounted inside <Elements> bound to the
+ *  subscription's PaymentIntent client secret. */
+function ConfirmForm({ tier, onPlaced }: { tier: PlanTier; onPlaced: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
-  const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handlePlaceOrder() {
-    setError(null);
-
-    // Client-side guard (the server re-validates).
-    const missingDelivery = addressMissingFields(delivery);
-    if (missingDelivery.length > 0) {
-      setError(`Please complete your delivery information: ${missingDelivery.join(', ')}.`);
-      return;
-    }
-    if (!billingSame) {
-      const missingBilling = addressMissingFields(billing);
-      if (missingBilling.length > 0) {
-        setError(`Please complete your billing information: ${missingBilling.join(', ')}.`);
-        return;
-      }
-    }
-
     if (!stripe || !elements) return;
     setSubmitting(true);
+    setError(null);
 
-    // New-card path: validate the PaymentElement before creating the sub.
-    if (!useExistingCard) {
-      const { error: submitError } = await elements.submit();
-      if (submitError) {
-        setError(submitError.message ?? 'Please check your card details.');
-        setSubmitting(false);
-        return;
-      }
-    }
+    const { error: confirmError } = await stripe.confirmPayment({
+      elements,
+      confirmParams: {
+        return_url: `${window.location.origin}/account/subscription`,
+      },
+      redirect: 'if_required',
+    });
 
-    let data: CreateResponse;
-    try {
-      const res = await fetch('/api/subscriptions/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          planTier: tier,
-          delivery,
-          billing: billingSame ? null : billing,
-          billingSameAsDelivery: billingSame,
-          useExistingCard,
-        }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(json.error ?? 'Could not place your order. Please try again.');
-        setSubmitting(false);
-        return;
-      }
-      data = json as CreateResponse;
-    } catch {
-      setError('Network error. Please try again.');
+    if (confirmError) {
+      setError(confirmError.message ?? 'Payment could not be completed.');
       setSubmitting(false);
       return;
     }
-
-    const returnUrl = `${window.location.origin}/account/subscription`;
-
-    if (data.mode === 'confirm') {
-      const { error: confirmError } = await stripe.confirmPayment({
-        elements,
-        clientSecret: data.clientSecret,
-        confirmParams: { return_url: returnUrl },
-        redirect: 'if_required',
-      });
-      if (confirmError) {
-        setError(confirmError.message ?? 'Payment could not be completed.');
-        setSubmitting(false);
-        return;
-      }
-    } else if (data.mode === 'requires_action') {
-      const { error: actionError } = await stripe.handleNextAction({
-        clientSecret: data.clientSecret,
-      });
-      if (actionError) {
-        setError(actionError.message ?? 'Payment could not be completed.');
-        setSubmitting(false);
-        return;
-      }
-    }
-    // mode === 'complete' falls straight through to success.
-
-    router.refresh();
     onPlaced();
     setSubmitting(false);
   }
 
-  const plan = PLAN_DISPLAY[tier];
-
   return (
-    <Section title="Payment Information">
-      {hasPaymentMethod ? (
-        <div className="mb-4 flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-sm text-zinc-700">
-            <input
-              type="radio"
-              name="card-choice"
-              checked={useExistingCard}
-              onChange={() => onChangeUseExistingCard(true)}
-              className="h-4 w-4 accent-brand-red"
-            />
-            Use card on file:{' '}
-            <span className="font-medium text-zinc-900">
-              {cardBrand?.toUpperCase() ?? 'Card'} ···· {cardLast4 ?? '????'}
-            </span>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-zinc-700">
-            <input
-              type="radio"
-              name="card-choice"
-              checked={!useExistingCard}
-              onChange={() => onChangeUseExistingCard(false)}
-              className="h-4 w-4 accent-brand-red"
-            />
-            Use a new card
-          </label>
-        </div>
-      ) : null}
-
-      {!useExistingCard ? <PaymentElement /> : null}
-
+    <div className="flex flex-col gap-4">
+      <PaymentElement />
       {error ? (
         <div
           role="alert"
-          className="mt-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2"
+          className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2"
         >
           {error}
         </div>
       ) : null}
-
       <button
         type="button"
         onClick={handlePlaceOrder}
         disabled={!stripe || submitting}
-        className="mt-6 inline-flex items-center justify-center px-6 py-3 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-semibold uppercase tracking-wide rounded transition-colors"
+        className={PLACE_BTN}
       >
-        {submitting ? 'Placing order…' : `Place Your Order — ${plan.priceLine}`}
+        {submitting ? 'Placing order…' : `Place Your Order — ${PLAN_DISPLAY[tier].priceLine}`}
       </button>
+      <Disclaimer tier={tier} />
+    </div>
+  );
+}
 
-      <p className="mt-4 max-w-2xl text-xs leading-relaxed text-zinc-500">
-        By placing your order you authorize The South Shore Press to charge your
-        card {plan.priceLine}. Your subscription renews automatically upon
-        expiration of your purchase term unless you cancel in advance of the
-        renewal date. Monthly subscribers are billed one month in advance; if you
-        cancel, delivery continues for 30 days after cancellation. You can cancel
-        anytime from My Account → Subscription.
-      </p>
-    </Section>
+function Disclaimer({ tier }: { tier: PlanTier }) {
+  return (
+    <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-500">
+      By placing your order you authorize The South Shore Press to charge your
+      card {PLAN_DISPLAY[tier].priceLine}. Your subscription renews automatically
+      upon expiration of your purchase term unless you cancel in advance of the
+      renewal date. Monthly subscribers are billed one month in advance; if you
+      cancel, delivery continues for 30 days after cancellation. You can cancel
+      anytime from My Account → Subscription.
+    </p>
   );
 }
 

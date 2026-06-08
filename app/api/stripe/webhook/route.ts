@@ -13,10 +13,16 @@ export const dynamic = 'force-dynamic';
  * POST /api/stripe/webhook
  *
  * Stripe's source-of-truth feed. Verifies the signature against the raw
- * body (never req.json() — re-parsing changes the bytes and breaks the
- * signature), dedupes redelivered events via processed_stripe_events,
- * and syncs subscription state onto `profiles` + `subscription_orders`
- * using the service-role client (the webhook has no user session).
+ * body (never req.json() — re-parsing changes the bytes), dedupes
+ * redelivered events, and syncs subscription state onto `profiles` +
+ * `subscription_orders` via the service-role client.
+ *
+ * Version-robustness: Stripe accounts created recently default to a newer
+ * API version where the subscription reference moved off the invoice
+ * (now invoice.parent.subscription_details.subscription) and the period
+ * dates moved onto line/subscription items. We read every shape, and for
+ * the canonical fields we re-fetch the subscription with our pinned SDK
+ * so the data is consistent regardless of the event's API version.
  *
  * Subscribe to: customer.subscription.created / updated / deleted,
  * invoice.paid, invoice.payment_failed.
@@ -25,10 +31,7 @@ export async function POST(req: Request) {
   const stripe = getStripe();
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!stripe || !webhookSecret) {
-    return NextResponse.json(
-      { error: 'Webhook not configured.' },
-      { status: 503 }
-    );
+    return NextResponse.json({ error: 'Webhook not configured.' }, { status: 503 });
   }
 
   const body = await req.text();
@@ -47,25 +50,25 @@ export async function POST(req: Request) {
 
   const admin = createAdminClient();
 
-  // Idempotency: insert the event id. A unique-violation means we've
-  // already processed this event — no-op. Any other error: let Stripe
-  // retry rather than risk a missed sync.
-  const { error: dedupeErr } = await admin
+  // Best-effort idempotency: if we've already recorded this event, skip.
+  // Never fatal — our handlers set absolute values, so reprocessing is safe.
+  const { data: seen } = await admin
     .from('processed_stripe_events')
-    .insert({ event_id: event.id });
-  if (dedupeErr) {
-    if (dedupeErr.code === '23505') {
-      return NextResponse.json({ received: true, duplicate: true });
-    }
-    console.error('[stripe webhook] dedupe insert failed', dedupeErr);
-    return NextResponse.json({ error: 'Dedupe failed.' }, { status: 500 });
+    .select('event_id')
+    .eq('event_id', event.id)
+    .maybeSingle();
+  if (seen) {
+    return NextResponse.json({ received: true, duplicate: true });
   }
 
   try {
     switch (event.type) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
-        await syncSubscription(stripe, admin, event.data.object as Stripe.Subscription);
+        const obj = event.data.object as Stripe.Subscription;
+        // Re-fetch with our pinned SDK for consistent field locations.
+        const sub = await stripe.subscriptions.retrieve(obj.id);
+        await syncSubscription(admin, sub as Stripe.Subscription);
         break;
       }
       case 'customer.subscription.deleted': {
@@ -81,12 +84,20 @@ export async function POST(req: Request) {
         break;
       }
       default:
-        // Unhandled event types are fine — we acknowledge them.
         break;
     }
   } catch (err) {
     console.error(`[stripe webhook] handler error for ${event.type}`, err);
+    // Return 500 WITHOUT recording the event so Stripe retries it.
     return NextResponse.json({ error: 'Handler error.' }, { status: 500 });
+  }
+
+  // Record the event only after successful processing (best-effort).
+  const { error: recordErr } = await admin
+    .from('processed_stripe_events')
+    .insert({ event_id: event.id });
+  if (recordErr && recordErr.code !== '23505') {
+    console.error('[stripe webhook] could not record event id', recordErr);
   }
 
   return NextResponse.json({ received: true });
@@ -94,16 +105,38 @@ export async function POST(req: Request) {
 
 type Admin = ReturnType<typeof createAdminClient>;
 
-/** Resolve the Supabase user id for a subscription — metadata first,
- *  then a customer-id lookup as a fallback. */
-async function resolveUserId(
-  admin: Admin,
-  sub: Stripe.Subscription
-): Promise<string | null> {
+/** Pull the subscription id off an invoice, across API-version shapes. */
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const inv = invoice as unknown as Record<string, any>;
+  const candidates = [
+    inv.subscription,
+    inv.parent?.subscription_details?.subscription,
+    inv.lines?.data?.[0]?.parent?.subscription_item_details?.subscription,
+    inv.lines?.data?.[0]?.subscription,
+  ];
+  for (const c of candidates) {
+    if (typeof c === 'string' && c) return c;
+    if (c && typeof c === 'object' && typeof c.id === 'string') return c.id;
+  }
+  return null;
+}
+
+/** current_period_end across shapes: subscription top-level (older) or the
+ *  first subscription item (newer). Returns an ISO string or null. */
+function periodEndIso(sub: Stripe.Subscription): string | null {
+  const s = sub as unknown as Record<string, any>;
+  const unix = s.current_period_end ?? s.items?.data?.[0]?.current_period_end ?? null;
+  return unix ? new Date(unix * 1000).toISOString() : null;
+}
+
+/** Resolve the Supabase user id for a subscription — metadata first, then a
+ *  customer-id lookup. */
+async function resolveUserId(admin: Admin, sub: Stripe.Subscription): Promise<string | null> {
   const metaId = sub.metadata?.supabase_user_id;
   if (metaId) return metaId;
 
-  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+  if (!customerId) return null;
   const { data } = await admin
     .from('profiles')
     .select('id')
@@ -112,9 +145,8 @@ async function resolveUserId(
   return (data?.id as string | undefined) ?? null;
 }
 
-/** Map a Stripe subscription status onto the order-status CHECK set.
- *  Returns null for statuses we don't want to write to the order row
- *  (e.g. 'incomplete' — leave it 'pending'). */
+/** Map a Stripe subscription status onto the order-status CHECK set, or null
+ *  to leave the order row unchanged. */
 function orderStatusFor(status: Stripe.Subscription.Status): string | null {
   switch (status) {
     case 'active':
@@ -128,14 +160,12 @@ function orderStatusFor(status: Stripe.Subscription.Status): string | null {
     case 'incomplete_expired':
       return 'incomplete_expired';
     default:
-      return null; // incomplete, paused → leave order as-is
+      return null; // incomplete, paused → leave as-is
   }
 }
 
-/** Core sync for created/updated: write the snapshot fields onto profiles
- *  and the matching order row. */
+/** Write the snapshot fields onto profiles + the matching order row. */
 async function syncSubscription(
-  _stripe: Stripe,
   admin: Admin,
   sub: Stripe.Subscription,
   opts: { markStarted?: boolean } = {}
@@ -148,19 +178,15 @@ async function syncSubscription(
 
   const priceId = sub.items.data[0]?.price?.id ?? null;
   const tier = tierForPriceId(priceId);
-  const periodEnd = sub.current_period_end
-    ? new Date(sub.current_period_end * 1000).toISOString()
-    : null;
 
   const profilePatch: Record<string, unknown> = {
     stripe_subscription_id: sub.id,
     subscription_status: sub.status,
     subscription_cancel_at_period_end: sub.cancel_at_period_end,
-    subscription_current_period_end: periodEnd,
+    subscription_current_period_end: periodEndIso(sub),
   };
   if (tier) profilePatch.subscription_tier = tier;
   if (opts.markStarted) {
-    // Set the start date only the first time (don't overwrite on renewals).
     profilePatch.subscription_started_at = new Date().toISOString();
   }
 
@@ -183,7 +209,7 @@ async function syncSubscription(
 async function handleSubscriptionDeleted(admin: Admin, sub: Stripe.Subscription) {
   const userId = await resolveUserId(admin, sub);
   if (userId) {
-    await admin
+    const { error } = await admin
       .from('profiles')
       .update({
         subscription_status: 'canceled',
@@ -192,6 +218,7 @@ async function handleSubscriptionDeleted(admin: Admin, sub: Stripe.Subscription)
         subscription_cancel_at_period_end: false,
       })
       .eq('id', userId);
+    if (error) console.error('[stripe webhook] delete profile sync failed', error);
   }
   await admin
     .from('subscription_orders')
@@ -200,15 +227,13 @@ async function handleSubscriptionDeleted(admin: Admin, sub: Stripe.Subscription)
 }
 
 async function handleInvoicePaid(stripe: Stripe, admin: Admin, invoice: Stripe.Invoice) {
-  const subId = typeof invoice.subscription === 'string'
-    ? invoice.subscription
-    : invoice.subscription?.id;
-  if (!subId) return; // not a subscription invoice
-
-  // Retrieve the full subscription for tier/period/metadata, then sync.
-  // markStarted only when this is the very first paid invoice.
+  const subId = invoiceSubscriptionId(invoice);
+  if (!subId) {
+    console.error('[stripe webhook] invoice.paid had no subscription id', invoice.id);
+    return;
+  }
   const sub = await stripe.subscriptions.retrieve(subId);
-  const userId = await resolveUserId(admin, sub);
+  const userId = await resolveUserId(admin, sub as Stripe.Subscription);
   let markStarted = false;
   if (userId) {
     const { data } = await admin
@@ -218,16 +243,14 @@ async function handleInvoicePaid(stripe: Stripe, admin: Admin, invoice: Stripe.I
       .maybeSingle();
     markStarted = !data?.subscription_started_at;
   }
-  await syncSubscription(stripe, admin, sub, { markStarted });
+  await syncSubscription(admin, sub as Stripe.Subscription, { markStarted });
 }
 
 async function handleInvoiceFailed(admin: Admin, invoice: Stripe.Invoice) {
-  const customerId = typeof invoice.customer === 'string'
-    ? invoice.customer
-    : invoice.customer?.id;
-  const subId = typeof invoice.subscription === 'string'
-    ? invoice.subscription
-    : invoice.subscription?.id;
+  const inv = invoice as unknown as Record<string, any>;
+  const customerId =
+    typeof inv.customer === 'string' ? inv.customer : inv.customer?.id ?? null;
+  const subId = invoiceSubscriptionId(invoice);
 
   if (customerId) {
     const { data } = await admin

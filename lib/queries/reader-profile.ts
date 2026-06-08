@@ -23,6 +23,9 @@ export type ReaderProfile = {
   subscription_status: string | null;
   subscription_tier: string | null;
   subscription_started_at: string | null;
+  stripe_subscription_id: string | null;
+  subscription_cancel_at_period_end: boolean;
+  subscription_current_period_end: string | null;
 };
 
 /** Fetch the signed-in user's own profile (RLS gates this to their row). */
@@ -31,7 +34,7 @@ export async function getMyProfile(userId: string): Promise<ReaderProfile | null
   const { data, error } = await supabase
     .from('profiles')
     .select(
-      'id, email, display_name, first_name, last_name, phone, street_address, city, state, zip_code, stripe_customer_id, has_payment_method, payment_method_last4, payment_method_brand, subscription_status, subscription_tier, subscription_started_at'
+      'id, email, display_name, first_name, last_name, phone, street_address, city, state, zip_code, stripe_customer_id, has_payment_method, payment_method_last4, payment_method_brand, subscription_status, subscription_tier, subscription_started_at, stripe_subscription_id, subscription_cancel_at_period_end, subscription_current_period_end'
     )
     .eq('id', userId)
     .maybeSingle();

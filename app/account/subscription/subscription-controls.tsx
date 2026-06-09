@@ -10,18 +10,21 @@ import {
 const initialState: SubActionState = { error: null, success: false };
 
 /**
- * Cancel / Resume controls for an active subscription. When a cancellation
- * is already pending (cancel_at_period_end) we show "Resume"; otherwise
- * "Cancel Subscription".
+ * Cancel / Resume controls for ONE subscription, keyed by its Stripe
+ * subscription id. When a cancellation is already pending we show
+ * "Resume"; otherwise "Cancel Subscription".
  */
 export function SubscriptionControls({
+  subscriptionId,
   cancelAtPeriodEnd,
 }: {
+  subscriptionId: string;
   cancelAtPeriodEnd: boolean;
 }) {
   if (cancelAtPeriodEnd) {
     return (
       <ActionForm
+        subscriptionId={subscriptionId}
         action={resumeSubscriptionAction}
         label="Resume subscription"
         pendingLabel="Resuming…"
@@ -31,6 +34,7 @@ export function SubscriptionControls({
   }
   return (
     <ActionForm
+      subscriptionId={subscriptionId}
       action={cancelSubscriptionAction}
       label="Cancel Subscription"
       pendingLabel="Canceling…"
@@ -40,11 +44,13 @@ export function SubscriptionControls({
 }
 
 function ActionForm({
+  subscriptionId,
   action,
   label,
   pendingLabel,
   variant,
 }: {
+  subscriptionId: string;
   action: (prev: SubActionState, formData: FormData) => Promise<SubActionState>;
   label: string;
   pendingLabel: string;
@@ -53,6 +59,7 @@ function ActionForm({
   const [state, formAction] = useFormState(action, initialState);
   return (
     <form action={formAction} className="mt-4">
+      <input type="hidden" name="subscriptionId" value={subscriptionId} />
       <SubmitButton label={label} pendingLabel={pendingLabel} variant={variant} />
       {state.error ? (
         <div

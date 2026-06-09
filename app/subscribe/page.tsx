@@ -4,6 +4,8 @@ import { getMyProfile } from '@/lib/queries/reader-profile';
 import { isStripeEnabled } from '@/lib/stripe/server';
 import { isPlanConfigured, type PlanTier } from '@/lib/stripe/plans';
 import { maskPhoneInput } from '@/lib/phone';
+import { getUserSubscriptions } from '@/lib/queries/subscription-order';
+import { SubscriptionCard } from '@/components/subscription/subscription-card';
 import { SubscribeFlow } from './subscribe-flow';
 import type { Address } from './address-fieldset';
 
@@ -19,6 +21,7 @@ export const dynamic = 'force-dynamic';
 export default async function SubscribePage() {
   const user = await getCurrentUser();
   const profile = user ? await getMyProfile(user.id) : null;
+  const subscriptions = user ? await getUserSubscriptions(user.id) : [];
 
   const autofill: Address = {
     first_name: profile?.first_name ?? '',
@@ -56,6 +59,19 @@ export default async function SubscribePage() {
         </p>
       </div>
 
+      {subscriptions.length > 0 ? (
+        <div className="mt-10">
+          <h2 className="font-headline text-lg font-bold text-zinc-900">
+            Your current {subscriptions.length > 1 ? 'subscriptions' : 'subscription'}
+          </h2>
+          <div className="mt-4 space-y-4">
+            {subscriptions.map((order) => (
+              <SubscriptionCard key={order.id} order={order} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-12">
         <SubscribeFlow
           authed={Boolean(user)}
@@ -65,6 +81,7 @@ export default async function SubscribePage() {
           hasPaymentMethod={profile?.has_payment_method ?? false}
           cardLast4={profile?.payment_method_last4 ?? null}
           cardBrand={profile?.payment_method_brand ?? null}
+          hasExistingSubscriptions={subscriptions.length > 0}
         />
       </div>
     </section>

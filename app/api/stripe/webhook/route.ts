@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { tierForPriceId } from '@/lib/stripe/plans';
+import { PLAN_TIERS, type PlanTier } from '@/lib/stripe/plans';
 
 // The webhook needs the raw request body for signature verification and
 // Node crypto — it cannot run on the edge.
@@ -13,19 +13,18 @@ export const dynamic = 'force-dynamic';
  * POST /api/stripe/webhook
  *
  * Stripe's source-of-truth feed. Verifies the signature against the raw
- * body (never req.json() — re-parsing changes the bytes), dedupes
- * redelivered events, and syncs subscription state onto `profiles` +
- * `subscription_orders` via the service-role client.
+ * body, dedupes redelivered events, and syncs subscription state.
  *
- * Version-robustness: Stripe accounts created recently default to a newer
- * API version where the subscription reference moved off the invoice
- * (now invoice.parent.subscription_details.subscription) and the period
- * dates moved onto line/subscription items. We read every shape, and for
- * the canonical fields we re-fetch the subscription with our pinned SDK
- * so the data is consistent regardless of the event's API version.
+ * Multi-subscription model: each Stripe subscription maps to one
+ * `subscription_orders` row (the authoritative per-sub record). After
+ * syncing the affected row, we recompute the cheap aggregate on `profiles`
+ * (`subscription_status` = active if ANY of the user's subs is active;
+ * `subscription_tier` = their best active tier) for fast paywall gating.
  *
- * Subscribe to: customer.subscription.created / updated / deleted,
- * invoice.paid, invoice.payment_failed.
+ * Version-robustness: recent Stripe accounts default to an API version
+ * where the subscription reference moved off the invoice and the period
+ * dates moved onto items. We read every shape and re-fetch subscriptions
+ * with our pinned SDK so field locations are consistent.
  */
 export async function POST(req: Request) {
   const stripe = getStripe();
@@ -51,7 +50,6 @@ export async function POST(req: Request) {
   const admin = createAdminClient();
 
   // Best-effort idempotency: if we've already recorded this event, skip.
-  // Never fatal — our handlers set absolute values, so reprocessing is safe.
   const { data: seen } = await admin
     .from('processed_stripe_events')
     .select('event_id')
@@ -66,7 +64,6 @@ export async function POST(req: Request) {
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const obj = event.data.object as Stripe.Subscription;
-        // Re-fetch with our pinned SDK for consistent field locations.
         const sub = await stripe.subscriptions.retrieve(obj.id);
         await syncSubscription(admin, sub as Stripe.Subscription);
         break;
@@ -88,11 +85,9 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error(`[stripe webhook] handler error for ${event.type}`, err);
-    // Return 500 WITHOUT recording the event so Stripe retries it.
     return NextResponse.json({ error: 'Handler error.' }, { status: 500 });
   }
 
-  // Record the event only after successful processing (best-effort).
   const { error: recordErr } = await admin
     .from('processed_stripe_events')
     .insert({ event_id: event.id });
@@ -104,6 +99,10 @@ export async function POST(req: Request) {
 }
 
 type Admin = ReturnType<typeof createAdminClient>;
+
+function nowIso() {
+  return new Date().toISOString();
+}
 
 /** Pull the subscription id off an invoice, across API-version shapes. */
 function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
@@ -122,19 +121,16 @@ function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
 }
 
 /** current_period_end across shapes: subscription top-level (older) or the
- *  first subscription item (newer). Returns an ISO string or null. */
+ *  first subscription item (newer). ISO string or null. */
 function periodEndIso(sub: Stripe.Subscription): string | null {
   const s = sub as unknown as Record<string, any>;
   const unix = s.current_period_end ?? s.items?.data?.[0]?.current_period_end ?? null;
   return unix ? new Date(unix * 1000).toISOString() : null;
 }
 
-/** Resolve the Supabase user id for a subscription — metadata first, then a
- *  customer-id lookup. */
 async function resolveUserId(admin: Admin, sub: Stripe.Subscription): Promise<string | null> {
   const metaId = sub.metadata?.supabase_user_id;
   if (metaId) return metaId;
-
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
   if (!customerId) return null;
   const { data } = await admin
@@ -146,7 +142,7 @@ async function resolveUserId(admin: Admin, sub: Stripe.Subscription): Promise<st
 }
 
 /** Map a Stripe subscription status onto the order-status CHECK set, or null
- *  to leave the order row unchanged. */
+ *  to leave the order row's status unchanged (e.g. incomplete). */
 function orderStatusFor(status: Stripe.Subscription.Status): string | null {
   switch (status) {
     case 'active':
@@ -160,11 +156,52 @@ function orderStatusFor(status: Stripe.Subscription.Status): string | null {
     case 'incomplete_expired':
       return 'incomplete_expired';
     default:
-      return null; // incomplete, paused → leave as-is
+      return null;
   }
 }
 
-/** Write the snapshot fields onto profiles + the matching order row. */
+/** Best (highest-value) tier from a set — PLAN_TIERS is already ordered
+ *  all_access > print_annual > print_monthly. */
+function bestTier(tiers: PlanTier[]): PlanTier | null {
+  for (const t of PLAN_TIERS) {
+    if (tiers.includes(t)) return t;
+  }
+  return null;
+}
+
+/** Recompute the aggregate flags on `profiles` from ALL of a user's order
+ *  rows. `subscription_status` is active if any sub is active; tier is the
+ *  best active tier. */
+async function recomputeProfileAggregate(admin: Admin, userId: string) {
+  const { data: orders } = await admin
+    .from('subscription_orders')
+    .select('plan_tier, status')
+    .eq('user_id', userId);
+
+  const rows = (orders ?? []) as Array<{ plan_tier: PlanTier; status: string }>;
+  const activeTiers = rows.filter((o) => o.status === 'active').map((o) => o.plan_tier);
+
+  let status: string | null;
+  let tier: PlanTier | null = null;
+  if (activeTiers.length > 0) {
+    status = 'active';
+    tier = bestTier(activeTiers);
+  } else if (rows.some((o) => o.status === 'past_due')) {
+    status = 'past_due';
+  } else if (rows.some((o) => o.status === 'canceled')) {
+    status = 'canceled';
+  } else {
+    status = null;
+  }
+
+  const { error } = await admin
+    .from('profiles')
+    .update({ subscription_status: status, subscription_tier: tier })
+    .eq('id', userId);
+  if (error) console.error('[stripe webhook] profile aggregate failed', error);
+}
+
+/** Sync one subscription onto its order row, then recompute the aggregate. */
 async function syncSubscription(
   admin: Admin,
   sub: Stripe.Subscription,
@@ -176,54 +213,31 @@ async function syncSubscription(
     return;
   }
 
-  const priceId = sub.items.data[0]?.price?.id ?? null;
-  const tier = tierForPriceId(priceId);
-
-  const profilePatch: Record<string, unknown> = {
-    stripe_subscription_id: sub.id,
-    subscription_status: sub.status,
-    subscription_cancel_at_period_end: sub.cancel_at_period_end,
-    subscription_current_period_end: periodEndIso(sub),
-  };
-  if (tier) profilePatch.subscription_tier = tier;
-  if (opts.markStarted) {
-    profilePatch.subscription_started_at = new Date().toISOString();
-  }
-
-  const { error: profErr } = await admin
-    .from('profiles')
-    .update(profilePatch)
-    .eq('id', userId);
-  if (profErr) console.error('[stripe webhook] profile sync failed', profErr);
-
   const orderStatus = orderStatusFor(sub.status);
-  if (orderStatus) {
-    const { error: orderErr } = await admin
-      .from('subscription_orders')
-      .update({ status: orderStatus, updated_at: new Date().toISOString() })
-      .eq('stripe_subscription_id', sub.id);
-    if (orderErr) console.error('[stripe webhook] order sync failed', orderErr);
-  }
+  const orderPatch: Record<string, unknown> = {
+    cancel_at_period_end: sub.cancel_at_period_end,
+    current_period_end: periodEndIso(sub),
+    updated_at: nowIso(),
+  };
+  if (orderStatus) orderPatch.status = orderStatus;
+  if (opts.markStarted) orderPatch.started_at = nowIso();
+
+  const { error: orderErr } = await admin
+    .from('subscription_orders')
+    .update(orderPatch)
+    .eq('stripe_subscription_id', sub.id);
+  if (orderErr) console.error('[stripe webhook] order sync failed', orderErr);
+
+  await recomputeProfileAggregate(admin, userId);
 }
 
 async function handleSubscriptionDeleted(admin: Admin, sub: Stripe.Subscription) {
   const userId = await resolveUserId(admin, sub);
-  if (userId) {
-    const { error } = await admin
-      .from('profiles')
-      .update({
-        subscription_status: 'canceled',
-        subscription_tier: null,
-        stripe_subscription_id: null,
-        subscription_cancel_at_period_end: false,
-      })
-      .eq('id', userId);
-    if (error) console.error('[stripe webhook] delete profile sync failed', error);
-  }
   await admin
     .from('subscription_orders')
-    .update({ status: 'canceled', updated_at: new Date().toISOString() })
+    .update({ status: 'canceled', cancel_at_period_end: false, updated_at: nowIso() })
     .eq('stripe_subscription_id', sub.id);
+  if (userId) await recomputeProfileAggregate(admin, userId);
 }
 
 async function handleInvoicePaid(stripe: Stripe, admin: Admin, invoice: Stripe.Invoice) {
@@ -232,43 +246,65 @@ async function handleInvoicePaid(stripe: Stripe, admin: Admin, invoice: Stripe.I
     console.error('[stripe webhook] invoice.paid had no subscription id', invoice.id);
     return;
   }
-  const sub = await stripe.subscriptions.retrieve(subId);
-  const userId = await resolveUserId(admin, sub as Stripe.Subscription);
-  let markStarted = false;
-  if (userId) {
-    const { data } = await admin
-      .from('profiles')
-      .select('subscription_started_at')
-      .eq('id', userId)
-      .maybeSingle();
-    markStarted = !data?.subscription_started_at;
+  const sub = (await stripe.subscriptions.retrieve(subId)) as Stripe.Subscription;
+
+  // First paid invoice for this order → stamp started_at.
+  const { data: order } = await admin
+    .from('subscription_orders')
+    .select('started_at')
+    .eq('stripe_subscription_id', subId)
+    .maybeSingle();
+  const markStarted = !order?.started_at;
+
+  await syncSubscription(admin, sub, { markStarted });
+
+  // Snapshot the saved card onto the profile so /account/payment shows it.
+  const userId = await resolveUserId(admin, sub);
+  const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
+  if (userId && customerId) {
+    await syncDefaultPaymentMethod(stripe, admin, customerId, userId);
   }
-  await syncSubscription(admin, sub as Stripe.Subscription, { markStarted });
 }
 
 async function handleInvoiceFailed(admin: Admin, invoice: Stripe.Invoice) {
-  const inv = invoice as unknown as Record<string, any>;
-  const customerId =
-    typeof inv.customer === 'string' ? inv.customer : inv.customer?.id ?? null;
   const subId = invoiceSubscriptionId(invoice);
+  if (!subId) return;
+  await admin
+    .from('subscription_orders')
+    .update({ status: 'past_due', updated_at: nowIso() })
+    .eq('stripe_subscription_id', subId);
+  const { data: order } = await admin
+    .from('subscription_orders')
+    .select('user_id')
+    .eq('stripe_subscription_id', subId)
+    .maybeSingle();
+  if (order?.user_id) await recomputeProfileAggregate(admin, order.user_id as string);
+}
 
-  if (customerId) {
-    const { data } = await admin
-      .from('profiles')
-      .select('id')
-      .eq('stripe_customer_id', customerId)
-      .maybeSingle();
-    if (data?.id) {
-      await admin
-        .from('profiles')
-        .update({ subscription_status: 'past_due' })
-        .eq('id', data.id);
-    }
-  }
-  if (subId) {
+/** Read the customer's default payment method and cache last4 + brand on
+ *  the profile. Best-effort — never throws into the handler. */
+async function syncDefaultPaymentMethod(
+  stripe: Stripe,
+  admin: Admin,
+  customerId: string,
+  userId: string
+) {
+  try {
+    const customer = await stripe.customers.retrieve(customerId);
+    if ('deleted' in customer && customer.deleted) return;
+    const dpm = (customer as Stripe.Customer).invoice_settings?.default_payment_method;
+    const pmId = typeof dpm === 'string' ? dpm : dpm?.id ?? null;
+    if (!pmId) return;
+    const pm = await stripe.paymentMethods.retrieve(pmId);
     await admin
-      .from('subscription_orders')
-      .update({ status: 'past_due', updated_at: new Date().toISOString() })
-      .eq('stripe_subscription_id', subId);
+      .from('profiles')
+      .update({
+        has_payment_method: true,
+        payment_method_last4: pm.card?.last4 ?? null,
+        payment_method_brand: pm.card?.brand ?? null,
+      })
+      .eq('id', userId);
+  } catch (err) {
+    console.error('[stripe webhook] card snapshot failed', err);
   }
 }

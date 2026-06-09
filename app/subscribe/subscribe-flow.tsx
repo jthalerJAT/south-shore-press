@@ -31,6 +31,7 @@ export function SubscribeFlow({
   hasPaymentMethod,
   cardLast4,
   cardBrand,
+  hasExistingSubscriptions = false,
 }: {
   authed: boolean;
   paymentsEnabled: boolean;
@@ -39,6 +40,7 @@ export function SubscribeFlow({
   hasPaymentMethod: boolean;
   cardLast4: string | null;
   cardBrand: string | null;
+  hasExistingSubscriptions?: boolean;
 }) {
   const router = useRouter();
   const [selectedTier, setSelectedTierState] = useState<PlanTier | null>(null);
@@ -47,6 +49,9 @@ export function SubscribeFlow({
   const [billingSame, setBillingSameState] = useState(true);
   const [useExistingCard, setUseExistingCard] = useState(hasPaymentMethod);
   const [placed, setPlaced] = useState(false);
+  // When the user already has subscriptions, the plan flow starts collapsed
+  // behind an "Add additional subscription" button.
+  const [adding, setAdding] = useState(!hasExistingSubscriptions);
 
   // The subscription's PaymentIntent client secret. Created on "Continue to
   // payment"; Elements mounts against it. Reset to null whenever the plan or
@@ -84,6 +89,25 @@ export function SubscribeFlow({
     );
   }
   if (placed) return <SuccessPanel />;
+
+  // Already subscribed and not (yet) adding another → show the add CTA only.
+  if (!adding) {
+    return (
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-6 py-6 max-w-xl">
+        <p className="text-sm text-zinc-700">
+          You already have an active subscription (shown above). Want to add
+          another — a gift, or delivery to a second address?
+        </p>
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          className="mt-4 inline-flex items-center px-4 py-2 bg-brand-red hover:bg-brand-red-dark text-white text-sm font-medium uppercase tracking-wide rounded transition-colors"
+        >
+          Add additional subscription
+        </button>
+      </div>
+    );
+  }
 
   function validateAddresses(): string | null {
     const missing = addressMissingFields(delivery);

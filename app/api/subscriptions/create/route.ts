@@ -148,19 +148,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Profile lookup failed.' }, { status: 500 });
   }
 
-  // Don't let a user stack subscriptions.
-  if (
-    profile?.subscription_status === 'active' ||
-    profile?.subscription_status === 'trialing'
-  ) {
-    return NextResponse.json(
-      {
-        error:
-          'You already have an active subscription. Manage it from your account.',
-      },
-      { status: 409 }
-    );
-  }
+  // A customer may hold several concurrent subscriptions (e.g. their own
+  // plan plus a gift), so we intentionally do NOT block on an existing
+  // active subscription — each checkout creates a new one.
 
   // Ensure a Stripe Customer (mirrors setup-intent's lazy-create).
   let customerId = profile?.stripe_customer_id ?? null;

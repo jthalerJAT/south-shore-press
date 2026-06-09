@@ -4,7 +4,8 @@ import { getCurrentUser } from '@/lib/auth';
 import { getMyProfile } from '@/lib/queries/reader-profile';
 import { AccountShell } from '@/components/account/account-shell';
 import { isStripeEnabled } from '@/lib/stripe/server';
-import { PaymentCardSection } from './payment-card-section';
+import { listCustomerCharges } from '@/lib/stripe/charges';
+import { PaymentTabs } from './payment-tabs';
 
 export const metadata: Metadata = {
   title: 'Payment · My account',
@@ -17,6 +18,9 @@ export default async function AccountPaymentPage() {
 
   const profile = await getMyProfile(user.id);
   const stripeReady = isStripeEnabled();
+  const charges = stripeReady
+    ? await listCustomerCharges(profile?.stripe_customer_id ?? null)
+    : [];
 
   return (
     <AccountShell
@@ -27,12 +31,9 @@ export default async function AccountPaymentPage() {
       }}
       activeTab="payment"
     >
-      <h2 className="font-headline text-xl font-bold text-zinc-900">
-        Payment method
-      </h2>
+      <h2 className="font-headline text-xl font-bold text-zinc-900">Payment</h2>
       <p className="mt-1 text-sm text-zinc-600 max-w-xl">
-        Add a card for paid subscriptions. We don&apos;t charge anything when
-        you add it — only when you upgrade via the Subscribe page.
+        Manage the card on file and review your payment history.
       </p>
 
       <div className="mt-6">
@@ -42,10 +43,11 @@ export default async function AccountPaymentPage() {
             Stripe keys are added to Vercel, you&apos;ll be able to add a card here.
           </div>
         ) : (
-          <PaymentCardSection
+          <PaymentTabs
             hasExistingCard={profile?.has_payment_method ?? false}
             existingLast4={profile?.payment_method_last4 ?? null}
             existingBrand={profile?.payment_method_brand ?? null}
+            charges={charges}
           />
         )}
       </div>

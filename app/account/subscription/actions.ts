@@ -10,84 +10,73 @@ export type SubActionState = {
   success: boolean;
 };
 
-/** Look up the signed-in user's live subscription id. */
-async function getSubscriptionId(userId: string): Promise<string | null> {
+/** Verify the given Stripe subscription id belongs to the signed-in user
+ *  (via their own subscription_orders rows). Returns true if owned. */
+async function ownsSubscription(userId: string, subscriptionId: string): Promise<boolean> {
   const supabase = createClient();
   const { data } = await supabase
-    .from('profiles')
-    .select('stripe_subscription_id')
-    .eq('id', userId)
+    .from('subscription_orders')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('stripe_subscription_id', subscriptionId)
     .maybeSingle();
-  return (data?.stripe_subscription_id as string | null) ?? null;
+  return Boolean(data);
 }
 
-/**
- * Stop auto-renewal. Sets cancel_at_period_end so the subscriber keeps
- * access (and delivery) through the paid period — for monthly subscribers,
- * who are billed a month in advance, that's ~30 days. The webhook syncs
- * the canonical flag; we also write it optimistically for an instant UI.
- */
+async function setAutoRenew(
+  formData: FormData,
+  cancelAtPeriodEnd: boolean
+): Promise<SubActionState> {
+  const user = await requireUser('/account/subscription');
+  const stripe = getStripe();
+  if (!stripe) {
+    return { error: 'Payments are not enabled on this deployment.', success: false };
+  }
+
+  const subscriptionId = String(formData.get('subscriptionId') ?? '').trim();
+  if (!subscriptionId) {
+    return { error: 'Missing subscription.', success: false };
+  }
+  if (!(await ownsSubscription(user.id, subscriptionId))) {
+    return { error: 'Subscription not found.', success: false };
+  }
+
+  try {
+    await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: cancelAtPeriodEnd,
+    });
+  } catch (err) {
+    console.error('[setAutoRenew]', err);
+    return { error: 'Could not update your subscription. Please try again.', success: false };
+  }
+
+  // Optimistic local write; the webhook is the canonical sync.
+  const supabase = createClient();
+  await supabase
+    .from('subscription_orders')
+    .update({ cancel_at_period_end: cancelAtPeriodEnd })
+    .eq('user_id', user.id)
+    .eq('stripe_subscription_id', subscriptionId);
+
+  revalidatePath('/account/subscription');
+  revalidatePath('/subscribe');
+  return { error: null, success: true };
+}
+
+/** Stop auto-renewal for a specific subscription. The subscriber keeps
+ *  access through the paid period (≈30 days for monthly, billed a month
+ *  in advance). */
 export async function cancelSubscriptionAction(
   _prev: SubActionState,
-  _formData: FormData
+  formData: FormData
 ): Promise<SubActionState> {
-  const user = await requireUser('/account/subscription');
-  const stripe = getStripe();
-  if (!stripe) {
-    return { error: 'Payments are not enabled on this deployment.', success: false };
-  }
-
-  const subId = await getSubscriptionId(user.id);
-  if (!subId) {
-    return { error: 'No active subscription found.', success: false };
-  }
-
-  try {
-    await stripe.subscriptions.update(subId, { cancel_at_period_end: true });
-  } catch (err) {
-    console.error('[cancelSubscriptionAction]', err);
-    return { error: 'Could not cancel your subscription. Please try again.', success: false };
-  }
-
-  const supabase = createClient();
-  await supabase
-    .from('profiles')
-    .update({ subscription_cancel_at_period_end: true })
-    .eq('id', user.id);
-
-  revalidatePath('/account/subscription');
-  return { error: null, success: true };
+  return setAutoRenew(formData, true);
 }
 
-/** Re-enable auto-renewal (undo a pending cancellation). */
+/** Re-enable auto-renewal for a specific subscription. */
 export async function resumeSubscriptionAction(
   _prev: SubActionState,
-  _formData: FormData
+  formData: FormData
 ): Promise<SubActionState> {
-  const user = await requireUser('/account/subscription');
-  const stripe = getStripe();
-  if (!stripe) {
-    return { error: 'Payments are not enabled on this deployment.', success: false };
-  }
-
-  const subId = await getSubscriptionId(user.id);
-  if (!subId) {
-    return { error: 'No active subscription found.', success: false };
-  }
-
-  try {
-    await stripe.subscriptions.update(subId, { cancel_at_period_end: false });
-  } catch (err) {
-    console.error('[resumeSubscriptionAction]', err);
-    return { error: 'Could not resume your subscription. Please try again.', success: false };
-  }
-
-  const supabase = createClient();
-  await supabase
-    .from('profiles')
-    .update({ subscription_cancel_at_period_end: false })
-    .eq('id', user.id);
-
-  revalidatePath('/account/subscription');
-  return { error: null, success: true };
+  return setAutoRenew(formData, false);
 }

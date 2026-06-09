@@ -4,6 +4,7 @@ import { getMyProfile } from '@/lib/queries/reader-profile';
 import { isStripeEnabled } from '@/lib/stripe/server';
 import { isPlanConfigured, type PlanTier } from '@/lib/stripe/plans';
 import { maskPhoneInput } from '@/lib/phone';
+import { getCustomerDefaultCard } from '@/lib/stripe/payment-method';
 import { getUserSubscriptions } from '@/lib/queries/subscription-order';
 import { SubscriptionCard } from '@/components/subscription/subscription-card';
 import { SubscribeFlow } from './subscribe-flow';
@@ -22,6 +23,9 @@ export default async function SubscribePage() {
   const user = await getCurrentUser();
   const profile = user ? await getMyProfile(user.id) : null;
   const subscriptions = user ? await getUserSubscriptions(user.id) : [];
+  const card = user
+    ? await getCustomerDefaultCard(profile?.stripe_customer_id ?? null)
+    : null;
 
   const autofill: Address = {
     first_name: profile?.first_name ?? '',
@@ -78,9 +82,9 @@ export default async function SubscribePage() {
           paymentsEnabled={isStripeEnabled()}
           autofill={autofill}
           configured={configured}
-          hasPaymentMethod={profile?.has_payment_method ?? false}
-          cardLast4={profile?.payment_method_last4 ?? null}
-          cardBrand={profile?.payment_method_brand ?? null}
+          hasPaymentMethod={Boolean(card)}
+          cardLast4={card?.last4 ?? null}
+          cardBrand={card?.brand ?? null}
           hasExistingSubscriptions={subscriptions.length > 0}
         />
       </div>

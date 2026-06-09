@@ -5,6 +5,7 @@ import { getMyProfile } from '@/lib/queries/reader-profile';
 import { AccountShell } from '@/components/account/account-shell';
 import { isStripeEnabled } from '@/lib/stripe/server';
 import { listCustomerCharges } from '@/lib/stripe/charges';
+import { getCustomerDefaultCard } from '@/lib/stripe/payment-method';
 import { PaymentTabs } from './payment-tabs';
 
 export const metadata: Metadata = {
@@ -18,9 +19,13 @@ export default async function AccountPaymentPage() {
 
   const profile = await getMyProfile(user.id);
   const stripeReady = isStripeEnabled();
-  const charges = stripeReady
-    ? await listCustomerCharges(profile?.stripe_customer_id ?? null)
-    : [];
+  const customerId = profile?.stripe_customer_id ?? null;
+  const [charges, card] = stripeReady
+    ? await Promise.all([
+        listCustomerCharges(customerId),
+        getCustomerDefaultCard(customerId),
+      ])
+    : [[], null];
 
   return (
     <AccountShell
@@ -44,9 +49,9 @@ export default async function AccountPaymentPage() {
           </div>
         ) : (
           <PaymentTabs
-            hasExistingCard={profile?.has_payment_method ?? false}
-            existingLast4={profile?.payment_method_last4 ?? null}
-            existingBrand={profile?.payment_method_brand ?? null}
+            hasExistingCard={Boolean(card)}
+            existingLast4={card?.last4 ?? null}
+            existingBrand={card?.brand ?? null}
             charges={charges}
           />
         )}

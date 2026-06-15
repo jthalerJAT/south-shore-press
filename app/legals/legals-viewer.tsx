@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import dynamic from 'next/dynamic';
 import type { LegalViewItem } from './page';
 
@@ -15,7 +14,6 @@ const PdfSpread = dynamic(() => import('./pdf-spread').then((m) => m.PdfSpread),
 
 export function LegalsViewer({ legals }: { legals: LegalViewItem[] }) {
   const [selectedId, setSelectedId] = useState<string>('');
-  const [printing, setPrinting] = useState(false);
   const selected = legals.find((l) => l.id === selectedId) ?? null;
 
   if (legals.length === 0) {
@@ -24,42 +22,6 @@ export function LegalsViewer({ legals }: { legals: LegalViewItem[] }) {
         No legal notices have been posted yet. Please check back soon.
       </div>
     );
-  }
-
-  // Print: fetch the PDF as a same-origin blob, load it into a hidden iframe,
-  // and trigger the browser's print dialog (which lets the reader choose
-  // which pages to print). Blob avoids cross-origin print restrictions.
-  async function handlePrint() {
-    if (!selected) return;
-    setPrinting(true);
-    try {
-      const res = await fetch(selected.url);
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = '0';
-      iframe.src = blobUrl;
-      iframe.onload = () => {
-        iframe.contentWindow?.focus();
-        iframe.contentWindow?.print();
-        // Clean up after the dialog has had time to open.
-        setTimeout(() => {
-          document.body.removeChild(iframe);
-          URL.revokeObjectURL(blobUrl);
-        }, 60_000);
-      };
-      document.body.appendChild(iframe);
-    } catch {
-      // Fallback: open the PDF so the reader can print from the browser viewer.
-      window.open(selected.url, '_blank', 'noopener');
-    } finally {
-      setPrinting(false);
-    }
   }
 
   return (
@@ -93,30 +55,13 @@ export function LegalsViewer({ legals }: { legals: LegalViewItem[] }) {
           </h2>
 
           {/* key forces a fresh load when the selected file changes */}
-          <PdfSpread key={selected.id} url={selected.url} />
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={printing}
-              className="inline-flex items-center px-4 py-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-medium uppercase tracking-wide rounded transition-colors"
-            >
-              {printing ? 'Preparing…' : 'Print'}
-            </button>
-            <a
-              href={`${selected.url}?download=${encodeURIComponent(selected.fileName)}`}
-              className="inline-flex items-center px-4 py-2 text-zinc-700 border border-zinc-300 hover:bg-zinc-50 text-sm font-medium uppercase tracking-wide rounded transition-colors"
-            >
-              Download
-            </a>
-            <Link
-              href={`/legals/request?legalId=${selected.id}&date=${encodeURIComponent(selected.dateLabel)}`}
-              className="inline-flex items-center px-4 py-2 text-zinc-700 border border-zinc-300 hover:bg-zinc-50 text-sm font-medium uppercase tracking-wide rounded transition-colors"
-            >
-              Request Notarized Copy
-            </Link>
-          </div>
+          <PdfSpread
+            key={selected.id}
+            url={selected.url}
+            fileName={selected.fileName}
+            dateLabel={selected.dateLabel}
+            legalId={selected.id}
+          />
         </div>
       ) : null}
     </div>

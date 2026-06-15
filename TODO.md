@@ -58,6 +58,41 @@ the ones blocking domain cutover from v1.
 
 ---
 
+## Legals — shipped 2026-06-10
+
+Public `/legals` PDF viewer + editor-portal upload + notarized-copy
+request. Live in code on `main`; migration `006_legals.sql` applied and
+the public `legals` Storage bucket created.
+
+- [x] Public `/legals`: date dropdown → side-by-side two-page react-pdf
+  viewer (arrows + page numbers) → Print / Download / Request Notarized
+  Copy.
+- [x] Editor portal "Legals Upload" tile: list (date · link · delete) +
+  "+ Add New Legal File" (month/day/year + drag-drop PDF; browser →
+  Supabase Storage via a signed upload URL).
+- [x] "Request Notarized Copy" form → saves to `notarized_copy_requests`
+  + (when email is on) emails all admins + `legals@southshorepress.com`.
+
+### Legals follow-ups (not yet done)
+
+- [ ] **Wire the outbound Resend email — DO AFTER THE DOMAIN CUTOVER.**
+  The notarized-copy request currently SAVES every submission but does
+  NOT email anyone yet. Turning on Resend means adding DNS records to
+  `southshorepress.com`, which is still managed by the third-party vendor
+  running the old site (who must not learn about the replacement yet).
+  Once `southshorepress.com` is ours: add the domain in Resend → add its
+  DKIM/SPF DNS records (on a `send.` subdomain — won't touch the website
+  or existing Google Workspace email) → create `legals@southshorepress.com`
+  as a Google Workspace alias → set `RESEND_API_KEY`, `LEGALS_FROM_EMAIL`,
+  `LEGALS_NOTIFY_EMAIL` in Vercel → redeploy. (Code already degrades
+  gracefully: no key = request saved, email skipped.)
+- [ ] **Interim visibility of requests.** Until the email is wired,
+  notarized-copy submissions are only visible in the Supabase
+  `notarized_copy_requests` table. Add a "Requests" view in the portal
+  (`/portal/all/legals`) so admins can see them without email or SQL.
+
+---
+
 ## Metered paywall (proposed 2026-05-26)
 
 Limit readers to N free articles/month before requiring a paid
@@ -289,6 +324,10 @@ on a few issues so we know the manifest model is right.
   - Ad-platform integration (GAM / Mediavine / Raptive — TBD)
 - [ ] **Phase 8: Domain cutover.**
   - DNS swap from v1 to v2
+  - **Wire the Legals Resend email** (add Resend DKIM/SPF records to
+    `southshorepress.com` + set `RESEND_API_KEY` / `LEGALS_FROM_EMAIL` /
+    `LEGALS_NOTIFY_EMAIL` in Vercel). Deferred until now so the current
+    vendor isn't tipped off — see "Legals follow-ups" above.
   - 301 redirects from `/story/<uuid>` (v1) to `/<section>/<slug>-<hex>`
     (v2) so existing backlinks don't break
   - Submit `/sitemap.xml` + `/news-sitemap.xml` to Google Search Console

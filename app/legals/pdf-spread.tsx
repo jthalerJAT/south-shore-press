@@ -7,6 +7,16 @@ import { Document, Page, pdfjs } from 'react-pdf';
 // Pin the pdf.js worker to the installed version (served from the CDN).
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
+// Give pdf.js the standard-font + cMap data so PDFs that DON'T embed their
+// fonts (common for legal notices generated from Word/legal software) render
+// real glyphs instead of empty boxes. Module-level const so the object
+// identity is stable across renders (react-pdf re-loads if it changes).
+const PDF_OPTIONS = {
+  cMapUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/`,
+  cMapPacked: true,
+  standardFontDataUrl: `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`,
+};
+
 const GAP = 16;
 const MAX_PANE = 640;
 const PRINT_WIDTH = 1600; // canvas px for print-quality rendering
@@ -135,6 +145,7 @@ export function PdfSpread({
     <div ref={containerRef} className="mt-5">
       <Document
         file={url}
+        options={PDF_OPTIONS}
         onLoadSuccess={({ numPages }) => {
           setNumPages(numPages);
           setSpreadStart(1);

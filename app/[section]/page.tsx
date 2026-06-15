@@ -13,7 +13,11 @@ type Params = { section: string };
 // don't accept arbitrary user-supplied sections (would let SEO spam slip
 // in via random URLs).
 export function generateStaticParams(): Params[] {
-  return SITE_SECTIONS.map((s) => ({ section: s.slug }));
+  // `legals` has its own literal route (app/legals) which takes precedence;
+  // exclude it here so we don't try to statically render the same path twice.
+  return SITE_SECTIONS.filter((s) => s.slug !== 'legals').map((s) => ({
+    section: s.slug,
+  }));
 }
 
 export function generateMetadata({

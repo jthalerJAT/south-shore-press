@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, LayoutGrid, FileEdit, ArrowRight } from 'lucide-react';
+import { Users, LayoutGrid, FileEdit, FileText, ArrowRight } from 'lucide-react';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 
@@ -53,6 +53,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Search, sort, and edit every story in the system. Click a row to open the editor.',
       icon: FileEdit,
+    },
+    {
+      href: '/portal/all/legals',
+      title: 'Legals Upload',
+      description:
+        'Upload and manage the weekly legal-notice PDFs shown on the public Legals page.',
+      icon: FileText,
     },
   ];
 

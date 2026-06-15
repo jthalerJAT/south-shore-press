@@ -10,11 +10,6 @@ import { cn } from '@/lib/utils';
 import { HeaderClock } from './header-clock';
 import { AuthChip } from './auth-chip';
 
-// Masthead logo (Cloudinary, 3272×824 ≈ 4:1). next.config allows all https
-// hosts, so no remotePatterns change needed.
-const LOGO_URL =
-  'https://res.cloudinary.com/dorcgqudu/image/upload/v1781562603/ssp_logo_big_cyxfxn.png';
-
 /**
  * v1-style masthead. Desktop layout (lg+):
  *
@@ -121,7 +116,7 @@ export function SiteHeader() {
               </div>
               <Link href="/" className="block group">
                 <Image
-                  src={LOGO_URL}
+                  src={SITE.logoUrl}
                   alt={SITE.name}
                   width={477}
                   height={120}
@@ -206,7 +201,7 @@ export function SiteHeader() {
         <div className="max-w-8xl mx-auto px-4 sm:px-6 flex items-center justify-between py-3">
           <Link href="/" onClick={() => setMobileOpen(false)} className="block">
             <Image
-              src={LOGO_URL}
+              src={SITE.logoUrl}
               alt={SITE.name}
               width={222}
               height={56}

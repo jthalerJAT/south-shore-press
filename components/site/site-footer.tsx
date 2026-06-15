@@ -36,21 +36,24 @@ export function SiteFooter() {
     <footer className="mt-16 bg-white border-t border-zinc-200">
       <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-10">
-          {/* BRAND COLUMN */}
+          {/* BRAND COLUMN — logo and description share one width so the
+              logo spans exactly the width of the words underneath it. */}
           <div className="sm:col-span-2 lg:col-span-5">
-            <Link href="/" className="inline-block group">
-              <Image
-                src="/logo.png"
-                alt={SITE.name}
-                width={400}
-                height={80}
-                className="h-14 w-auto group-hover:opacity-90 transition-opacity"
-              />
-            </Link>
-            <p className="mt-4 text-[13px] leading-relaxed text-zinc-600 max-w-md">
-              A Forward Truth Company. Bringing you the latest news, sports,
-              and community stories from the South Shore and beyond.
-            </p>
+            <div className="max-w-[340px]">
+              <Link href="/" className="block group">
+                <Image
+                  src={SITE.logoUrl}
+                  alt={SITE.name}
+                  width={680}
+                  height={171}
+                  className="w-full h-auto group-hover:opacity-90 transition-opacity"
+                />
+              </Link>
+              <p className="mt-4 text-[13px] leading-relaxed text-zinc-600">
+                A Forward Truth Company. Bringing you the latest news, sports,
+                and community stories from the South Shore and beyond.
+              </p>
+            </div>
           </div>
 
           {/* SECTIONS */}

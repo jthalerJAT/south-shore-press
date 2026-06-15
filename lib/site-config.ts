@@ -51,7 +51,7 @@ export const SITE = {
   // Masthead + footer logo (Cloudinary, 3272×824 ≈ 4:1). next.config allows
   // all https image hosts, so no remotePatterns change is needed.
   logoUrl:
-    'https://res.cloudinary.com/dorcgqudu/image/upload/v1781562603/ssp_logo_big_cyxfxn.png',
+    'https://res.cloudinary.com/dorcgqudu/image/upload/v1781563840/ssp_transparent_hc7nv9.png',
   // External profiles. Placeholder URLs — replace with real handles before
   // launching Phase 6 (social integrations).
   social: {

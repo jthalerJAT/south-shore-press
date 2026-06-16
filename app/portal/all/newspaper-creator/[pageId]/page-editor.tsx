@@ -100,13 +100,12 @@ export function PageEditor({
   return (
     <div className="max-w-3xl">
       <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          onClick={() => alert('The visual page-layout editor is coming in a later phase.')}
-          className="inline-flex items-center px-4 py-2 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+        <Link
+          href={`/portal/all/newspaper-creator/${pageId}/layout`}
+          className="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-brand-red hover:bg-brand-red-dark rounded transition-colors"
         >
           Edit Page Layout
-        </button>
+        </Link>
         <Link
           href={`/portal/all/newspaper-creator/${pageId}/print`}
           target="_blank"
@@ -194,7 +193,9 @@ export function PageEditor({
           {saving ? 'Saving…' : 'Save Page Content'}
         </button>
         <p className="mt-2 text-xs text-zinc-500">
-          Saving locks this page&apos;s content. You can reopen and re-save to change it.
+          Saving locks this page&apos;s content. You can reopen and re-save to change it. Note: saving
+          content here resets a custom page layout to the default — arrange the layout last, in{' '}
+          <strong>Edit Page Layout</strong>.
         </p>
       </div>
     </div>

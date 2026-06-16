@@ -13,6 +13,7 @@ import {
   type NpKind,
 } from '@/lib/newspaper-templates';
 import { NEWSPAPER_ADS_BUCKET } from '@/lib/queries/newspaper';
+import { defaultStoryLayout } from '@/lib/newspaper/layout-engine';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/newspaper-creator';
@@ -87,10 +88,11 @@ export async function addStoryToPage(
     }
   }
 
+  const bandIndex = maxOrder + 1;
   const { error } = await supabase.from('np_items').insert({
     page_id: pageId,
     slot_key: slotKey,
-    item_order: maxOrder + 1,
+    item_order: bandIndex,
     type: 'story',
     source_story_id: sourceStoryId,
     data: {
@@ -101,6 +103,10 @@ export async function addStoryToPage(
       hero_photo_url: story.hero_photo_url ?? '',
       extra_photo_urls: story.extra_photo_urls ?? [],
     },
+    // Seed a sensible default layout so the story renders in the visual
+    // editor before it's touched: 4 columns, photo top-aligned in cols 2–3
+    // (only if the story actually has a hero photo).
+    layout: defaultStoryLayout(bandIndex, Boolean(story.hero_photo_url)),
   });
   if (error) {
     console.error('[addStoryToPage]', error);
@@ -188,10 +194,15 @@ export type SavedItem = {
   slot_key: string | null;
   source_story_id: string | null;
   data: Record<string, unknown>;
+  /** Phase 2 visual-layout geometry. Omitted by the form editor (resets to
+   *  default on next layout open); sent by the visual layout editor. */
+  layout?: Record<string, unknown>;
 };
 
 /** Save (replace) all content for a page and LOCK it. The editor manages the
- *  full item list locally and sends it whole — simplest, race-free persistence. */
+ *  full item list locally and sends it whole — simplest, race-free persistence.
+ *  Delete is scoped to non-continuation rows so a future multi-page story
+ *  (Phase 2B) isn't orphaned by saving one of its pages. */
 export async function savePage(
   pageId: string,
   sectionName: string,
@@ -210,7 +221,8 @@ export async function savePage(
   const { error: delErr } = await supabase
     .from('np_items')
     .delete()
-    .eq('page_id', pageId);
+    .eq('page_id', pageId)
+    .is('continuation_group', null);
   if (delErr) {
     console.error('[savePage] delete', delErr);
     return { ok: false, error: 'Could not save (clearing old content).' };
@@ -224,6 +236,7 @@ export async function savePage(
       type: it.type,
       source_story_id: it.source_story_id ?? null,
       data: it.data ?? {},
+      layout: it.layout ?? {},
     }));
     const { error: insErr } = await supabase.from('np_items').insert(rows);
     if (insErr) {

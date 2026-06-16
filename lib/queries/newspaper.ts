@@ -1,7 +1,15 @@
 import { createClient } from '@/lib/supabase/server';
 import type { NpKind } from '@/lib/newspaper-templates';
+import type {
+  StoredStoryLayout,
+  StoredAdLayout,
+  StoredLayout,
+} from '@/lib/newspaper/layout-engine';
 
 export const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
+
+// Re-exported so the Newspaper Creator UI can import layout types from one place.
+export type { StoredStoryLayout, StoredAdLayout, StoredLayout };
 
 export type NpStatus = 'tbd' | 'draft' | 'locked';
 
@@ -44,6 +52,9 @@ export type NpItem = {
   type: 'story' | 'ad';
   source_story_id: string | null;
   data: NpStoryData & NpAdData;
+  /** Phase 2 visual-layout geometry (raw jsonb; normalise via the engine).
+   *  Empty object `{}` for rows created before Phase 2 or never laid out. */
+  layout: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };

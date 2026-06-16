@@ -1,0 +1,428 @@
+/**
+ * Newspaper layout engine — PURE geometry + text-flow logic for the visual
+ * "Edit Page Layout" tool (Phase 2A). No DOM access: height measurement is
+ * delegated to an injected `Measurer`, so this module is unit-testable and is
+ * the single source of truth shared by the editor canvas, the print proof,
+ * and (later) the Phase 2B overflow/continuation pass.
+ *
+ * Coordinate model
+ * ----------------
+ *  - Horizontal: a band is an N-track column grid spanning the page content
+ *    width. Columns are equal width with a fixed gutter.
+ *  - Vertical: everything is stored as a FRACTION of the page CONTENT height
+ *    (so it's resolution-independent — the canvas and the proof reproduce the
+ *    same layout at any pixel scale) and resolved to print-px (96 dpi) here.
+ *
+ * The page is an 11in × 15in tabloid; we lay out + measure at print scale and
+ * the editor only CSS-scales for zoom, so measurement is zoom-independent.
+ */
+
+// ── Page constants (print scale, 96 dpi) ──────────────────────────────────
+export const DPI = 96;
+export const PAGE_W_IN = 11;
+export const PAGE_H_IN = 15;
+export const MARGIN_IN = 0.5;
+
+export const PAGE_W_PX = Math.round(PAGE_W_IN * DPI); // 1056
+export const PAGE_H_PX = Math.round(PAGE_H_IN * DPI); // 1440
+export const CONTENT_W_PX = Math.round((PAGE_W_IN - 2 * MARGIN_IN) * DPI); // 960
+export const CONTENT_H_PX = Math.round((PAGE_H_IN - 2 * MARGIN_IN) * DPI); // 1344
+
+export const COLUMN_GAP_PX = 14;
+export const MIN_COLUMNS = 2;
+export const MAX_COLUMNS = 5;
+export const DEFAULT_COLUMNS = 4;
+
+/**
+ * Body type metrics. These MUST match the CSS the BandRenderer applies to the
+ * column text + the hidden Measurer, or measured heights won't match render.
+ */
+export const BODY_FONT_FAMILY = "Georgia, 'Times New Roman', serif";
+export const BODY_FONT_SIZE_PX = 13;
+export const BODY_LINE_HEIGHT_PX = 18;
+export const PARA_SPACING_PX = 8;
+
+/** Default embedded-photo height, as a fraction of page content height. */
+export const DEFAULT_PHOTO_HEIGHT_FRAC = 0.18;
+/** A run shorter than this (px) can't hold even one line — skip it. */
+const MIN_RUN_PX = BODY_LINE_HEIGHT_PX;
+
+// ── Stored layout shapes (what lands in np_items.layout jsonb) ─────────────
+export type StoredPhotoLayout = {
+  /** 'column' snaps to the column grid (default); 'free' uses x/width. */
+  mode: 'column' | 'free';
+  /** 1-based first column the photo occupies (column mode). */
+  col_start: number;
+  /** Number of columns the photo spans (column mode). */
+  col_span: number;
+  /** Vertical offset of the photo top from the band top, as a fraction of
+   *  page content height. 0 = top-aligned. */
+  top: number;
+  /** Photo height as a fraction of page content height. */
+  height: number;
+  /** Free mode only: left + width as fractions of page content WIDTH. */
+  x?: number;
+  width?: number;
+};
+
+export type StoredStoryLayout = {
+  v: 1;
+  kind: 'story';
+  band_index: number;
+  /** 2–5; default 4. */
+  column_count: number;
+  /** Explicit band height as a fraction of content height, or null = auto. */
+  band_height: number | null;
+  photo: StoredPhotoLayout | null;
+};
+
+export type StoredAdLayout = {
+  v: 1;
+  kind: 'ad';
+  band_index: number;
+  size: 'full' | 'half' | 'quarter';
+  /** Ad block height as a fraction of content height. */
+  height: number;
+};
+
+export type StoredLayout = StoredStoryLayout | StoredAdLayout;
+
+/** Ad heights as a fraction of page content height. */
+export const AD_HEIGHT_FRAC: Record<StoredAdLayout['size'], number> = {
+  full: 0.92,
+  half: 0.46,
+  quarter: 0.23,
+};
+
+// ── Defaults + normalisation (raw jsonb → fully-populated typed layout) ────
+export function defaultStoryLayout(
+  bandIndex: number,
+  hasPhoto: boolean
+): StoredStoryLayout {
+  return {
+    v: 1,
+    kind: 'story',
+    band_index: bandIndex,
+    column_count: DEFAULT_COLUMNS,
+    band_height: null,
+    photo: hasPhoto
+      ? {
+          mode: 'column',
+          col_start: 2,
+          col_span: 2,
+          top: 0,
+          height: DEFAULT_PHOTO_HEIGHT_FRAC,
+        }
+      : null,
+  };
+}
+
+export function defaultAdLayout(
+  bandIndex: number,
+  size: StoredAdLayout['size']
+): StoredAdLayout {
+  return { v: 1, kind: 'ad', band_index: bandIndex, size, height: AD_HEIGHT_FRAC[size] };
+}
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, n));
+}
+
+function num(v: unknown, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback;
+}
+
+/** Normalise a raw photo blob against a column count, clamping into range. */
+function normalizePhoto(
+  raw: unknown,
+  columns: number
+): StoredPhotoLayout | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const mode = r.mode === 'free' ? 'free' : 'column';
+  const col_span = clamp(Math.round(num(r.col_span, 2)), 1, columns);
+  const col_start = clamp(Math.round(num(r.col_start, 2)), 1, columns - col_span + 1);
+  const photo: StoredPhotoLayout = {
+    mode,
+    col_start,
+    col_span,
+    top: clamp(num(r.top, 0), 0, 1),
+    height: clamp(num(r.height, DEFAULT_PHOTO_HEIGHT_FRAC), 0.02, 1),
+  };
+  if (mode === 'free') {
+    photo.x = clamp(num(r.x, 0), 0, 1);
+    photo.width = clamp(num(r.width, 0.5), 0.05, 1);
+  }
+  return photo;
+}
+
+export function normalizeStoryLayout(
+  raw: unknown,
+  bandIndex: number,
+  hasPhoto: boolean
+): StoredStoryLayout {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const column_count = clamp(Math.round(num(r.column_count, DEFAULT_COLUMNS)), MIN_COLUMNS, MAX_COLUMNS);
+  const rawPhoto = 'photo' in r ? r.photo : hasPhoto ? {} : null;
+  return {
+    v: 1,
+    kind: 'story',
+    band_index: typeof r.band_index === 'number' ? r.band_index : bandIndex,
+    column_count,
+    band_height:
+      typeof r.band_height === 'number' && Number.isFinite(r.band_height)
+        ? clamp(r.band_height, 0, 1)
+        : null,
+    photo: normalizePhoto(rawPhoto, column_count),
+  };
+}
+
+export function normalizeAdLayout(
+  raw: unknown,
+  bandIndex: number,
+  size: StoredAdLayout['size']
+): StoredAdLayout {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const sz = (r.size === 'full' || r.size === 'half' || r.size === 'quarter'
+    ? r.size
+    : size) as StoredAdLayout['size'];
+  return {
+    v: 1,
+    kind: 'ad',
+    band_index: typeof r.band_index === 'number' ? r.band_index : bandIndex,
+    size: sz,
+    height: clamp(num(r.height, AD_HEIGHT_FRAC[sz]), 0.02, 1),
+  };
+}
+
+// ── Px geometry ────────────────────────────────────────────────────────────
+export type ColumnRect = { x: number; w: number };
+export type PhotoRectPx = { left: number; top: number; width: number; height: number; colStart0: number; colSpan: number };
+export type ColumnRun = { colIdx: number; topPx: number; heightPx: number };
+export type RunSlice = ColumnRun & { x: number; w: number; text: string };
+
+export type BandGeometry = {
+  /** Band width in px (full-width bands == CONTENT_W_PX). */
+  contentWidthPx: number;
+  /** Available body height (px) for column text flow. */
+  bodyHeightPx: number;
+  columns: number;
+  gapPx: number;
+  photo: PhotoRectPx | null;
+};
+
+export type LayoutResult = {
+  runs: RunSlice[];
+  fits: boolean;
+  overflow: null | { paragraphIndex: number; wordIndex: number; remainderText: string };
+  consumedChars: number;
+};
+
+export function columnWidthPx(contentWidthPx: number, columns: number, gapPx = COLUMN_GAP_PX): number {
+  return (contentWidthPx - (columns - 1) * gapPx) / columns;
+}
+
+export function columnRects(contentWidthPx: number, columns: number, gapPx = COLUMN_GAP_PX): ColumnRect[] {
+  const w = columnWidthPx(contentWidthPx, columns, gapPx);
+  return Array.from({ length: columns }, (_, c) => ({ x: c * (w + gapPx), w }));
+}
+
+/** Resolve a stored photo (fractions) into px within the band. */
+export function photoRectPx(
+  photo: StoredPhotoLayout,
+  contentWidthPx: number,
+  columns: number,
+  gapPx = COLUMN_GAP_PX
+): PhotoRectPx {
+  const heightPx = photo.height * CONTENT_H_PX;
+  const topPx = photo.top * CONTENT_H_PX;
+  if (photo.mode === 'free') {
+    const left = (photo.x ?? 0) * contentWidthPx;
+    const width = (photo.width ?? 0.5) * contentWidthPx;
+    // Map a free rect back onto whole columns for text exclusion.
+    const rects = columnRects(contentWidthPx, columns, gapPx);
+    const colStart0 = Math.max(0, rects.findIndex((r) => r.x + r.w > left + 1));
+    let colEnd0 = colStart0;
+    while (colEnd0 < columns - 1 && rects[colEnd0].x + rects[colEnd0].w < left + width - 1) colEnd0++;
+    return { left, top: topPx, width, height: heightPx, colStart0, colSpan: colEnd0 - colStart0 + 1 };
+  }
+  const rects = columnRects(contentWidthPx, columns, gapPx);
+  const colStart0 = clampInt(photo.col_start - 1, 0, columns - 1);
+  const colSpan = clampInt(photo.col_span, 1, columns - colStart0);
+  const left = rects[colStart0].x;
+  const last = rects[colStart0 + colSpan - 1];
+  const width = last.x + last.w - left;
+  return { left, top: topPx, width, height: heightPx, colStart0, colSpan };
+}
+
+function clampInt(n: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, Math.round(n)));
+}
+
+/**
+ * The ordered list of text "runs" — one per column, split into above/below
+ * segments where the photo overlaps that column. Flow order is col0 then col1
+ * etc., top segment before bottom, which yields: full text in unshadowed
+ * columns, and text-above-gap-below in the photo's columns.
+ */
+export function computeRuns(geo: BandGeometry): ColumnRun[] {
+  const runs: ColumnRun[] = [];
+  const { photo, columns, bodyHeightPx } = geo;
+  for (let c = 0; c < columns; c++) {
+    const shadowed =
+      photo && c >= photo.colStart0 && c < photo.colStart0 + photo.colSpan;
+    if (!shadowed) {
+      runs.push({ colIdx: c, topPx: 0, heightPx: bodyHeightPx });
+      continue;
+    }
+    const aboveH = photo!.top;
+    if (aboveH >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: 0, heightPx: aboveH });
+    const belowTop = photo!.top + photo!.height;
+    const belowH = bodyHeightPx - belowTop;
+    if (belowH >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: belowTop, heightPx: belowH });
+  }
+  return runs;
+}
+
+// ── Text flow ───────────────────────────────────────────────────────────────
+export type Paragraph = string[]; // words
+export type ParsedBody = { paragraphs: Paragraph[]; words: Array<{ p: number; w: string }> };
+
+/** Split a plain-text body into paragraphs (blank-line separated) → words. */
+export function parseBody(body: string | undefined): ParsedBody {
+  const paragraphs = String(body ?? '')
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => p.split(/\s+/).filter(Boolean));
+  const words: Array<{ p: number; w: string }> = [];
+  paragraphs.forEach((para, p) => para.forEach((w) => words.push({ p, w })));
+  return { paragraphs, words };
+}
+
+/** Build the paragraph-grouped text for words[start, end). */
+function sliceToParas(words: ParsedBody['words'], start: number, end: number): string[] {
+  const out: string[] = [];
+  let curP = -1;
+  for (let i = start; i < end; i++) {
+    const { p, w } = words[i];
+    if (p !== curP) {
+      out.push(w);
+      curP = p;
+    } else {
+      out[out.length - 1] += ' ' + w;
+    }
+  }
+  return out;
+}
+
+export interface Measurer {
+  /** Rendered height (px) of these paragraphs at the given column width. */
+  measureParas(paras: string[], widthPx: number): number;
+}
+
+/**
+ * Pour `body` through the band's column runs. Greedy fill with a binary search
+ * at each run boundary (largest word-prefix whose rendered height ≤ run
+ * height). Returns the per-run text slices plus whether everything fit and, if
+ * not, the cut point + remainder (the Phase 2B contract).
+ */
+export function layoutBand(body: string | undefined, geo: BandGeometry, measurer: Measurer): LayoutResult {
+  const parsed = parseBody(body);
+  const total = parsed.words.length;
+  const runs = computeRuns(geo);
+  const rects = columnRects(geo.contentWidthPx, geo.columns, geo.gapPx);
+
+  const out: RunSlice[] = [];
+  let cursor = 0;
+
+  for (const run of runs) {
+    const rect = rects[run.colIdx];
+    if (cursor >= total) {
+      out.push({ ...run, x: rect.x, w: rect.w, text: '' });
+      continue;
+    }
+    // Binary search the largest end (cursor..total] that fits run height.
+    let lo = cursor;
+    let hi = total;
+    let best = cursor; // at least 0 words
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1;
+      if (mid <= cursor) {
+        lo = cursor + 1;
+        continue;
+      }
+      const h = measurer.measureParas(sliceToParas(parsed.words, cursor, mid), rect.w);
+      if (h <= run.heightPx) {
+        best = mid;
+        lo = mid + 1;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    const text = sliceToParas(parsed.words, cursor, best).join('\n\n');
+    out.push({ ...run, x: rect.x, w: rect.w, text });
+    cursor = best;
+  }
+
+  if (cursor >= total) {
+    return { runs: out, fits: true, overflow: null, consumedChars: charCount(parsed, 0, total) };
+  }
+  const cut = parsed.words[cursor];
+  return {
+    runs: out,
+    fits: false,
+    overflow: {
+      paragraphIndex: cut.p,
+      wordIndex: cursor,
+      remainderText: sliceToParas(parsed.words, cursor, total).join('\n\n'),
+    },
+    consumedChars: charCount(parsed, 0, cursor),
+  };
+}
+
+function charCount(parsed: ParsedBody, start: number, end: number): number {
+  let n = 0;
+  for (let i = start; i < end; i++) n += parsed.words[i].w.length + 1;
+  return n;
+}
+
+/**
+ * Closed-form estimate of the body height a band needs to fit all its text in
+ * `columns` columns around its photo, plus one refine pass via the measurer.
+ * Used for auto-height bands (band_height === null).
+ */
+export function estimateBodyHeight(
+  body: string | undefined,
+  geo: Omit<BandGeometry, 'bodyHeightPx'>,
+  measurer: Measurer
+): number {
+  const parsed = parseBody(body);
+  const colW = columnWidthPx(geo.contentWidthPx, geo.columns, geo.gapPx);
+  const totalTextH = parsed.paragraphs.length
+    ? measurer.measureParas(
+        parsed.paragraphs.map((p) => p.join(' ')),
+        colW
+      )
+    : 0;
+  const photoH = geo.photo ? geo.photo.height : 0;
+  const photoSpan = geo.photo ? geo.photo.colSpan : 0;
+  const photoBottom = geo.photo ? geo.photo.top + geo.photo.height : 0;
+  let bodyH = Math.max(
+    photoBottom,
+    Math.ceil((totalTextH + photoSpan * photoH) / geo.columns)
+  );
+  bodyH = snapToLine(bodyH);
+
+  // Refine: grow by whole lines until it actually fits (cap the iterations).
+  for (let i = 0; i < 40; i++) {
+    const res = layoutBand(body, { ...geo, bodyHeightPx: bodyH }, measurer);
+    if (res.fits) break;
+    bodyH += BODY_LINE_HEIGHT_PX * Math.max(1, geo.columns - photoSpan);
+  }
+  return Math.min(bodyH, CONTENT_H_PX);
+}
+
+export function snapToLine(px: number): number {
+  return Math.ceil(px / BODY_LINE_HEIGHT_PX) * BODY_LINE_HEIGHT_PX;
+}

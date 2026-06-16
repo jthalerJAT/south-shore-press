@@ -43,6 +43,15 @@ export const SPORTS_SUBCATEGORIES: ReadonlyArray<SiteSection> = [
   { slug: 'fantasy-sports', label: 'Fantasy Sports' },
 ] as const;
 
+/**
+ * Special category that marks a story as PRINT EDITION ONLY: it's saved and
+ * shows in every editor list (and the Newspaper Creator story bank), but is
+ * excluded from every public-facing query, so it never appears anywhere on
+ * the website. NOT a nav section / route — it has no public page.
+ */
+export const PRINT_ONLY_SLUG = 'print-only';
+export const PRINT_ONLY_LABEL = 'Print Edition Only';
+
 export const SITE = {
   name: 'The South Shore Press',
   tagline: 'From Long Island to the World',

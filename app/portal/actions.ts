@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { getCurrentUser, type UserRole } from '@/lib/auth';
-import { SITE_SECTIONS, SPORTS_SUBCATEGORIES } from '@/lib/site-config';
+import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG } from '@/lib/site-config';
 
 /**
  * Server Actions for the newsroom portal. Every mutation flows through
@@ -25,6 +25,7 @@ import { SITE_SECTIONS, SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 const VALID_SECTIONS = new Set([
   ...SITE_SECTIONS.map((s) => s.slug),
   ...SPORTS_SUBCATEGORIES.map((s) => s.slug),
+  PRINT_ONLY_SLUG, // saved + editor-visible, but excluded from the public site
 ]);
 
 const SPORTS_SUBCATEGORY_SLUGS = new Set(SPORTS_SUBCATEGORIES.map((s) => s.slug));

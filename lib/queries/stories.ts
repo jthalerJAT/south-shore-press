@@ -1,4 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
+import { PRINT_ONLY_SLUG } from '@/lib/site-config';
+
+// PostgREST array literal used to EXCLUDE print-edition-only stories from
+// every public query: `categories=not.cs.{print-only}`.
+const NOT_PRINT_ONLY = `{${PRINT_ONLY_SLUG}}`;
 
 /**
  * Server-side story queries. All run from React Server Components or
@@ -62,6 +67,7 @@ export async function getLatestPublishedStories(
     .select(LIST_COLUMNS)
     .eq('status', 'published')
     .not('published_at', 'is', null)
+    .not('categories', 'cs', NOT_PRINT_ONLY)
     .order('published_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -91,6 +97,7 @@ export async function getTopStories(
     .select(LIST_COLUMNS)
     .eq('status', 'published')
     .not('published_at', 'is', null)
+    .not('categories', 'cs', NOT_PRINT_ONLY)
     .order('published_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) {
@@ -114,6 +121,7 @@ export async function getPublishedStoriesBySection(
     .eq('status', 'published')
     .not('published_at', 'is', null)
     .contains('categories', [section])
+    .not('categories', 'cs', NOT_PRINT_ONLY)
     .order('published_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -152,6 +160,7 @@ export async function getPublishedStoryByShortId(
     .select(DETAIL_COLUMNS)
     .eq('status', 'published')
     .not('published_at', 'is', null)
+    .not('categories', 'cs', NOT_PRINT_ONLY)
     .gte('id', lower)
     .lte('id', upper)
     .order('published_at', { ascending: false })

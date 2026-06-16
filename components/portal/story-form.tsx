@@ -5,7 +5,12 @@ import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { Plus, X } from 'lucide-react';
 import { createStoryAction, updateStoryAction, deleteStoryAction } from '@/app/portal/actions';
-import { SITE_SECTIONS, SPORTS_SUBCATEGORIES } from '@/lib/site-config';
+import {
+  SITE_SECTIONS,
+  SPORTS_SUBCATEGORIES,
+  PRINT_ONLY_SLUG,
+  PRINT_ONLY_LABEL,
+} from '@/lib/site-config';
 import { StatusBadge } from './status-badge';
 import { cn } from '@/lib/utils';
 
@@ -176,6 +181,34 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
             );
           })}
         </div>
+      </Field>
+
+      {/* Print Edition Only — saves the story and keeps it in every editor
+          list + the Newspaper Creator story bank, but excludes it from the
+          public website entirely. */}
+      <Field
+        label="Print edition"
+        hint="Keeps the story OUT of the website, but available in the Newspaper Creator."
+      >
+        <label
+          className={cn(
+            'inline-flex items-center gap-2 px-3 py-2 border rounded cursor-pointer text-sm',
+            (defaults?.categories?.includes(PRINT_ONLY_SLUG) ?? false)
+              ? 'border-blue-600 bg-blue-50 text-blue-700 font-medium'
+              : 'border-zinc-300 text-zinc-700 hover:bg-zinc-50',
+            disabled && 'opacity-60 cursor-not-allowed'
+          )}
+        >
+          <input
+            type="checkbox"
+            name="categories"
+            value={PRINT_ONLY_SLUG}
+            defaultChecked={defaults?.categories?.includes(PRINT_ONLY_SLUG) ?? false}
+            disabled={disabled}
+            className="accent-blue-600"
+          />
+          {PRINT_ONLY_LABEL}
+        </label>
       </Field>
 
       {/* Sports sub-categories. These auto-imply 'Sports' on save (the

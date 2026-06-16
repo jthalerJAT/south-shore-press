@@ -1,4 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
+import { PRINT_ONLY_SLUG } from '@/lib/site-config';
+
+// Exclude print-edition-only stories from sitemaps (never index them).
+const NOT_PRINT_ONLY = `{${PRINT_ONLY_SLUG}}`;
 
 /**
  * Lightweight metadata-only queries used by sitemaps and indexability
@@ -31,6 +35,7 @@ export async function getAllPublishedStoriesForSitemap(): Promise<
     .select('id, headline, categories, published_at, hero_photo_url')
     .eq('status', 'published')
     .not('published_at', 'is', null)
+    .not('categories', 'cs', NOT_PRINT_ONLY)
     .order('published_at', { ascending: false })
     .limit(5000);
   if (error) {
@@ -59,6 +64,7 @@ export async function getRecentStoriesForNewsSitemap(): Promise<
     .select('id, headline, categories, published_at, hero_photo_url')
     .eq('status', 'published')
     .gte('published_at', cutoff)
+    .not('categories', 'cs', NOT_PRINT_ONLY)
     .order('published_at', { ascending: false })
     .limit(1000);
   if (error) {

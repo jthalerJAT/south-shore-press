@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { getPages, getItemCounts } from '@/lib/queries/newspaper';
+import { getPages, getItemSummaries } from '@/lib/queries/newspaper';
 import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 import { DEFAULT_PAGES } from '@/lib/newspaper-templates';
 import { NewspaperBoard } from './newspaper-board';
@@ -35,8 +35,8 @@ export default async function NewspaperCreatorPage() {
     pages = await getPages();
   }
 
-  const [counts, stories] = await Promise.all([
-    getItemCounts(),
+  const [summaries, stories] = await Promise.all([
+    getItemSummaries(),
     getAllStoriesForEditor(),
   ]);
 
@@ -47,7 +47,7 @@ export default async function NewspaperCreatorPage() {
       title="Newspaper Creator"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >
-      <NewspaperBoard pages={pages} counts={counts} stories={stories} />
+      <NewspaperBoard pages={pages} summaries={summaries} stories={stories} />
     </PortalShell>
   );
 }

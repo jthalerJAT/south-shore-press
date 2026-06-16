@@ -62,20 +62,34 @@ export async function getPages(): Promise<NpPage[]> {
   return (data ?? []) as NpPage[];
 }
 
-/** Map of page_id → number of items on it (for the board's status line). */
-export async function getItemCounts(): Promise<Record<string, number>> {
+export type NpItemSummary = { type: 'story' | 'ad'; title: string };
+
+function adSizeWord(size?: string): string {
+  return size === 'full' ? 'Full' : size === 'half' ? 'Half' : 'Quarter';
+}
+
+/** Map of page_id → the content titles on it (story headlines + "{Size} Page
+ *  Ad"), in item order — shown under each page title on the board. */
+export async function getItemSummaries(): Promise<Record<string, NpItemSummary[]>> {
   const supabase = createClient();
-  const { data, error } = await supabase.from('np_items').select('page_id');
+  const { data, error } = await supabase
+    .from('np_items')
+    .select('page_id, item_order, type, data')
+    .order('item_order', { ascending: true });
   if (error) {
-    console.error('[getItemCounts]', error);
+    console.error('[getItemSummaries]', error);
     return {};
   }
-  const counts: Record<string, number> = {};
+  const map: Record<string, NpItemSummary[]> = {};
   for (const row of data ?? []) {
-    const id = (row as { page_id: string }).page_id;
-    counts[id] = (counts[id] ?? 0) + 1;
+    const r = row as { page_id: string; type: 'story' | 'ad'; data: NpStoryData & NpAdData };
+    const title =
+      r.type === 'ad'
+        ? `${adSizeWord(r.data?.ad_size)} Page Ad`
+        : String(r.data?.headline ?? '').trim() || 'Untitled story';
+    (map[r.page_id] ??= []).push({ type: r.type, title });
   }
-  return counts;
+  return map;
 }
 
 export async function getPage(pageId: string): Promise<NpPage | null> {

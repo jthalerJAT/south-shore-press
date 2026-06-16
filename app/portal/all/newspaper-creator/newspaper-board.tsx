@@ -17,8 +17,7 @@ import {
 import { GripVertical } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
-import type { NpPage } from '@/lib/queries/newspaper';
-import { templateFor } from '@/lib/newspaper-templates';
+import type { NpPage, NpItemSummary } from '@/lib/queries/newspaper';
 import { addStoryToPage, addPage } from './actions';
 
 function displayTitle(page: NpPage, ordinal: number): string {
@@ -31,13 +30,23 @@ const STATUS_BADGE: Record<NpPage['status'], string> = {
   locked: 'bg-emerald-100 text-emerald-800',
 };
 
+// Descriptor shown for a themed section page that has no content yet.
+const EMPTY_DESCRIPTOR: Partial<Record<NpPage['kind'], string>> = {
+  legals: 'Legal Page',
+  classifieds: 'Classified Page',
+  fun_times: 'Fun Times Page',
+  fantasy_baseball: 'Fantasy Baseball Page',
+  betting_barton: 'Betting With Barton Page',
+  sports: 'Sports Page',
+};
+
 export function NewspaperBoard({
   pages,
-  counts,
+  summaries,
   stories,
 }: {
   pages: NpPage[];
-  counts: Record<string, number>;
+  summaries: Record<string, NpItemSummary[]>;
   stories: EditorStoryRow[];
 }) {
   const router = useRouter();
@@ -168,7 +177,7 @@ export function NewspaperBoard({
                   key={page.id}
                   page={page}
                   ordinal={i + 1}
-                  count={counts[page.id] ?? 0}
+                  subtitles={summaries[page.id] ?? []}
                 />
               ))}
             </ul>
@@ -186,33 +195,46 @@ export function NewspaperBoard({
 function PageRow({
   page,
   ordinal,
-  count,
+  subtitles,
 }: {
   page: NpPage;
   ordinal: number;
-  count: number;
+  subtitles: NpItemSummary[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `page-${page.id}` });
-  const tmpl = templateFor(page.kind);
-  const slotInfo =
-    tmpl.slots === 'open'
-      ? `${count} ${count === 1 ? 'item' : 'items'}`
-      : `${count}/${tmpl.slots.length} tiles`;
 
   return (
     <li
       ref={setNodeRef}
       className={cn(
-        'grid grid-cols-[3rem_1fr_auto_auto] items-center gap-3 px-3 py-3 transition-colors',
+        'grid grid-cols-[3rem_1fr_auto_auto] items-start gap-3 px-3 py-3 transition-colors',
         isOver ? 'bg-brand-red/5 ring-1 ring-inset ring-brand-red' : 'bg-white'
       )}
     >
-      <div className="text-sm font-bold text-zinc-400">{ordinal}</div>
+      <div className="text-sm font-bold text-zinc-400 pt-0.5">{ordinal}</div>
       <div className="min-w-0">
         <div className="text-sm font-medium text-zinc-900 truncate">
           {displayTitle(page, ordinal)}
         </div>
-        <div className="text-[11px] text-zinc-500">{slotInfo}</div>
+        {subtitles.length > 0 ? (
+          <ul className="mt-0.5">
+            {subtitles.map((s, i) => (
+              <li
+                key={i}
+                className={cn(
+                  'text-[11px] text-zinc-500 truncate',
+                  s.type === 'ad' && 'italic'
+                )}
+              >
+                {s.title}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="text-[11px] italic text-zinc-400">
+            {EMPTY_DESCRIPTOR[page.kind] ?? 'No content yet'}
+          </div>
+        )}
       </div>
       <span
         className={cn(

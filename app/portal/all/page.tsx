@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, LayoutGrid, FileEdit, FileText, ArrowRight } from 'lucide-react';
+import { Users, LayoutGrid, FileEdit, FileText, Newspaper, ArrowRight } from 'lucide-react';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 
@@ -60,6 +60,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Upload and manage the weekly legal-notice PDFs shown on the public Legals page.',
       icon: FileText,
+    },
+    {
+      href: '/portal/all/newspaper-creator',
+      title: 'Newspaper Creator',
+      description:
+        'Build the weekly print issue — drag stories onto pages, edit content, and lay out the paper.',
+      icon: Newspaper,
     },
   ];
 

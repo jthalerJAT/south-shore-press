@@ -11,10 +11,7 @@ export default function AboutPage() {
   return (
     <article className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14">
       <header className="border-b-2 border-brand-red pb-3 mb-8">
-        <div className="text-xs uppercase tracking-widest text-brand-red font-semibold">
-          About
-        </div>
-        <h1 className="mt-1 font-headline text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900">
+        <h1 className="font-headline text-3xl sm:text-4xl font-bold tracking-tight text-zinc-900">
           About the South Shore Press
         </h1>
       </header>

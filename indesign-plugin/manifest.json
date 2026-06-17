@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 5,
+  "id": "com.southshorepress.pagebuilder",
+  "name": "South Shore Press — Page Builder",
+  "version": "0.1.0",
+  "main": "index.html",
+  "host": [
+    { "app": "IDSN", "minVersion": "18.5.0" }
+  ],
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "sspPanel",
+      "label": { "default": "SSP Page Builder" },
+      "minimumSize": { "width": 280, "height": 360 },
+      "preferredDockedSize": { "width": 320, "height": 480 },
+      "preferredFloatingSize": { "width": 360, "height": 520 }
+    }
+  ],
+  "requiredPermissions": {
+    "network": { "domains": "all" }
+  }
+}

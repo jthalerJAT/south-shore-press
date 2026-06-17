@@ -5,7 +5,15 @@
   const idsn = require('indesign');
   const uxp = require('uxp');
   const app = idsn.app;
-  const { MeasurementUnits, FitOptions, Justification, ColorModel, ColorSpace, RulerOrigin } = idsn;
+  const {
+    MeasurementUnits,
+    FitOptions,
+    Justification,
+    VerticalJustification,
+    ColorModel,
+    ColorSpace,
+    RulerOrigin,
+  } = idsn;
 
   function hexToRgb(hex) {
     const h = String(hex).replace('#', '');
@@ -86,8 +94,25 @@
       /* ignore */
     }
     const s = style || {};
+    if (s.vAlign) {
+      try {
+        tf.textFramePreferences.verticalJustification =
+          s.vAlign === 'center'
+            ? VerticalJustification.CENTER_ALIGN
+            : s.vAlign === 'bottom'
+            ? VerticalJustification.BOTTOM_ALIGN
+            : VerticalJustification.TOP_ALIGN;
+      } catch (e) {
+        /* ignore */
+      }
+    }
     tf.contents = s.uppercase ? String(text).toUpperCase() : String(text);
     const t = tf.parentStory.texts.item(0);
+    try {
+      t.hyphenation = false;
+    } catch (e) {
+      /* ignore */
+    }
     try {
       if (s.font) {
         t.appliedFont = s.fontStyle ? s.font + '\t' + s.fontStyle : s.font;
@@ -127,6 +152,14 @@
       r.place(path);
       r.fit(fit === 'contain' ? FitOptions.PROPORTIONALLY : FitOptions.FILL_PROPORTIONALLY);
       r.fit(FitOptions.CENTER_CONTENT);
+      // Clear the grey placeholder fill so it doesn't show behind transparent
+      // images (e.g. the logo PNG).
+      try {
+        const none = doc.swatches.itemByName('None');
+        if (none && none.isValid) r.fillColor = none;
+      } catch (e) {
+        /* ignore */
+      }
     } catch (e) {
       /* leave the grey placeholder */
     }

@@ -19,6 +19,8 @@ export type PrintStyle = {
   stroke?: string; // hex, text outline
   strokeWeight?: number; // pt
   align?: 'left' | 'center' | 'right';
+  /** Vertical text alignment within the frame. */
+  vAlign?: 'top' | 'center' | 'bottom';
   uppercase?: boolean;
 };
 
@@ -74,22 +76,22 @@ export const FRONT_PRINT_SPEC: PrintSpec = {
     // `fill` crops the source PNG's ~16% transparent top/bottom padding so the
     // artwork sits edge-to-edge (frame aspect ~5.5:1 ≈ the artwork's).
     { type: 'image', bounds: [36, 24, 720, 131], bind: 'logo_url', fit: 'fill' },
-    { type: 'text', bounds: [36, 159, 260, 16], bind: 'year_issue', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, fill: BLACK } },
-    { type: 'text', bounds: [296, 159, 200, 16], bind: 'tagline', style: { font: BODY_FONT, fontStyle: 'Italic', size: 11, align: 'center', fill: BLACK } },
-    { type: 'text', bounds: [496, 159, 260, 16], bind: 'issue_date', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, align: 'right', uppercase: true, fill: BLACK } },
+    { type: 'text', bounds: [36, 159, 230, 16], bind: 'year_issue', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, fill: BLACK } },
+    { type: 'text', bounds: [36, 159, 720, 16], bind: 'tagline', style: { font: BODY_FONT, fontStyle: 'Italic', size: 10, align: 'center', fill: BLACK } },
+    { type: 'text', bounds: [526, 159, 230, 16], bind: 'issue_date', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, align: 'right', uppercase: true, fill: BLACK } },
     { type: 'rect', bounds: [36, 179, 720, 2], style: { fill: BLACK } },
 
     // ── Hero ────────────────────────────────────────────────
     { type: 'image', bounds: [36, 185, 720, 667], bind: 'hero.photo_url', fit: 'fill' },
-    { type: 'text', bounds: [44, 686, 668, 116], bind: 'hero.headline', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 72, leading: 66, uppercase: true, fill: WHITE, stroke: BLACK, strokeWeight: 2 } },
-    { type: 'text', bounds: [44, 802, 668, 30], bind: 'hero.subhead', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 26, fill: WHITE, stroke: BLACK, strokeWeight: 1 } },
-    { type: 'text', bounds: [44, 834, 420, 14], bind: 'hero.credit', prefix: 'Credit: ', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold', size: 9, fill: WHITE } },
+    { type: 'text', bounds: [44, 680, 668, 124], bind: 'hero.headline', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 64, leading: 60, uppercase: true, vAlign: 'bottom', fill: WHITE, stroke: BLACK, strokeWeight: 2 } },
+    { type: 'text', bounds: [44, 806, 668, 28], bind: 'hero.subhead', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 26, vAlign: 'center', fill: WHITE, stroke: BLACK, strokeWeight: 1 } },
+    { type: 'text', bounds: [44, 836, 420, 13], bind: 'hero.credit', prefix: 'Credit: ', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold', size: 9, vAlign: 'center', fill: WHITE } },
     { type: 'rect', bounds: [620, 818, 136, 30], bind: 'hero.page_ref', skipIfEmpty: true, style: { fill: BRAND_RED } },
-    { type: 'text', bounds: [620, 822, 136, 24], bind: 'hero.page_ref', prefix: 'PAGE ', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 20, align: 'center', fill: WHITE } },
+    { type: 'text', bounds: [620, 818, 136, 30], bind: 'hero.page_ref', prefix: 'PAGE ', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 20, align: 'center', vAlign: 'center', fill: WHITE } },
 
     // ── Bottom banner ───────────────────────────────────────
     { type: 'rect', bounds: [36, 1017, 720, 27], bind: 'banner_text', skipIfEmpty: true, style: { fill: NAVY } },
-    { type: 'text', bounds: [40, 1020, 712, 22], bind: 'banner_text', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold Italic', size: 14, align: 'center', fill: WHITE } },
+    { type: 'text', bounds: [40, 1017, 712, 27], bind: 'banner_text', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold Italic', size: 14, align: 'center', vAlign: 'center', fill: WHITE } },
   ],
   tiles: {
     region: [36, 852, 720, 165],
@@ -100,9 +102,9 @@ export const FRONT_PRINT_SPEC: PrintSpec = {
       { type: 'image', bounds: [0, 0, 0, 0], bind: 'photo_url', fit: 'fill' },
       { type: 'rect', bounds: [4, 4, 74, 16], bind: 'section_label', skipIfEmpty: true, style: { fill: NAVY } },
       { type: 'text', bounds: [8, 5, 70, 14], bind: 'section_label', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 9, fill: WHITE, uppercase: true } },
-      { type: 'text', bounds: [5, 118, -56, 30], bind: 'headline', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 15, leading: 15, fill: WHITE, stroke: BLACK, strokeWeight: 0.5 } },
-      { type: 'text', bounds: [5, 150, -56, 11], bind: 'credit', prefix: 'Credit: ', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, fill: WHITE, stroke: BLACK, strokeWeight: 0.3 } },
-      { type: 'text', bounds: [4, 150, -6, 12], bind: 'page_ref', prefix: 'Story on pg. ', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 9, align: 'right', fill: WHITE, stroke: BLACK, strokeWeight: 0.3 } },
+      { type: 'text', bounds: [5, 112, -10, 38], bind: 'headline', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 15, leading: 15, vAlign: 'bottom', fill: WHITE, stroke: BLACK, strokeWeight: 0.5 } },
+      { type: 'text', bounds: [5, 151, -56, 11], bind: 'credit', prefix: 'Credit: ', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, vAlign: 'center', fill: WHITE, stroke: BLACK, strokeWeight: 0.3 } },
+      { type: 'text', bounds: [4, 151, -6, 11], bind: 'page_ref', prefix: 'Story on pg. ', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 9, align: 'right', vAlign: 'center', fill: WHITE, stroke: BLACK, strokeWeight: 0.3 } },
     ],
   },
 };

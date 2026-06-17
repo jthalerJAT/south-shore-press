@@ -34,7 +34,7 @@ export function SectionCover({
   mastheadWord?: string;
   logoUrl?: string;
 }) {
-  const headerH = 210;
+  const headerH = 270;
   const bannerH = data.banner_text ? 36 : 0;
   const tiles = data.tiles.slice(0, data.tile_count);
   const tilesH = tiles.length > 0 ? 220 : 0;
@@ -58,21 +58,20 @@ export function SectionCover({
             </div>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="flex-1 flex items-center justify-center min-h-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={logoUrl}
-                alt=""
-                style={{ maxHeight: '100%', width: 'auto', maxWidth: '100%', objectFit: 'contain' }}
-              />
-            </div>
-            <div className="flex items-end justify-between" style={{ fontSize: 12 }}>
+          <>
+            {/* Masthead spans the full header width (lockup aspect sets height). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={logoUrl}
+              alt=""
+              style={{ width: '100%', height: 'auto', objectFit: 'contain', display: 'block' }}
+            />
+            <div className="flex items-end justify-between" style={{ fontSize: 12, marginTop: 4 }}>
               <span style={{ fontWeight: 700 }}>{data.year_issue || '— YEAR • ISSUE —'}</span>
               <span style={{ fontStyle: 'italic', fontWeight: 600 }}>{data.tagline}</span>
               <span style={{ fontWeight: 700, textTransform: 'uppercase' }}>{data.issue_date || '— DATE —'}</span>
             </div>
-          </div>
+          </>
         )}
         <div style={{ borderBottom: '2px solid #000', marginTop: 4 }} />
       </div>

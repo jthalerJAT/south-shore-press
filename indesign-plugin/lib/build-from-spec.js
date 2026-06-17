@@ -5,7 +5,7 @@
   const idsn = require('indesign');
   const uxp = require('uxp');
   const app = idsn.app;
-  const { MeasurementUnits, FitOptions, Justification, ColorModel, ColorSpace } = idsn;
+  const { MeasurementUnits, FitOptions, Justification, ColorModel, ColorSpace, RulerOrigin } = idsn;
 
   function hexToRgb(hex) {
     const h = String(hex).replace('#', '');
@@ -154,6 +154,18 @@
   }
 
   async function buildPage(spec, data, log) {
+    // CRITICAL: make scripting interpret all numeric geometry as POINTS, and
+    // set it BEFORE creating the doc (so pageWidth/Height are points too).
+    // Otherwise InDesign uses the default ruler unit (often picas/inches) and
+    // every frame lands far off the page.
+    let prevUnit;
+    try {
+      prevUnit = app.scriptPreferences.measurementUnit;
+      app.scriptPreferences.measurementUnit = MeasurementUnits.POINTS;
+    } catch (e) {
+      /* ignore */
+    }
+
     const doc = app.documents.add();
     try {
       doc.documentPreferences.facingPages = false;
@@ -161,6 +173,8 @@
       doc.documentPreferences.pageHeight = spec.page.h;
       doc.viewPreferences.horizontalMeasurementUnits = MeasurementUnits.POINTS;
       doc.viewPreferences.verticalMeasurementUnits = MeasurementUnits.POINTS;
+      doc.viewPreferences.rulerOrigin = RulerOrigin.PAGE_ORIGIN;
+      doc.zeroPoint = [0, 0];
     } catch (e) {
       if (log) log('  ! could not set page size: ' + e.message);
     }
@@ -203,6 +217,13 @@
           await renderElement(doc, page, el, value, ox, oy, ow, oh, log);
         }
       }
+    }
+
+    // Restore the user's measurement unit.
+    try {
+      if (prevUnit !== undefined) app.scriptPreferences.measurementUnit = prevUnit;
+    } catch (e) {
+      /* ignore */
     }
   }
 

@@ -34,7 +34,7 @@ export function SectionCover({
   mastheadWord?: string;
   logoUrl?: string;
 }) {
-  const headerH = 150;
+  const headerH = 210;
   const bannerH = data.banner_text ? 36 : 0;
   const tiles = data.tiles.slice(0, data.tile_count);
   const tilesH = tiles.length > 0 ? 220 : 0;
@@ -58,17 +58,23 @@ export function SectionCover({
             </div>
           </div>
         ) : (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt="" style={{ height: 88, width: 'auto', objectFit: 'contain' }} className="mx-auto" />
-            <div className="flex items-end justify-between mt-1" style={{ fontSize: 12 }}>
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex items-center justify-center min-h-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={logoUrl}
+                alt=""
+                style={{ maxHeight: '100%', width: 'auto', maxWidth: '100%', objectFit: 'contain' }}
+              />
+            </div>
+            <div className="flex items-end justify-between" style={{ fontSize: 12 }}>
               <span style={{ fontWeight: 700 }}>{data.year_issue || '— YEAR • ISSUE —'}</span>
               <span style={{ fontStyle: 'italic', fontWeight: 600 }}>{data.tagline}</span>
               <span style={{ fontWeight: 700, textTransform: 'uppercase' }}>{data.issue_date || '— DATE —'}</span>
             </div>
-          </>
+          </div>
         )}
-        <div style={{ borderBottom: '2px solid #000', marginTop: 6 }} />
+        <div style={{ borderBottom: '2px solid #000', marginTop: 4 }} />
       </div>
 
       {/* ── Hero ─────────────────────────────────────────────── */}
@@ -139,34 +145,51 @@ export function SectionCover({
 
 function Tile({ tile }: { tile: CoverTile }) {
   return (
-    <div className="relative flex flex-col" style={{ background: SSP_BLUE }}>
-      <div className="relative" style={{ height: 110, background: '#9ca3af', overflow: 'hidden' }}>
-        {tile.photo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={tile.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : null}
-        {tile.section_label ? (
-          <span
-            className="absolute top-1 left-1"
-            style={{ background: NAVY, color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', padding: '2px 8px', transform: 'skewX(-10deg)' }}
-          >
-            <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>{tile.section_label}</span>
-          </span>
-        ) : null}
-        {tile.credit ? (
-          <span className="absolute bottom-0 left-0" style={{ color: '#fff', fontSize: 9, padding: '1px 4px', textShadow: '1px 1px 0 #000' }}>
-            Credit: {tile.credit}
-          </span>
-        ) : null}
-      </div>
-      <div className="flex-1 px-2 py-1 flex flex-col">
-        <div className="font-headline" style={{ color: '#fff', fontWeight: 800, fontSize: 18, lineHeight: 1.02 }}>
+    <div className="relative overflow-hidden" style={{ height: '100%', background: SSP_BLUE }}>
+      {/* Full-bleed photo */}
+      {tile.photo_url ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={tile.photo_url}
+          alt=""
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      ) : null}
+      {/* Bottom gradient for text legibility */}
+      <div
+        className="absolute inset-x-0 bottom-0"
+        style={{ height: '60%', background: 'linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0))' }}
+      />
+
+      {/* Section tab, top-left */}
+      {tile.section_label ? (
+        <span
+          className="absolute top-1 left-1"
+          style={{ background: NAVY, color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', padding: '2px 8px', transform: 'skewX(-10deg)' }}
+        >
+          <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>{tile.section_label}</span>
+        </span>
+      ) : null}
+
+      {/* Headline above credit, bottom-left */}
+      <div className="absolute left-2 bottom-1" style={{ right: 80 }}>
+        <div className="font-headline" style={{ color: '#fff', fontWeight: 800, fontSize: 18, lineHeight: 1.02, textShadow: '1px 1px 2px #000' }}>
           {tile.headline || <span style={{ opacity: 0.6 }}>Headline</span>}
         </div>
-        <div className="mt-auto text-right" style={{ color: '#fff', fontSize: 11, fontWeight: 700 }}>
-          {tile.page_ref ? `Story on pg. ${tile.page_ref}` : ''}
-        </div>
+        {tile.credit ? (
+          <div style={{ color: '#fff', fontSize: 9, fontWeight: 600, marginTop: 1, textShadow: '1px 1px 1px #000' }}>
+            Credit: {tile.credit}
+          </div>
+        ) : null}
       </div>
+
+      {/* Story-on, lower-right corner */}
+      {tile.page_ref ? (
+        <div className="absolute bottom-1 right-2" style={{ color: '#fff', fontSize: 11, fontWeight: 700, textShadow: '1px 1px 2px #000' }}>
+          Story on pg. {tile.page_ref}
+        </div>
+      ) : null}
     </div>
   );
 }

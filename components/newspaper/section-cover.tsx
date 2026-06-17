@@ -34,7 +34,7 @@ export function SectionCover({
   mastheadWord?: string;
   logoUrl?: string;
 }) {
-  const headerH = 270;
+  const headerH = 198;
   const bannerH = data.banner_text ? 36 : 0;
   const tiles = data.tiles.slice(0, data.tile_count);
   const tilesH = tiles.length > 0 ? 220 : 0;
@@ -59,21 +59,24 @@ export function SectionCover({
           </div>
         ) : (
           <>
-            {/* Masthead spans the full header width (lockup aspect sets height). */}
+            {/* Masthead spans the full header width. The source PNG has ~16%
+                transparent padding top/bottom — object-fit cover in a 174px
+                band crops it so the artwork sits edge-to-edge, mirroring the
+                printed paper's tight top margin. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={logoUrl}
               alt=""
-              style={{ width: '100%', height: 'auto', objectFit: 'contain', display: 'block' }}
+              style={{ width: '100%', height: 174, objectFit: 'cover', objectPosition: 'center', display: 'block' }}
             />
-            <div className="flex items-end justify-between" style={{ fontSize: 12, marginTop: 4 }}>
+            <div className="flex items-end justify-between" style={{ fontSize: 12, marginTop: 3 }}>
               <span style={{ fontWeight: 700 }}>{data.year_issue || '— YEAR • ISSUE —'}</span>
               <span style={{ fontStyle: 'italic', fontWeight: 600 }}>{data.tagline}</span>
               <span style={{ fontWeight: 700, textTransform: 'uppercase' }}>{data.issue_date || '— DATE —'}</span>
             </div>
           </>
         )}
-        <div style={{ borderBottom: '2px solid #000', marginTop: 4 }} />
+        <div style={{ borderBottom: '2px solid #000', marginTop: 3 }} />
       </div>
 
       {/* ── Hero ─────────────────────────────────────────────── */}

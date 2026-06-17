@@ -70,15 +70,17 @@ export const FRONT_PRINT_SPEC: PrintSpec = {
   page: { w: 792, h: 1080 },
   margin: 36,
   elements: [
-    // ── Header (full-width masthead, tight to the dividing line) ─
-    { type: 'image', bounds: [36, 30, 720, 181], bind: 'logo_url', fit: 'contain' },
-    { type: 'text', bounds: [36, 215, 260, 16], bind: 'year_issue', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, fill: BLACK } },
-    { type: 'text', bounds: [296, 215, 200, 16], bind: 'tagline', style: { font: BODY_FONT, fontStyle: 'Italic', size: 11, align: 'center', fill: BLACK } },
-    { type: 'text', bounds: [496, 215, 260, 16], bind: 'issue_date', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, align: 'right', uppercase: true, fill: BLACK } },
-    { type: 'rect', bounds: [36, 234, 720, 2], style: { fill: BLACK } },
+    // ── Header (full-width masthead, near the top edge, tight to the line) ─
+    // `fill` crops the source PNG's ~16% transparent top/bottom padding so the
+    // artwork sits edge-to-edge (frame aspect ~5.5:1 ≈ the artwork's).
+    { type: 'image', bounds: [36, 24, 720, 131], bind: 'logo_url', fit: 'fill' },
+    { type: 'text', bounds: [36, 159, 260, 16], bind: 'year_issue', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, fill: BLACK } },
+    { type: 'text', bounds: [296, 159, 200, 16], bind: 'tagline', style: { font: BODY_FONT, fontStyle: 'Italic', size: 11, align: 'center', fill: BLACK } },
+    { type: 'text', bounds: [496, 159, 260, 16], bind: 'issue_date', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, align: 'right', uppercase: true, fill: BLACK } },
+    { type: 'rect', bounds: [36, 179, 720, 2], style: { fill: BLACK } },
 
     // ── Hero ────────────────────────────────────────────────
-    { type: 'image', bounds: [36, 240, 720, 612], bind: 'hero.photo_url', fit: 'fill' },
+    { type: 'image', bounds: [36, 185, 720, 667], bind: 'hero.photo_url', fit: 'fill' },
     { type: 'text', bounds: [44, 686, 668, 116], bind: 'hero.headline', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 72, leading: 66, uppercase: true, fill: WHITE, stroke: BLACK, strokeWeight: 2 } },
     { type: 'text', bounds: [44, 802, 668, 30], bind: 'hero.subhead', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 26, fill: WHITE, stroke: BLACK, strokeWeight: 1 } },
     { type: 'text', bounds: [44, 834, 420, 14], bind: 'hero.credit', prefix: 'Credit: ', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold', size: 9, fill: WHITE } },

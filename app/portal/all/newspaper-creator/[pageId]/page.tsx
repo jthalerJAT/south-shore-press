@@ -3,8 +3,11 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getPages, getPage, getPageItems } from '@/lib/queries/newspaper';
-import { templateFor } from '@/lib/newspaper-templates';
+import { templateFor, pageMode, coverConfig } from '@/lib/newspaper-templates';
+import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
+import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { PageEditor } from './page-editor';
+import { CoverEditor } from './cover-editor';
 
 export const metadata: Metadata = {
   title: 'Edit Page · Newspaper Creator',
@@ -26,12 +29,34 @@ export default async function NewspaperPageEditorPage({
   const page = await getPage(params.pageId);
   if (!page) notFound();
 
-  const [pages, items] = await Promise.all([
-    getPages(),
-    getPageItems(params.pageId),
-  ]);
+  const pages = await getPages();
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
   const displayTitle = page.kind === 'generic' ? `Page ${ordinal}` : page.title;
+
+  // Template pages (Front Page, section covers) use the bespoke field editor;
+  // flow pages use the story-form Page Editor + the Phase 2A layout engine.
+  if (pageMode(page.kind) === 'template') {
+    const cfg = coverConfig(page.kind);
+    const stories = await getAllStoriesForEditor();
+    return (
+      <PortalShell
+        user={user}
+        activeTab="all"
+        title={`Edit — ${displayTitle}`}
+        backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+      >
+        <CoverEditor
+          pageId={page.id}
+          variant={cfg?.variant ?? 'news'}
+          mastheadWord={cfg?.mastheadWord}
+          initialData={normalizeCover(page.template_data, page.kind)}
+          stories={stories}
+        />
+      </PortalShell>
+    );
+  }
+
+  const items = await getPageItems(params.pageId);
   const tmpl = templateFor(page.kind);
 
   return (

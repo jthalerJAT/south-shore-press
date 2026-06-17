@@ -3,6 +3,9 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
 import { getPages, getPage, getPageItems } from '@/lib/queries/newspaper';
+import { pageMode, coverConfig } from '@/lib/newspaper-templates';
+import { normalizeCover } from '@/lib/newspaper/section-cover';
+import { SectionCover } from '@/components/newspaper/section-cover';
 import { PrintButton } from './print-button';
 import { ProofBands, type ProofItem } from './proof-bands';
 
@@ -38,6 +41,9 @@ export default async function PagePrintProof({
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
   const title = page.kind === 'generic' ? `Page ${ordinal}` : page.title;
 
+  const isTemplate = pageMode(page.kind) === 'template';
+  const cfg = isTemplate ? coverConfig(page.kind) : null;
+
   const proofItems: ProofItem[] = items.map((it) => ({
     id: it.id,
     type: it.type,
@@ -62,23 +68,33 @@ export default async function PagePrintProof({
       </div>
 
       <div className="mx-auto bg-white my-6 p-12 shadow-sm w-fit overflow-x-auto">
-        <div className="text-center border-b-2 border-black pb-2 mb-6">
-          <div className="font-headline text-2xl font-extrabold uppercase tracking-wide">
-            The South Shore Press
-          </div>
-          <div className="text-xs text-zinc-500">{title} · proof</div>
-        </div>
-
-        {page.section_name ? (
-          <div className="inline-block bg-black text-white text-xs font-bold uppercase tracking-widest px-2 py-1 mb-4">
-            {page.section_name}
-          </div>
-        ) : null}
-
-        {proofItems.length === 0 ? (
-          <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
+        {isTemplate ? (
+          <SectionCover
+            data={normalizeCover(page.template_data, page.kind)}
+            variant={cfg?.variant ?? 'news'}
+            mastheadWord={cfg?.mastheadWord}
+          />
         ) : (
-          <ProofBands items={proofItems} />
+          <>
+            <div className="text-center border-b-2 border-black pb-2 mb-6">
+              <div className="font-headline text-2xl font-extrabold uppercase tracking-wide">
+                The South Shore Press
+              </div>
+              <div className="text-xs text-zinc-500">{title} · proof</div>
+            </div>
+
+            {page.section_name ? (
+              <div className="inline-block bg-black text-white text-xs font-bold uppercase tracking-widest px-2 py-1 mb-4">
+                {page.section_name}
+              </div>
+            ) : null}
+
+            {proofItems.length === 0 ? (
+              <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
+            ) : (
+              <ProofBands items={proofItems} />
+            )}
+          </>
         )}
       </div>
     </div>

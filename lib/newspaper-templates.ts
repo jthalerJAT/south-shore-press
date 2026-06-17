@@ -3,10 +3,21 @@
  * the default set of pages seeded for the single current working issue.
  * Pure constants — safe to import from both server actions and client
  * components.
+ *
+ * Each kind has a `mode`:
+ *   - 'flow'     — laid out freehand with the Phase 2A column-flow engine
+ *                  (np_items + the layout editor). Interior story pages.
+ *   - 'template' — a bespoke field form + to-scale wireframe renderer; data
+ *                  lives in np_pages.template_data. Repeating "master" pages
+ *                  like the Front Page + section covers.
+ * and a `master` flag — master pages can't be deleted from an issue (the
+ * Delete button is greyed). Generally only newly-added `generic` pages are
+ * deletable.
  */
 
 export type NpKind =
   | 'front'
+  | 'sports_cover'
   | 'page2'
   | 'generic'
   | 'legals'
@@ -19,22 +30,61 @@ export type NpKind =
 
 export type SlotDef = { key: string; label: string };
 
+/** Configuration for a "section cover" template page (Front Page, Sports
+ *  cover, …): a hero photo + up to three bottom tiles + a masthead. */
+export type CoverConfig = {
+  variant: 'news' | 'sports';
+  /** News front shows the "42ND YEAR • ISSUE 24" line; section covers don't. */
+  showYearIssue: boolean;
+  /** Masthead word appended to the logo for section covers (e.g. "Sports"). */
+  mastheadWord?: string;
+  defaultTagline: string;
+  /** Section tab label seeded on tiles ("LOCAL" / "SPORTS"). */
+  defaultTabLabel: string;
+  defaultBanner: string;
+};
+
 export type NpTemplate = {
   label: string;
   /** Named tiles a story drops into in order, or 'open' for an unbounded
    *  list of individual stories (Sports, generic pages, etc.). */
   slots: SlotDef[] | 'open';
+  mode: 'flow' | 'template';
+  master: boolean;
+  /** Present only for `mode: 'template'` section-cover pages. */
+  cover?: CoverConfig;
 };
+
+const FRONT_BANNER = 'WELCOME TO THE SOUTH SHORE PRESS! COVERING ALL OF SUFFOLK COUNTY';
+const FRONT_TAGLINE = "The People's Newspaper - Covering All of Suffolk County";
 
 export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
   front: {
     label: 'Front Page',
-    slots: [
-      { key: 'main', label: 'Main Story' },
-      { key: 'lower1', label: 'Lower Tile 1' },
-      { key: 'lower2', label: 'Lower Tile 2' },
-      { key: 'lower3', label: 'Lower Tile 3' },
-    ],
+    slots: 'open',
+    mode: 'template',
+    master: true,
+    cover: {
+      variant: 'news',
+      showYearIssue: true,
+      defaultTagline: FRONT_TAGLINE,
+      defaultTabLabel: 'LOCAL',
+      defaultBanner: FRONT_BANNER,
+    },
+  },
+  sports_cover: {
+    label: 'Sports Cover',
+    slots: 'open',
+    mode: 'template',
+    master: true,
+    cover: {
+      variant: 'sports',
+      showYearIssue: false,
+      mastheadWord: 'Sports',
+      defaultTagline: 'SUFFOLK SPORTS Teams, Scores, Photos, News, Columns and More',
+      defaultTabLabel: 'SPORTS',
+      defaultBanner: '',
+    },
   },
   page2: {
     label: 'Page 2',
@@ -43,10 +93,12 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
       { key: 'lower_story', label: 'Lower Story' },
       { key: 'lower_ad', label: 'Lower Ad' },
     ],
+    mode: 'flow',
+    master: true,
   },
-  generic: { label: 'Page', slots: 'open' },
-  legals: { label: 'Legals', slots: 'open' },
-  classifieds: { label: 'Classifieds', slots: 'open' },
+  generic: { label: 'Page', slots: 'open', mode: 'flow', master: false },
+  legals: { label: 'Legals', slots: 'open', mode: 'flow', master: true },
+  classifieds: { label: 'Classifieds', slots: 'open', mode: 'flow', master: true },
   fun_times: {
     label: 'Fun Times',
     slots: [
@@ -55,10 +107,12 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
       { key: 'history', label: 'History' },
       { key: 'puzzles', label: 'Puzzles' },
     ],
+    mode: 'flow',
+    master: true,
   },
-  fantasy_baseball: { label: 'Fantasy Baseball', slots: 'open' },
-  betting_barton: { label: 'Betting With Barton', slots: 'open' },
-  sports: { label: 'Sports', slots: 'open' },
+  fantasy_baseball: { label: 'Fantasy Baseball', slots: 'open', mode: 'flow', master: true },
+  betting_barton: { label: 'Betting With Barton', slots: 'open', mode: 'flow', master: true },
+  sports: { label: 'Sports', slots: 'open', mode: 'flow', master: true },
   back: {
     label: 'Back Page',
     slots: [
@@ -67,6 +121,8 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
       { key: 'lower2', label: 'Lower Tile 2' },
       { key: 'lower3', label: 'Lower Tile 3' },
     ],
+    mode: 'flow',
+    master: true,
   },
 };
 
@@ -82,12 +138,13 @@ export const DEFAULT_PAGES: ReadonlyArray<{ kind: NpKind; title: string }> = [
   { kind: 'fun_times', title: 'Fun Times' },
   { kind: 'fantasy_baseball', title: 'Fantasy Baseball' },
   { kind: 'betting_barton', title: 'Betting With Barton' },
+  { kind: 'sports_cover', title: 'Sports Cover' },
   { kind: 'sports', title: 'Sports' },
   { kind: 'back', title: 'Back Page' },
 ];
 
 export function templateFor(kind: string): NpTemplate {
-  return NEWSPAPER_TEMPLATES[(kind as NpKind)] ?? NEWSPAPER_TEMPLATES.generic;
+  return NEWSPAPER_TEMPLATES[kind as NpKind] ?? NEWSPAPER_TEMPLATES.generic;
 }
 
 /** True if the page uses an unbounded open list of stories rather than fixed
@@ -95,6 +152,26 @@ export function templateFor(kind: string): NpTemplate {
 export function isOpenKind(kind: string): boolean {
   return templateFor(kind).slots === 'open';
 }
+
+/** 'flow' (freehand column layout) vs 'template' (bespoke field form). */
+export function pageMode(kind: string): 'flow' | 'template' {
+  return templateFor(kind).mode;
+}
+
+/** Master pages can't be deleted from an issue. */
+export function isMaster(kind: string): boolean {
+  return templateFor(kind).master;
+}
+
+/** Section-cover config for a template page, or null for flow pages. */
+export function coverConfig(kind: string): CoverConfig | null {
+  return templateFor(kind).cover ?? null;
+}
+
+/** Template-mode kinds the "+ Add Page" menu offers (besides a blank page). */
+export const ADDABLE_TEMPLATE_KINDS: ReadonlyArray<{ kind: NpKind; label: string }> = [
+  { kind: 'sports_cover', label: 'Sports Cover' },
+];
 
 export const AD_SIZES = [
   { value: 'full', label: 'Full Page' },

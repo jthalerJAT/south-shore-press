@@ -20,6 +20,9 @@ export type NpPage = {
   title: string;
   section_name: string | null;
   status: NpStatus;
+  /** Structured fields for template-mode pages (Front Page, section covers).
+   *  Empty object `{}` for flow pages / before Phase 6. */
+  template_data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };

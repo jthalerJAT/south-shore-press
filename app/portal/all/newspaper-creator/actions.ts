@@ -10,10 +10,13 @@ import {
   DEFAULT_PAGES,
   templateFor,
   isOpenKind,
+  isMaster,
+  pageMode,
   type NpKind,
 } from '@/lib/newspaper-templates';
 import { NEWSPAPER_ADS_BUCKET } from '@/lib/queries/newspaper';
 import { defaultStoryLayout } from '@/lib/newspaper/layout-engine';
+import { normalizeCover, fillSlotFromStory } from '@/lib/newspaper/section-cover';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/newspaper-creator';
@@ -57,13 +60,30 @@ export async function addStoryToPage(
 
   const { data: page } = await supabase
     .from('np_pages')
-    .select('id, kind')
+    .select('id, kind, template_data')
     .eq('id', pageId)
     .maybeSingle();
   if (!page) return { ok: false, error: 'Page not found.' };
 
   const story = await getStoryForEdit(sourceStoryId);
   if (!story) return { ok: false, error: 'Story not found.' };
+
+  // Template pages (Front Page, section covers) don't take np_items — dropping
+  // a story fills the next empty cover slot (hero, then tiles) instead.
+  if (pageMode(page.kind) === 'template') {
+    const data = fillSlotFromStory(normalizeCover(page.template_data, page.kind), story);
+    const { error } = await supabase
+      .from('np_pages')
+      .update({ template_data: data, status: 'draft', updated_at: new Date().toISOString() })
+      .eq('id', pageId);
+    if (error) {
+      console.error('[addStoryToPage:cover]', error);
+      return { ok: false, error: 'Could not add story to the cover.' };
+    }
+    revalidatePath(BASE);
+    revalidatePath(`${BASE}/${pageId}`);
+    return { ok: true };
+  }
 
   const { data: items } = await supabase
     .from('np_items')
@@ -261,5 +281,130 @@ export async function savePage(
 
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Persist a template page's section-cover fields and lock it. */
+export async function saveCover(
+  pageId: string,
+  data: Record<string, unknown>
+): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[saveCover]', error);
+    return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Reorder the issue's pages to the given id order (1-based page_order). */
+export async function reorderPages(orderedIds: string[]): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  await Promise.all(
+    orderedIds.map((id, i) =>
+      supabase.from('np_pages').update({ page_order: i + 1 }).eq('id', id)
+    )
+  );
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** Delete a page (and its content, via FK cascade). Refused for master pages. */
+export async function deletePage(pageId: string): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+
+  const { data: page } = await supabase
+    .from('np_pages')
+    .select('id, kind')
+    .eq('id', pageId)
+    .maybeSingle();
+  if (!page) return { ok: false, error: 'Page not found.' };
+  if (isMaster(page.kind)) {
+    return { ok: false, error: 'This is a master page and can’t be deleted.' };
+  }
+
+  const { error } = await supabase.from('np_pages').delete().eq('id', pageId);
+  if (error) {
+    console.error('[deletePage]', error);
+    return { ok: false, error: 'Could not delete the page.' };
+  }
+
+  // Renumber the remaining pages so page_order stays contiguous.
+  const { data: rest } = await supabase
+    .from('np_pages')
+    .select('id')
+    .order('page_order', { ascending: true });
+  await Promise.all(
+    (rest ?? []).map((p, i) =>
+      supabase.from('np_pages').update({ page_order: i + 1 }).eq('id', (p as { id: string }).id)
+    )
+  );
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** Clear all content + template fields for every page, but keep the page list
+ *  and order intact (the "Reset Content" button). */
+export async function resetIssueContent(): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+
+  // Remove flow content (leave any continuation rows for Phase 2B alone).
+  const { error: delErr } = await supabase
+    .from('np_items')
+    .delete()
+    .is('continuation_group', null)
+    .not('id', 'is', null);
+  if (delErr) {
+    console.error('[resetIssueContent] items', delErr);
+    return { ok: false, error: 'Could not clear page content.' };
+  }
+
+  const { error: pErr } = await supabase
+    .from('np_pages')
+    .update({ template_data: {}, section_name: null, status: 'tbd', updated_at: new Date().toISOString() })
+    .not('id', 'is', null);
+  if (pErr) {
+    console.error('[resetIssueContent] pages', pErr);
+    return { ok: false, error: 'Cleared content, but could not reset page status.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** Insert a standard template page (e.g. a Sports Cover) at the end. */
+export async function addStandardPage(kind: NpKind): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  if (pageMode(kind) !== 'template') {
+    return { ok: false, error: 'Not an addable standard page.' };
+  }
+  const supabase = createClient();
+  const { data: pages } = await supabase
+    .from('np_pages')
+    .select('page_order')
+    .order('page_order', { ascending: false })
+    .limit(1);
+  const nextOrder = ((pages?.[0] as { page_order: number } | undefined)?.page_order ?? 0) + 1;
+
+  const { error } = await supabase.from('np_pages').insert({
+    page_order: nextOrder,
+    kind,
+    title: templateFor(kind).label,
+    status: 'tbd',
+  });
+  if (error) {
+    console.error('[addStandardPage]', error);
+    return { ok: false, error: 'Could not add the page.' };
+  }
+  revalidatePath(BASE);
   return { ok: true };
 }

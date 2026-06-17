@@ -12,6 +12,7 @@ export type EditorStoryRow = {
   headline: string;
   subline: string | null;
   byline: string | null;
+  hero_photo_url: string | null;
   categories: string[] | null;
   status: 'draft' | 'submitted' | 'published' | 'unpublished';
   published_at: string | null;
@@ -21,8 +22,8 @@ export type EditorStoryRow = {
 };
 
 const ROW_COLUMNS = `
-  id, headline, subline, byline, categories, status, published_at,
-  created_at, author_id,
+  id, headline, subline, byline, hero_photo_url, categories, status,
+  published_at, created_at, author_id,
   author:profiles!stories_author_id_fkey(display_name)
 `;
 
@@ -93,7 +94,6 @@ export async function getAllStoriesForEditor(): Promise<EditorStoryRow[]> {
 
 export type EditorStoryDetail = EditorStoryRow & {
   body: string | null;
-  hero_photo_url: string | null;
   extra_photo_urls: string[] | null;
 };
 
@@ -104,7 +104,7 @@ export async function getStoryForEdit(
   const supabase = createClient();
   const { data, error } = await supabase
     .from('stories')
-    .select(`${ROW_COLUMNS}, body, hero_photo_url, extra_photo_urls`)
+    .select(`${ROW_COLUMNS}, body, extra_photo_urls`)
     .eq('id', id)
     .maybeSingle();
   if (error) {

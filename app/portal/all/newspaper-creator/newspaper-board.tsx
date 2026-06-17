@@ -32,6 +32,7 @@ import {
   reorderPages,
   deletePage,
   resetIssueContent,
+  setPageIncluded,
 } from './actions';
 
 function displayTitle(page: NpPage, ordinal: number): string {
@@ -147,6 +148,18 @@ export function NewspaperBoard({
     run(() => deletePage(page.id));
   }
 
+  function toggleInclude(pageId: string, included: boolean) {
+    // Optimistic: update local state immediately, then persist.
+    setOrder((prev) => prev.map((p) => (p.id === pageId ? { ...p, include_in_paper: included } : p)));
+    startTransition(async () => {
+      const res = await setPageIncluded(pageId, included);
+      if (!res.ok) {
+        setError(res.error ?? 'Could not update the page.');
+        router.refresh();
+      }
+    });
+  }
+
   function handleReset() {
     if (
       !confirm(
@@ -248,8 +261,9 @@ export function NewspaperBoard({
           </div>
 
           <div className="overflow-hidden rounded border border-zinc-200">
-            <div className="grid grid-cols-[1.5rem_2.5rem_1fr_auto_auto_auto] items-center gap-3 px-3 py-2 bg-zinc-50 border-b border-zinc-200 text-[11px] uppercase tracking-widest font-bold text-zinc-500">
+            <div className="grid grid-cols-[1.5rem_2rem_2.5rem_1fr_auto_auto_auto] items-center gap-3 px-3 py-2 bg-zinc-50 border-b border-zinc-200 text-[11px] uppercase tracking-widest font-bold text-zinc-500">
               <div />
+              <div title="Include in paper">In</div>
               <div>Pg</div>
               <div>Page Title</div>
               <div>Status</div>
@@ -265,6 +279,7 @@ export function NewspaperBoard({
                     ordinal={i + 1}
                     subtitles={summaries[page.id] ?? []}
                     onDelete={() => handleDelete(page, i + 1)}
+                    onToggleInclude={(v) => toggleInclude(page.id, v)}
                   />
                 ))}
               </ul>
@@ -285,24 +300,28 @@ function SortablePageRow({
   ordinal,
   subtitles,
   onDelete,
+  onToggleInclude,
 }: {
   page: NpPage;
   ordinal: number;
   subtitles: NpItemSummary[];
   onDelete: () => void;
+  onToggleInclude: (included: boolean) => void;
 }) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver } =
     useSortable({ id: page.id });
   const master = isMaster(page.kind);
+  const included = page.include_in_paper !== false;
 
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={cn(
-        'grid grid-cols-[1.5rem_2.5rem_1fr_auto_auto_auto] items-start gap-3 px-3 py-3 bg-white transition-colors',
+        'grid grid-cols-[1.5rem_2rem_2.5rem_1fr_auto_auto_auto] items-start gap-3 px-3 py-3 bg-white transition-colors',
         isOver && 'bg-brand-red/5 ring-1 ring-inset ring-brand-red',
-        isDragging && 'opacity-60'
+        isDragging && 'opacity-60',
+        !included && 'opacity-50'
       )}
     >
       <button
@@ -314,6 +333,16 @@ function SortablePageRow({
       >
         <GripVertical className="w-4 h-4" />
       </button>
+      <div className="pt-0.5">
+        <input
+          type="checkbox"
+          checked={included}
+          onChange={(e) => onToggleInclude(e.target.checked)}
+          aria-label="Include in paper"
+          title="Include in paper"
+          className="h-4 w-4 accent-brand-red cursor-pointer"
+        />
+      </div>
       <div className="text-sm font-bold text-zinc-400 pt-0.5">{ordinal}</div>
       <div className="min-w-0">
         <div className="text-sm font-medium text-zinc-900 truncate">

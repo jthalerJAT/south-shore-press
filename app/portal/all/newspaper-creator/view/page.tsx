@@ -22,7 +22,8 @@ const MARGIN_PX = Math.round(MARGIN_IN * DPI);
 export default async function NewspaperViewFile() {
   const user = await requireRole(['editor', 'admin', 'master admin'], '/portal/all/newspaper-creator/view');
 
-  const pages = await getPages();
+  // Only pages checked "Include in paper", in list order.
+  const pages = (await getPages()).filter((p) => p.include_in_paper !== false);
 
   // Resolve each page's render payload (cover data or flow items).
   const rendered = await Promise.all(

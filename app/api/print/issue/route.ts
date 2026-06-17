@@ -24,7 +24,7 @@ export async function GET(req: Request) {
 
   const { data, error } = await admin
     .from('np_pages')
-    .select('id, page_order, kind, title')
+    .select('id, page_order, kind, title, include_in_paper')
     .order('page_order', { ascending: true });
   if (error) {
     console.error('[print/issue]', error);
@@ -32,13 +32,14 @@ export async function GET(req: Request) {
   }
 
   const pages = (data ?? []).map((p, i) => {
-    const row = p as { id: string; kind: string; title: string };
+    const row = p as { id: string; kind: string; title: string; include_in_paper: boolean | null };
     return {
       id: row.id,
       ordinal: i + 1,
       kind: row.kind,
       title: row.kind === 'generic' ? `Page ${i + 1}` : row.title,
       mode: pageMode(row.kind),
+      include_in_paper: row.include_in_paper !== false,
     };
   });
   return printJson({ pages });

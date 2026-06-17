@@ -304,6 +304,22 @@ export async function saveCover(
   return { ok: true };
 }
 
+/** Toggle whether a page is included in the printed issue. */
+export async function setPageIncluded(pageId: string, included: boolean): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ include_in_paper: included, updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[setPageIncluded]', error);
+    return { ok: false, error: 'Could not update the page.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
 /** Reorder the issue's pages to the given id order (1-based page_order). */
 export async function reorderPages(orderedIds: string[]): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);

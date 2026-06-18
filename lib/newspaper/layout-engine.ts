@@ -37,7 +37,9 @@ export const DEFAULT_COLUMNS = 4;
  * Body type metrics. These MUST match the CSS the BandRenderer applies to the
  * column text + the hidden Measurer, or measured heights won't match render.
  */
-export const BODY_FONT_FAMILY = "Georgia, 'Times New Roman', serif";
+// Crimson Text matches the printed paper's editorial serif (loaded via
+// next/font in app/layout.tsx as --font-crimson). Falls back to Georgia.
+export const BODY_FONT_FAMILY = "var(--font-crimson), Georgia, 'Times New Roman', serif";
 export const BODY_FONT_SIZE_PX = 13;
 export const BODY_LINE_HEIGHT_PX = 18;
 export const PARA_SPACING_PX = 8;

@@ -116,8 +116,8 @@ export function PageTwo({
         <div className="flex items-center gap-6" style={{ marginBottom: 22 }}>
           <BlueFlag columnName={data.main.column_name} author={data.main.author} photoUrl={data.main.author_photo_url} />
           <h2
-            className="font-headline text-center"
-            style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.04, color: BLUE, flex: 1 }}
+            className="text-center"
+            style={{ fontFamily: 'var(--font-crimson)', fontSize: 40, fontWeight: 700, lineHeight: 1.04, color: BLUE, flex: 1 }}
           >
             {data.main.title || <span style={{ color: '#d4d4d8' }}>[OpEd Title]</span>}
           </h2>
@@ -139,11 +139,11 @@ export function PageTwo({
 
       {/* ── Second Story ──────────────────────────────────── */}
       <section>
-        <h3 className="font-headline" style={{ fontSize: 30, fontWeight: 800, lineHeight: 1.03, color: BLUE }}>
+        <h3 style={{ fontFamily: 'var(--font-crimson)', fontSize: 30, fontWeight: 700, lineHeight: 1.03, color: BLUE, marginBottom: 8 }}>
           {data.second.headline || <span style={{ color: '#d4d4d8' }}>[Second Story Headline]</span>}
         </h3>
         {data.second.author ? (
-          <p style={{ fontSize: 12, fontStyle: 'italic', color: '#3f3f46', margin: '2px 0 12px' }}>
+          <p style={{ fontFamily: 'var(--font-crimson)', fontSize: 14, fontWeight: 700, fontStyle: 'italic', color: '#3f3f46', margin: '10px 0 14px' }}>
             By {data.second.author}
           </p>
         ) : null}

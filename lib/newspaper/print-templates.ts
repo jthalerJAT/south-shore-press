@@ -64,7 +64,9 @@ const BRAND_RED = '#c8102e';
 const SSP_BLUE = '#1559b0';
 const NAVY = '#0b2a4a';
 const HEADLINE_FONT = 'Arial';
-const BODY_FONT = 'Georgia';
+// Crimson Text matches the printed paper's editorial serif (install it in
+// InDesign; it substitutes if missing).
+const BODY_FONT = 'Crimson Text';
 
 export const FRONT_PRINT_SPEC: PrintSpec = {
   v: 1,

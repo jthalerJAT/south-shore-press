@@ -18,10 +18,12 @@ export type PrintStyle = {
   fill?: string; // hex, text colour or rect fill
   stroke?: string; // hex, text outline
   strokeWeight?: number; // pt
-  align?: 'left' | 'center' | 'right';
+  align?: 'left' | 'center' | 'right' | 'justify';
   /** Vertical text alignment within the frame. */
   vAlign?: 'top' | 'center' | 'bottom';
   uppercase?: boolean;
+  /** First-line paragraph indent (points). */
+  firstLineIndent?: number;
   /** Multi-column text frame (InDesign textColumnCount). */
   columns?: number;
   columnGutter?: number;
@@ -149,7 +151,7 @@ export const PAGE2_PRINT_SPEC: PrintSpec = {
     { type: 'text', bounds: [284, 62, 472, 52], bind: 'main.title', style: { font: BODY_FONT, fontStyle: 'Bold', size: 30, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
 
     // ── Main OpEd body (4 cols) + photo runaround ───────────
-    { type: 'text', bounds: [36, 124, 720, 416], bind: 'main.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'left', fill: BLACK, columns: 4, columnGutter: 12 } },
+    { type: 'text', bounds: [36, 124, 720, 416], bind: 'main.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'justify', firstLineIndent: 13, fill: BLACK, columns: 4, columnGutter: 12 } },
     { type: 'image', bounds: [219, 124, 354, 170], bind: 'main.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 22, 6] },
     { type: 'text', bounds: [219, 296, 250, 12], bind: 'main.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, fill: GREY } },
     { type: 'text', bounds: [469, 296, 104, 12], prefix: 'Credit: ', bind: 'main.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, align: 'right', fill: GREY } },
@@ -159,7 +161,7 @@ export const PAGE2_PRINT_SPEC: PrintSpec = {
     // ── Second story (3 cols) ───────────────────────────────
     { type: 'text', bounds: [36, 556, 720, 34], bind: 'second.headline', style: { font: BODY_FONT, fontStyle: 'Bold', size: 24, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
     { type: 'text', bounds: [36, 596, 232, 14], bind: 'second_byline', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold Italic', size: 11, fill: BLACK }, textWrap: true, textWrapOffset: [0, 0, 4, 8] },
-    { type: 'text', bounds: [36, 596, 720, 280], bind: 'second.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'left', fill: BLACK, columns: 3, columnGutter: 12 } },
+    { type: 'text', bounds: [36, 596, 720, 280], bind: 'second.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'justify', firstLineIndent: 13, fill: BLACK, columns: 3, columnGutter: 12 } },
     { type: 'image', bounds: [280, 596, 232, 150], bind: 'second.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 22, 6] },
     { type: 'text', bounds: [280, 748, 160, 12], bind: 'second.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, fill: GREY } },
     { type: 'text', bounds: [440, 748, 72, 12], prefix: 'Credit: ', bind: 'second.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, align: 'right', fill: GREY } },

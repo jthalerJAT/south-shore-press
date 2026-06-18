@@ -53,7 +53,21 @@
   function justify(align) {
     if (align === 'center') return Justification.CENTER_ALIGN;
     if (align === 'right') return Justification.RIGHT_ALIGN;
+    if (align === 'justify') return Justification.LEFT_JUSTIFIED;
     return Justification.LEFT_ALIGN;
+  }
+
+  // Collapse a plain-text body into clean InDesign paragraphs: each blank-line-
+  // separated paragraph becomes one paragraph (return = \r), internal newlines
+  // become spaces. Without this, "\n\n" makes empty paragraphs (blank lines).
+  function toParagraphs(text) {
+    return String(text)
+      .split(/\n\s*\n/)
+      .map((s) => s.replace(/\s*\n\s*/g, ' ').trim())
+      .filter(function (s) {
+        return s.length > 0;
+      })
+      .join('\r');
   }
 
   async function downloadToTemp(url) {
@@ -107,12 +121,20 @@
         /* ignore */
       }
     }
-    tf.contents = s.uppercase ? String(text).toUpperCase() : String(text);
+    const body = toParagraphs(text);
+    tf.contents = s.uppercase ? body.toUpperCase() : body;
     const t = tf.parentStory.texts.item(0);
     try {
       t.hyphenation = false;
     } catch (e) {
       /* ignore */
+    }
+    if (s.firstLineIndent) {
+      try {
+        t.firstLineIndent = s.firstLineIndent;
+      } catch (e) {
+        /* ignore */
+      }
     }
     try {
       if (s.font) {

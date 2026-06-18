@@ -12,7 +12,7 @@ import { SITE, SITE_SECTIONS } from '@/lib/site-config';
  *
  * v1 splits the site sections into two footer groups:
  *   "Sections" = geographic news (Local, State, Nation, World)
- *   "More"     = special-interest (Sports, Crime, Opinion, Legals, Video Vault)
+ *   "More"     = special-interest (Sports, Business, Opinion, Legals, Video Vault)
  *
  * Bottom bar: copyright on the left, social text-links on the right
  * (X / YouTube / Instagram — the handles already configured in
@@ -29,7 +29,7 @@ export function SiteFooter() {
     ['local', 'state', 'national', 'world'].includes(s.slug)
   );
   const moreCol = SITE_SECTIONS.filter((s) =>
-    ['sports', 'crime', 'opinion', 'legals', 'video-vault'].includes(s.slug)
+    ['sports', 'business', 'opinion', 'legals', 'video-vault'].includes(s.slug)
   );
 
   return (

@@ -21,7 +21,7 @@ export const SITE_SECTIONS: ReadonlyArray<SiteSection> = [
   { slug: 'national', label: 'Nation' },
   { slug: 'world', label: 'World' },
   { slug: 'sports', label: 'Sports' },
-  { slug: 'crime', label: 'Crime' },
+  { slug: 'business', label: 'Business' },
   { slug: 'opinion', label: 'Opinion' },
   { slug: 'legals', label: 'Legals' },
   { slug: 'video-vault', label: 'Video Vault' },

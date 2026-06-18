@@ -22,7 +22,7 @@ const HOMEPAGE_SECTION_SLUGS = [
   'state',
   'national',
   'opinion',
-  'crime',
+  'business',
 ];
 
 export default async function HomePage() {

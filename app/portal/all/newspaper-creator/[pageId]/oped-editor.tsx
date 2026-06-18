@@ -175,7 +175,7 @@ export function OpEdEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            <PageTwo data={data} pageNumber={pageNumber} dateLabel={dateLabel} />
+            <PageTwo data={data} pageNumber={pageNumber} dateLabel={dateLabel} editing />
           </div>
         </div>
       </div>

@@ -74,10 +74,14 @@ export function PageTwo({
   data,
   pageNumber,
   dateLabel,
+  editing = false,
 }: {
   data: OpEdData;
   pageNumber: number;
   dateLabel?: string;
+  /** Editor preview shows the empty-ad placeholder; the final proof/View File
+   *  / InDesign output show only a placed ad (no label, no box). */
+  editing?: boolean;
 }) {
   const inputs: BandInput[] = [
     {
@@ -163,17 +167,18 @@ export function PageTwo({
       </section>
 
       {/* ── Bottom Ad ─────────────────────────────────────── */}
-      <section className="mt-auto pt-4">
-        <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-400 mb-1">Advertisement</div>
-        {adUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={adUrl} alt={data.bottom_ad?.file_name ?? 'Advertisement'} style={{ width: '100%', maxHeight: 280, objectFit: 'contain', border: '1px solid #e4e4e7' }} />
-        ) : (
+      {adUrl ? (
+        <section className="mt-auto pt-4">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={adUrl} alt={data.bottom_ad?.file_name ?? ''} style={{ width: '100%', maxHeight: 280, objectFit: 'contain' }} />
+        </section>
+      ) : editing ? (
+        <section className="mt-auto pt-4">
           <div className="w-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400" style={{ height: 160 }}>
-            Bottom Ad
+            Bottom Ad slot (editor only)
           </div>
-        )}
-      </section>
+        </section>
+      ) : null}
     </div>
   );
 }

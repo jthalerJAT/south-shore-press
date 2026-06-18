@@ -82,21 +82,26 @@ export type StoredStoryLayout = {
   photo: StoredPhotoLayout | null;
 };
 
+export type AdSizeValue = 'full' | 'half' | 'third' | 'quarter';
+
 export type StoredAdLayout = {
   v: 1;
   kind: 'ad';
   band_index: number;
-  size: 'full' | 'half' | 'quarter';
+  size: AdSizeValue;
   /** Ad block height as a fraction of content height. */
   height: number;
 };
 
 export type StoredLayout = StoredStoryLayout | StoredAdLayout;
 
-/** Ad heights as a fraction of page content height. */
-export const AD_HEIGHT_FRAC: Record<StoredAdLayout['size'], number> = {
+/** Ad heights as a fraction of page content height (the text area, excluding
+ *  the running head) — a full-page band fills it, the others are proportionate
+ *  fractions of that. */
+export const AD_HEIGHT_FRAC: Record<AdSizeValue, number> = {
   full: 0.92,
   half: 0.46,
+  third: 0.307,
   quarter: 0.23,
 };
 
@@ -189,7 +194,7 @@ export function normalizeAdLayout(
   size: StoredAdLayout['size']
 ): StoredAdLayout {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
-  const sz = (r.size === 'full' || r.size === 'half' || r.size === 'quarter'
+  const sz = (r.size === 'full' || r.size === 'half' || r.size === 'third' || r.size === 'quarter'
     ? r.size
     : size) as StoredAdLayout['size'];
   return {

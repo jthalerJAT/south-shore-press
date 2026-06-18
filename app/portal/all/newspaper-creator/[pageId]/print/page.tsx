@@ -6,8 +6,10 @@ import { getPages, getPage, getPageItems, getIssueDate } from '@/lib/queries/new
 import { pageMode, coverConfig, templateId } from '@/lib/newspaper-templates';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
+import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
+import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { PrintButton } from './print-button';
 import { ProofBands, type ProofItem } from './proof-bands';
 
@@ -75,7 +77,9 @@ export default async function PagePrintProof({
       </div>
 
       <div className="mx-auto bg-white my-6 p-12 shadow-sm w-fit overflow-x-auto">
-        {isTemplate && tid === 'oped' ? (
+        {isTemplate && tid === 'full_ad' ? (
+          <FullPageAd data={normalizeFullAd(page.template_data)} />
+        ) : isTemplate && tid === 'oped' ? (
           <PageTwo data={normalizeOpEd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate ? (
           <SectionCover

@@ -6,8 +6,10 @@ import { getPages, getPageItems, getIssueDate } from '@/lib/queries/newspaper';
 import { pageMode, coverConfig, templateId } from '@/lib/newspaper-templates';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
+import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
+import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { PAGE_W_PX, PAGE_H_PX, CONTENT_W_PX, MARGIN_IN, DPI } from '@/lib/newspaper/layout-engine';
 import { ProofBands, type ProofItem } from '../[pageId]/print/proof-bands';
 
@@ -73,7 +75,9 @@ export default async function NewspaperViewFile() {
               >
                 <div style={{ transform: `scale(${VIEW_SCALE})`, transformOrigin: 'top left' }}>
                   <div style={{ width: PAGE_W_PX, minHeight: PAGE_H_PX, padding: MARGIN_PX, boxSizing: 'border-box' }}>
-                    {r.kind === 'template' && templateId(page.kind) === 'oped' ? (
+                    {r.kind === 'template' && templateId(page.kind) === 'full_ad' ? (
+                      <FullPageAd data={normalizeFullAd(page.template_data)} />
+                    ) : r.kind === 'template' && templateId(page.kind) === 'oped' ? (
                       <PageTwo data={normalizeOpEd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' ? (
                       <SectionCover

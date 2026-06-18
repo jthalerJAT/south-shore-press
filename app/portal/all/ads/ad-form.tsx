@@ -4,6 +4,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { maskPhoneInput } from '@/lib/phone';
 import { adFilePublicUrl } from '@/lib/ad-files';
+import { AD_SIZES } from '@/lib/newspaper-templates';
 import type { Ad } from '@/lib/queries/ads';
 import { createAd, updateAd } from './actions';
 import { uploadAdFile } from './upload-client';
@@ -16,6 +17,7 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
   const [email, setEmail] = useState(ad?.contact_email ?? '');
   const [copyPath, setCopyPath] = useState(ad?.copy_storage_path ?? '');
   const [copyName, setCopyName] = useState(ad?.copy_file_name ?? '');
+  const [copySize, setCopySize] = useState(ad?.copy_size ?? 'quarter');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -47,6 +49,7 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
       contact_email: email,
       copy_storage_path: copyPath,
       copy_file_name: copyName,
+      copy_size: copySize,
     };
     const res = mode === 'create' ? await createAd(input) : await updateAd(ad!.id, input);
     setSaving(false);
@@ -135,6 +138,26 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
               {uploading ? 'Uploading…' : '+ Upload Copy'}
             </button>
           ) : null}
+        </div>
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-zinc-700">Copy Size</label>
+          <select
+            value={copySize}
+            onChange={(e) => {
+              setCopySize(e.target.value);
+              setSaved(false);
+            }}
+            className="mt-1 block w-full max-w-xs rounded border border-zinc-300 px-3 py-2 text-base focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          >
+            {AD_SIZES.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-zinc-500">
+            Drives how large the ad renders when placed on a page.
+          </p>
         </div>
       </div>
 

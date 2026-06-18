@@ -15,6 +15,7 @@ import {
   type BandGeometry,
   type LayoutResult,
 } from '@/lib/newspaper/layout-engine';
+import { adSizeLabel } from '@/lib/newspaper-templates';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 
 const runTextStyle: CSSProperties = {
@@ -206,8 +207,7 @@ function AdBand({
   height: number;
   adPublicUrl?: (path: string) => string;
 }) {
-  const sizeLabel =
-    data.ad_size === 'full' ? 'Full Page' : data.ad_size === 'half' ? 'Half Page' : 'Quarter Page';
+  const sizeLabel = adSizeLabel(data.ad_size);
   const src = data.storage_path && adPublicUrl ? adPublicUrl(data.storage_path) : null;
   return (
     <div style={{ width }}>

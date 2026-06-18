@@ -17,14 +17,22 @@ import {
 } from '@/lib/newspaper-templates';
 import { NEWSPAPER_ADS_BUCKET } from '@/lib/queries/newspaper';
 import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
-import { defaultStoryLayout, defaultAdLayout } from '@/lib/newspaper/layout-engine';
+import { defaultStoryLayout, defaultAdLayout, type AdSizeValue } from '@/lib/newspaper/layout-engine';
 import { normalizeCover, fillSlotFromStory } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd, fillOpEdFromStory, fillOpEdAd } from '@/lib/newspaper/oped';
+import { fillFullAdFromAd, normalizeFullAd } from '@/lib/newspaper/full-ad';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/newspaper-creator';
 
 type Result = { ok: boolean; error?: string };
+
+/** Coerce an arbitrary stored copy size to a valid ad size (default quarter). */
+function normalizeAdSize(size?: string | null): AdSizeValue {
+  return size === 'full' || size === 'half' || size === 'third' || size === 'quarter'
+    ? size
+    : 'quarter';
+}
 
 /** Seed the default pages once, on first visit (idempotent — no-op if any
  *  pages already exist). */
@@ -164,27 +172,56 @@ export async function addAdToPage(pageId: string, adId: string): Promise<Result>
 
   const { data: ad } = await supabase
     .from('ads')
-    .select('copy_storage_path, copy_file_name')
+    .select(
+      'business_name, contact_name, contact_phone, contact_email, copy_storage_path, copy_file_name, copy_size'
+    )
     .eq('id', adId)
     .maybeSingle();
   if (!ad) return { ok: false, error: 'Ad not found.' };
 
-  // Template pages: only the OpEd (Page 2) has a Bottom Ad slot; covers refuse.
+  // The ad's own Copy Size drives how big it lands on the page (default
+  // quarter when unset). Editors can still override per-placement.
+  const adSize = normalizeAdSize((ad as { copy_size?: string }).copy_size);
+
+  // Template pages take the ad into their template_data, not np_items.
   if (pageMode(page.kind) === 'template') {
-    if (templateId(page.kind) !== 'oped') {
+    const tid = templateId(page.kind);
+    let data: Record<string, unknown> | null = null;
+    if (tid === 'oped') {
+      data = fillOpEdAd(normalizeOpEd(page.template_data), {
+        id: adId,
+        copy_storage_path: ad.copy_storage_path,
+        copy_file_name: ad.copy_file_name,
+      }) as unknown as Record<string, unknown>;
+    } else if (tid === 'full_ad') {
+      const a = ad as {
+        business_name?: string | null;
+        contact_name?: string | null;
+        contact_phone?: string | null;
+        contact_email?: string | null;
+        copy_storage_path?: string | null;
+        copy_file_name?: string | null;
+        copy_size?: string | null;
+      };
+      data = fillFullAdFromAd(normalizeFullAd(page.template_data), {
+        id: adId,
+        business_name: a.business_name,
+        contact_name: a.contact_name,
+        contact_phone: a.contact_phone,
+        contact_email: a.contact_email,
+        copy_storage_path: a.copy_storage_path,
+        copy_file_name: a.copy_file_name,
+        copy_size: a.copy_size,
+      }) as unknown as Record<string, unknown>;
+    } else {
       return { ok: false, error: 'This template page has no ad slot.' };
     }
-    const data = fillOpEdAd(normalizeOpEd(page.template_data), {
-      id: adId,
-      copy_storage_path: ad.copy_storage_path,
-      copy_file_name: ad.copy_file_name,
-    });
     const { error } = await supabase
       .from('np_pages')
       .update({ template_data: data, status: 'draft', updated_at: new Date().toISOString() })
       .eq('id', pageId);
     if (error) {
-      console.error('[addAdToPage:oped]', error);
+      console.error('[addAdToPage:template]', error);
       return { ok: false, error: 'Could not add the ad.' };
     }
     revalidatePath(BASE);
@@ -209,12 +246,12 @@ export async function addAdToPage(pageId: string, adId: string): Promise<Result>
     type: 'ad',
     source_story_id: null,
     data: {
-      ad_size: 'quarter',
+      ad_size: adSize,
       storage_path: ad.copy_storage_path ?? '',
       file_name: ad.copy_file_name ?? '',
       ad_id: adId,
     },
-    layout: defaultAdLayout(bandIndex, 'quarter'),
+    layout: defaultAdLayout(bandIndex, adSize),
   });
   if (error) {
     console.error('[addAdToPage]', error);
@@ -447,6 +484,23 @@ export async function fetchStoryDetail(
     body: s.body ?? '',
     hero_photo_url: s.hero_photo_url ?? '',
   };
+}
+
+/** Persist a full-page-ad template page's fields and lock it. */
+export async function saveFullAd(pageId: string, data: Record<string, unknown>): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[saveFullAd]', error);
+    return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
 }
 
 /** Persist a Page 2 (OpEd) template page's fields and lock it. */

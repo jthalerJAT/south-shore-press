@@ -19,6 +19,7 @@ export type NpKind =
   | 'front'
   | 'sports_cover'
   | 'page2'
+  | 'full_page_ad'
   | 'generic'
   | 'legals'
   | 'classifieds'
@@ -45,7 +46,7 @@ export type CoverConfig = {
 };
 
 /** Which bespoke template editor/renderer a template-mode page uses. */
-export type TemplateId = 'section_cover' | 'oped';
+export type TemplateId = 'section_cover' | 'oped' | 'full_ad';
 
 export type NpTemplate = {
   label: string;
@@ -104,6 +105,13 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     master: true,
     template: 'oped',
   },
+  full_page_ad: {
+    label: 'Full Page Ad',
+    slots: 'open',
+    mode: 'template',
+    master: true,
+    template: 'full_ad',
+  },
   generic: { label: 'Page', slots: 'open', mode: 'flow', master: false },
   legals: { label: 'Legals', slots: 'open', mode: 'flow', master: true },
   classifieds: { label: 'Classifieds', slots: 'open', mode: 'flow', master: true },
@@ -140,7 +148,7 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
 export const DEFAULT_PAGES: ReadonlyArray<{ kind: NpKind; title: string }> = [
   { kind: 'front', title: 'Front Page' },
   { kind: 'page2', title: 'Page 2' },
-  { kind: 'generic', title: 'Page 3' },
+  { kind: 'full_page_ad', title: 'Page 3' },
   { kind: 'legals', title: 'Legals' },
   { kind: 'classifieds', title: 'Classifieds' },
   { kind: 'fun_times', title: 'Fun Times' },
@@ -184,12 +192,19 @@ export function templateId(kind: string): TemplateId | null {
 /** Template-mode kinds the "+ Add Page" menu offers (besides a blank page). */
 export const ADDABLE_TEMPLATE_KINDS: ReadonlyArray<{ kind: NpKind; label: string }> = [
   { kind: 'sports_cover', label: 'Sports Cover' },
+  { kind: 'full_page_ad', label: 'Full Page Ad' },
 ];
 
 export const AD_SIZES = [
   { value: 'full', label: 'Full Page' },
   { value: 'half', label: 'Half Page' },
+  { value: 'third', label: 'One-Third Page' },
   { value: 'quarter', label: 'Quarter Page' },
 ] as const;
 
 export type AdSize = (typeof AD_SIZES)[number]['value'];
+
+/** Human label for an ad size value ("full" → "Full Page"). */
+export function adSizeLabel(value?: string | null): string {
+  return AD_SIZES.find((s) => s.value === value)?.label ?? 'Quarter Page';
+}

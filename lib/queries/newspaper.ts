@@ -45,9 +45,10 @@ export type NpStoryData = {
 
 /** Ad payload. */
 export type NpAdData = {
-  ad_size?: 'full' | 'half' | 'quarter';
+  ad_size?: 'full' | 'half' | 'third' | 'quarter';
   storage_path?: string;
   file_name?: string;
+  ad_id?: string;
 };
 
 export type NpItem = {
@@ -82,7 +83,13 @@ export async function getPages(): Promise<NpPage[]> {
 export type NpItemSummary = { type: 'story' | 'ad'; title: string };
 
 function adSizeWord(size?: string): string {
-  return size === 'full' ? 'Full' : size === 'half' ? 'Half' : 'Quarter';
+  return size === 'full'
+    ? 'Full'
+    : size === 'half'
+    ? 'Half'
+    : size === 'third'
+    ? 'One-Third'
+    : 'Quarter';
 }
 
 /** Map of page_id → the content titles on it (story headlines + "{Size} Page

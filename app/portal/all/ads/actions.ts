@@ -45,6 +45,7 @@ export type AdInput = {
   contact_email?: string;
   copy_storage_path?: string;
   copy_file_name?: string;
+  copy_size?: string;
 };
 
 export async function createAd(
@@ -63,6 +64,7 @@ export async function createAd(
       contact_email: input.contact_email?.trim() || null,
       copy_storage_path: input.copy_storage_path || null,
       copy_file_name: input.copy_file_name || null,
+      copy_size: input.copy_size || null,
       created_by: user.id,
     })
     .select('id')
@@ -88,6 +90,7 @@ export async function updateAd(id: string, input: AdInput): Promise<Result> {
       contact_email: input.contact_email?.trim() || null,
       copy_storage_path: input.copy_storage_path || null,
       copy_file_name: input.copy_file_name || null,
+      copy_size: input.copy_size || null,
     })
     .eq('id', id);
   if (error) {

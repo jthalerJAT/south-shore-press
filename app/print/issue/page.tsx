@@ -3,8 +3,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { pageMode, coverConfig, templateId } from '@/lib/newspaper-templates';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
+import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
+import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { CONTENT_W_PX } from '@/lib/newspaper/layout-engine';
 import type { NpPage } from '@/lib/queries/newspaper';
 import { ProofBands, type ProofItem } from '../../portal/all/newspaper-creator/[pageId]/print/proof-bands';
@@ -75,7 +77,9 @@ export default async function PrintIssue({
         const cfg = coverConfig(r.page.kind);
         return (
           <div className="ssp-pg" key={r.page.id}>
-            {r.kind === 'template' && templateId(r.page.kind) === 'oped' ? (
+            {r.kind === 'template' && templateId(r.page.kind) === 'full_ad' ? (
+              <FullPageAd data={normalizeFullAd(r.page.template_data)} />
+            ) : r.kind === 'template' && templateId(r.page.kind) === 'oped' ? (
               <PageTwo data={normalizeOpEd(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' ? (
               <SectionCover

@@ -78,7 +78,7 @@ export function BandRenderer({
         {(layoutResult?.runs ?? []).map((run, i) => (
           <div
             key={i}
-            className="[&>p+p]:mt-2 overflow-hidden"
+            className="[&>p+p]:mt-1 overflow-hidden"
             style={{
               position: 'absolute',
               left: run.x,

@@ -44,8 +44,9 @@ export const BODY_FONT_FAMILY = "var(--font-crimson), Georgia, 'Times New Roman'
 // x-height, so it needs a larger point size than a Georgia-style face to read
 // at the same visual size.
 export const BODY_FONT_SIZE_PX = 15;
-export const BODY_LINE_HEIGHT_PX = 20;
-export const PARA_SPACING_PX = 8;
+// Tight newspaper leading (~1.13×) to match the printed paper.
+export const BODY_LINE_HEIGHT_PX = 17;
+export const PARA_SPACING_PX = 4;
 
 /** Default embedded-photo height, as a fraction of page content height. */
 export const DEFAULT_PHOTO_HEIGHT_FRAC = 0.18;

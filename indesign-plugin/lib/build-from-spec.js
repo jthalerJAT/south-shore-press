@@ -13,6 +13,7 @@
     ColorModel,
     ColorSpace,
     RulerOrigin,
+    TextWrapModes,
   } = idsn;
 
   function hexToRgb(hex) {
@@ -138,6 +139,14 @@
       t.strokeWeight = s.strokeWeight || 1;
     }
     t.justification = justify(s.align);
+    if (s.columns && s.columns > 1) {
+      try {
+        tf.textFramePreferences.textColumnCount = s.columns;
+        if (s.columnGutter) tf.textFramePreferences.textColumnGutter = s.columnGutter;
+      } catch (e) {
+        /* ignore */
+      }
+    }
     return tf;
   }
 
@@ -172,14 +181,26 @@
     if (el.type === 'rect' && el.skipIfEmpty && isEmpty) return;
 
     try {
+      let obj = null;
       if (el.type === 'rect' || el.type === 'line') {
-        drawRect(doc, page, x, y, w, h, el.style && el.style.fill);
+        obj = drawRect(doc, page, x, y, w, h, el.style && el.style.fill);
       } else if (el.type === 'image') {
-        if (!isEmpty) await placeImage(doc, page, x, y, w, h, value, el.fit);
+        if (isEmpty) return;
+        obj = await placeImage(doc, page, x, y, w, h, value, el.fit);
       } else {
         if (isEmpty) return;
         const text = (el.prefix || '') + value;
-        drawText(doc, page, x, y, w, h, text, el.style);
+        obj = drawText(doc, page, x, y, w, h, text, el.style);
+      }
+      // Text wrap (runaround): body text in overlapping frames flows around this
+      // object — how InDesign natively wraps columns around a photo/byline.
+      if (obj && el.textWrap) {
+        try {
+          obj.textWrapPreferences.textWrapMode = TextWrapModes.BOUNDING_BOX_TEXT_WRAP;
+          obj.textWrapPreferences.textWrapOffset = el.textWrapOffset || [0, 0, 0, 0];
+        } catch (e) {
+          /* ignore */
+        }
       }
     } catch (e) {
       if (log) log('  ! skipped a ' + el.type + ' element: ' + e.message);

@@ -1,7 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { pageMode, coverConfig } from '@/lib/newspaper-templates';
+import { pageMode, coverConfig, templateId } from '@/lib/newspaper-templates';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
+import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { getPrintSpec } from '@/lib/newspaper/print-templates';
+import { adFilePublicUrl } from '@/lib/ad-files';
 import { SITE } from '@/lib/site-config';
 import { checkPrintToken, corsPreflight, printJson } from '@/lib/newspaper/print-api';
 
@@ -48,6 +50,39 @@ export async function GET(req: Request, { params }: { params: { pageId: string }
       data: null,
       spec: null,
       message: 'Flow pages are not yet supported by the InDesign export.',
+    });
+  }
+
+  // ── Page 2 (OpEd) ─────────────────────────────────────────
+  if (templateId(page.kind) === 'oped') {
+    const oped = normalizeOpEd(page.template_data);
+    const { data: frontRow } = await admin
+      .from('np_pages')
+      .select('template_data')
+      .eq('kind', 'front')
+      .limit(1)
+      .maybeSingle();
+    const issueDate = ((frontRow?.template_data ?? {}) as { issue_date?: string }).issue_date ?? '';
+
+    const opedData = {
+      ...oped,
+      page_number: ordinal,
+      issue_date: issueDate,
+      second_byline: oped.second.author ? `By ${oped.second.author}` : '',
+      bottom_ad_url: oped.bottom_ad?.storage_path ? adFilePublicUrl(oped.bottom_ad.storage_path) : '',
+    };
+
+    const { data: opedTpl } = await admin
+      .from('np_print_templates')
+      .select('spec')
+      .eq('kind', page.kind)
+      .maybeSingle();
+    const opedSpec = (opedTpl?.spec as unknown) ?? getPrintSpec(page.kind);
+
+    return printJson({
+      meta: { kind: page.kind, ordinal, title: page.title, mode: 'template' },
+      data: opedData,
+      spec: opedSpec,
     });
   }
 

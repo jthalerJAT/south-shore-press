@@ -22,6 +22,9 @@ export type PrintStyle = {
   /** Vertical text alignment within the frame. */
   vAlign?: 'top' | 'center' | 'bottom';
   uppercase?: boolean;
+  /** Multi-column text frame (InDesign textColumnCount). */
+  columns?: number;
+  columnGutter?: number;
 };
 
 export type PrintElement = {
@@ -40,6 +43,11 @@ export type PrintElement = {
   skipIfEmpty?: boolean;
   /** Image fit. */
   fit?: 'fill' | 'contain';
+  /** Enable text wrap (runaround): body text in overlapping frames flows
+   *  around this object — InDesign's native column-around-photo behaviour. */
+  textWrap?: boolean;
+  /** Text-wrap offsets [top, left, bottom, right] in points. */
+  textWrapOffset?: [number, number, number, number];
   style?: PrintStyle;
 };
 
@@ -111,10 +119,62 @@ export const FRONT_PRINT_SPEC: PrintSpec = {
   },
 };
 
+const PAGE2_BLUE = '#1e3a8a';
+const GREY = '#52525b';
+
+// Page 2 ("OpEd"): a Newsroom main OpEd + a second story + a bottom ad. The
+// multi-column bodies are single text frames (textColumnCount); the photos +
+// the second-story byline use InDesign text-wrap so the columns flow around
+// them. The bound data is the OpEd template_data plus page_number / issue_date
+// / second_byline / bottom_ad_url (added by the print API).
+export const PAGE2_PRINT_SPEC: PrintSpec = {
+  v: 1,
+  kind: 'page2',
+  page: { w: 792, h: 1080 },
+  margin: 36,
+  elements: [
+    // ── Running head ────────────────────────────────────────
+    { type: 'text', bounds: [36, 38, 70, 12], prefix: 'Page ', bind: 'page_number', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
+    { type: 'text', bounds: [104, 38, 220, 12], value: 'The South Shore Press', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
+    { type: 'text', bounds: [324, 38, 150, 12], prefix: '• ', bind: 'issue_date', skipIfEmpty: true, style: { font: BODY_FONT, size: 10, fill: BLACK } },
+    { type: 'text', bounds: [486, 38, 270, 12], value: 'Visit us on the web at www.southshorepress.com', style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },
+    { type: 'rect', bounds: [36, 54, 720, 1], style: { fill: BLACK } },
+
+    // ── Blue flag + OpEd headline ───────────────────────────
+    { type: 'rect', bounds: [36, 62, 232, 52], style: { fill: PAGE2_BLUE } },
+    { type: 'image', bounds: [36, 62, 52, 52], bind: 'main.author_photo_url', fit: 'fill' },
+    { type: 'text', bounds: [96, 63, 168, 12], value: 'From the', style: { font: BODY_FONT, fontStyle: 'Italic', size: 11, fill: WHITE } },
+    { type: 'text', bounds: [96, 74, 168, 26], bind: 'main.column_name', style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 20, uppercase: true, fill: WHITE } },
+    { type: 'text', bounds: [96, 100, 168, 12], prefix: 'BY ', bind: 'main.author', skipIfEmpty: true, style: { font: HEADLINE_FONT, size: 9, uppercase: true, fill: WHITE } },
+    { type: 'text', bounds: [284, 62, 472, 52], bind: 'main.title', style: { font: BODY_FONT, fontStyle: 'Bold', size: 30, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
+
+    // ── Main OpEd body (4 cols) + photo runaround ───────────
+    { type: 'text', bounds: [36, 124, 720, 416], bind: 'main.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'left', fill: BLACK, columns: 4, columnGutter: 12 } },
+    { type: 'image', bounds: [219, 124, 354, 170], bind: 'main.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 22, 6] },
+    { type: 'text', bounds: [219, 296, 250, 12], bind: 'main.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, fill: GREY } },
+    { type: 'text', bounds: [469, 296, 104, 12], prefix: 'Credit: ', bind: 'main.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, align: 'right', fill: GREY } },
+
+    { type: 'rect', bounds: [36, 548, 720, 1], style: { fill: BLACK } },
+
+    // ── Second story (3 cols) ───────────────────────────────
+    { type: 'text', bounds: [36, 556, 720, 34], bind: 'second.headline', style: { font: BODY_FONT, fontStyle: 'Bold', size: 24, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
+    { type: 'text', bounds: [36, 596, 232, 14], bind: 'second_byline', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold Italic', size: 11, fill: BLACK }, textWrap: true, textWrapOffset: [0, 0, 4, 8] },
+    { type: 'text', bounds: [36, 596, 720, 280], bind: 'second.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'left', fill: BLACK, columns: 3, columnGutter: 12 } },
+    { type: 'image', bounds: [280, 596, 232, 150], bind: 'second.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 22, 6] },
+    { type: 'text', bounds: [280, 748, 160, 12], bind: 'second.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, fill: GREY } },
+    { type: 'text', bounds: [440, 748, 72, 12], prefix: 'Credit: ', bind: 'second.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, align: 'right', fill: GREY } },
+
+    // ── Bottom ad ───────────────────────────────────────────
+    { type: 'rect', bounds: [36, 884, 720, 3], bind: 'bottom_ad_url', skipIfEmpty: true, style: { fill: PAGE2_BLUE } },
+    { type: 'image', bounds: [36, 892, 720, 150], bind: 'bottom_ad_url', skipIfEmpty: true, fit: 'contain' },
+  ],
+};
+
 /** The built-in default spec for a kind, or null if none is authored yet.
  *  (The print API serves a DB row from np_print_templates when present, else
  *  this fallback.) */
 export function getPrintSpec(kind: string): PrintSpec | null {
   if (kind === 'front' || kind === 'sports_cover') return { ...FRONT_PRINT_SPEC, kind };
+  if (kind === 'page2') return PAGE2_PRINT_SPEC;
   return null;
 }

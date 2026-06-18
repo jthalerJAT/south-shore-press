@@ -24,9 +24,11 @@ import { GripVertical, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { NpPage, NpItemSummary } from '@/lib/queries/newspaper';
+import type { Ad } from '@/lib/queries/ads';
 import { isMaster, ADDABLE_TEMPLATE_KINDS, type NpKind } from '@/lib/newspaper-templates';
 import {
   addStoryToPage,
+  addAdToPage,
   addPage,
   addStandardPage,
   reorderPages,
@@ -34,6 +36,12 @@ import {
   resetIssueContent,
   setPageIncluded,
 } from './actions';
+
+/** Pre-resolved legal record for the Legals tab (server builds url + date so
+ *  the client doesn't import the server-only legals query module). */
+export type LegalChip = { id: string; dateLabel: string; url: string; fileName: string | null };
+
+type LeftTab = 'stories' | 'ads' | 'legals';
 
 function displayTitle(page: NpPage, ordinal: number): string {
   return page.kind === 'generic' ? `Page ${ordinal}` : page.title;
@@ -60,14 +68,19 @@ export function NewspaperBoard({
   pages,
   summaries,
   stories,
+  ads,
+  legals,
 }: {
   pages: NpPage[];
   summaries: Record<string, NpItemSummary[]>;
   stories: EditorStoryRow[];
+  ads: Ad[];
+  legals: LegalChip[];
 }) {
   const router = useRouter();
   const [dragId, setDragId] = useState<string | null>(null);
   const [searchQ, setSearchQ] = useState('');
+  const [tab, setTab] = useState<LeftTab>('stories');
   const [error, setError] = useState<string | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -91,8 +104,30 @@ export function NewspaperBoard({
     );
   }, [stories, searchQ]);
 
+  const visibleAds = useMemo(() => {
+    const needle = searchQ.trim().toLowerCase();
+    if (!needle) return ads;
+    return ads.filter((a) =>
+      [a.business_name, a.contact_name ?? '', a.copy_file_name ?? '']
+        .join(' ')
+        .toLowerCase()
+        .includes(needle)
+    );
+  }, [ads, searchQ]);
+
+  const visibleLegals = useMemo(() => {
+    const needle = searchQ.trim().toLowerCase();
+    if (!needle) return legals;
+    return legals.filter((l) =>
+      [l.dateLabel, l.fileName ?? ''].join(' ').toLowerCase().includes(needle)
+    );
+  }, [legals, searchQ]);
+
   const dragStory = dragId?.startsWith('story-')
     ? stories.find((s) => `story-${s.id}` === dragId) ?? null
+    : null;
+  const dragAd = dragId?.startsWith('ad-')
+    ? ads.find((a) => `ad-${a.id}` === dragId) ?? null
     : null;
 
   function handleDragStart(e: DragStartEvent) {
@@ -115,6 +150,19 @@ export function NewspaperBoard({
       startTransition(async () => {
         const res = await addStoryToPage(pageId, storyId);
         if (!res.ok) setError(res.error ?? 'Could not add the story.');
+        else router.refresh();
+      });
+      return;
+    }
+
+    // Ad chip → page (adds an ad block from the Ad Database).
+    if (activeId.startsWith('ad-')) {
+      const adId = activeId.slice('ad-'.length);
+      const pageId = order.some((p) => p.id === overId) ? overId : null;
+      if (!pageId) return;
+      startTransition(async () => {
+        const res = await addAdToPage(pageId, adId);
+        if (!res.ok) setError(res.error ?? 'Could not add the ad.');
         else router.refresh();
       });
       return;
@@ -186,25 +234,72 @@ export function NewspaperBoard({
       ) : null}
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT — website stories */}
+        {/* LEFT — content tabs (Stories / Ads / Legals) */}
         <div className="lg:col-span-5 lg:sticky lg:top-6 lg:self-start lg:max-h-[80vh] lg:overflow-y-auto">
-          <h3 className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">
-            Website Stories
-          </h3>
+          <div className="flex border-b border-zinc-200 mb-2">
+            {(['stories', 'ads', 'legals'] as LeftTab[]).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={cn(
+                  'px-3 py-1.5 text-sm font-semibold capitalize border-b-2 -mb-px transition-colors',
+                  tab === t
+                    ? 'border-brand-red text-brand-red'
+                    : 'border-transparent text-zinc-500 hover:text-zinc-800'
+                )}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+
           <input
             type="search"
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
-            placeholder="Search stories…"
+            placeholder={`Search ${tab}…`}
             className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
           />
-          <ul className="mt-2 border border-zinc-200 rounded divide-y divide-zinc-100 bg-white">
-            {visibleStories.length === 0 ? (
-              <li className="px-3 py-6 text-center text-sm text-zinc-400">No stories found.</li>
-            ) : (
-              visibleStories.map((s) => <StoryChipDraggable key={s.id} story={s} />)
-            )}
-          </ul>
+
+          {tab === 'stories' ? (
+            <ul className="mt-2 border border-zinc-200 rounded divide-y divide-zinc-100 bg-white">
+              {visibleStories.length === 0 ? (
+                <li className="px-3 py-6 text-center text-sm text-zinc-400">No stories found.</li>
+              ) : (
+                visibleStories.map((s) => <StoryChipDraggable key={s.id} story={s} />)
+              )}
+            </ul>
+          ) : null}
+
+          {tab === 'ads' ? (
+            <ul className="mt-2 border border-zinc-200 rounded divide-y divide-zinc-100 bg-white">
+              {visibleAds.length === 0 ? (
+                <li className="px-3 py-6 text-center text-sm text-zinc-400">
+                  No ads found. Add them in the Ad Database.
+                </li>
+              ) : (
+                visibleAds.map((a) => <AdChipDraggable key={a.id} ad={a} />)
+              )}
+            </ul>
+          ) : null}
+
+          {tab === 'legals' ? (
+            <>
+              <ul className="mt-2 border border-zinc-200 rounded divide-y divide-zinc-100 bg-white">
+                {visibleLegals.length === 0 ? (
+                  <li className="px-3 py-6 text-center text-sm text-zinc-400">
+                    No legals uploaded yet.
+                  </li>
+                ) : (
+                  visibleLegals.map((l) => <LegalRow key={l.id} legal={l} />)
+                )}
+              </ul>
+              <p className="mt-1 text-[11px] text-zinc-400">
+                Legals come from <strong>Legals Upload</strong> (reference list — click to view).
+              </p>
+            </>
+          ) : null}
         </div>
 
         {/* RIGHT — pages */}
@@ -290,6 +385,7 @@ export function NewspaperBoard({
 
       <DragOverlay>
         {dragStory ? <StoryChipPresentation story={dragStory} dragging /> : null}
+        {dragAd ? <AdChipPresentation ad={dragAd} dragging /> : null}
       </DragOverlay>
     </DndContext>
   );
@@ -441,5 +537,69 @@ function StoryChipPresentation({ story, dragging }: { story: EditorStoryRow; dra
         </div>
       </div>
     </div>
+  );
+}
+
+function AdChipDraggable({ ad }: { ad: Ad }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `ad-${ad.id}`,
+    data: { ad },
+  });
+  return (
+    <li
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        'px-3 py-2 cursor-grab active:cursor-grabbing flex items-start gap-2 hover:bg-zinc-50 transition-colors',
+        isDragging && 'opacity-30'
+      )}
+    >
+      <GripVertical className="w-4 h-4 text-zinc-300 mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium text-zinc-900 truncate">{ad.business_name}</div>
+        <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
+          {ad.copy_file_name || (ad.copy_storage_path ? 'Copy on file' : 'No copy')}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function AdChipPresentation({ ad, dragging }: { ad: Ad; dragging?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'px-3 py-2 flex items-start gap-2 bg-white border border-brand-red rounded shadow-lg w-72',
+        dragging && 'cursor-grabbing'
+      )}
+    >
+      <GripVertical className="w-4 h-4 text-zinc-300 mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium text-zinc-900 truncate">{ad.business_name}</div>
+        <div className="mt-0.5 text-[11px] text-zinc-500 truncate">{ad.copy_file_name || 'Ad'}</div>
+      </div>
+    </div>
+  );
+}
+
+function LegalRow({ legal }: { legal: LegalChip }) {
+  return (
+    <li className="px-3 py-2 flex items-center gap-2">
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium text-zinc-900 truncate">{legal.dateLabel}</div>
+        {legal.fileName ? (
+          <div className="text-[11px] text-zinc-500 truncate">{legal.fileName}</div>
+        ) : null}
+      </div>
+      <a
+        href={legal.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="text-xs font-medium text-brand-red hover:underline shrink-0"
+      >
+        View
+      </a>
+    </li>
   );
 }

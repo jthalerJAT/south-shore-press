@@ -15,7 +15,7 @@ import {
   type NpKind,
 } from '@/lib/newspaper-templates';
 import { NEWSPAPER_ADS_BUCKET } from '@/lib/queries/newspaper';
-import { defaultStoryLayout } from '@/lib/newspaper/layout-engine';
+import { defaultStoryLayout, defaultAdLayout } from '@/lib/newspaper/layout-engine';
 import { normalizeCover, fillSlotFromStory } from '@/lib/newspaper/section-cover';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
@@ -131,6 +131,68 @@ export async function addStoryToPage(
   if (error) {
     console.error('[addStoryToPage]', error);
     return { ok: false, error: 'Could not add story.' };
+  }
+
+  await supabase
+    .from('np_pages')
+    .update({ status: 'draft', updated_at: new Date().toISOString() })
+    .eq('id', pageId)
+    .eq('status', 'tbd');
+
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Board drag: add an ad block (from the Ad Database) to a flow page. */
+export async function addAdToPage(pageId: string, adId: string): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+
+  const { data: page } = await supabase
+    .from('np_pages')
+    .select('id, kind')
+    .eq('id', pageId)
+    .maybeSingle();
+  if (!page) return { ok: false, error: 'Page not found.' };
+  if (pageMode(page.kind) === 'template') {
+    return { ok: false, error: 'Ads go on story / interior pages, not template covers.' };
+  }
+
+  const { data: ad } = await supabase
+    .from('ads')
+    .select('copy_storage_path, copy_file_name')
+    .eq('id', adId)
+    .maybeSingle();
+  if (!ad) return { ok: false, error: 'Ad not found.' };
+
+  const { data: items } = await supabase
+    .from('np_items')
+    .select('item_order')
+    .eq('page_id', pageId);
+  const maxOrder = (items ?? []).reduce(
+    (m, r) => Math.max(m, (r as { item_order: number }).item_order),
+    -1
+  );
+  const bandIndex = maxOrder + 1;
+
+  const { error } = await supabase.from('np_items').insert({
+    page_id: pageId,
+    slot_key: null,
+    item_order: bandIndex,
+    type: 'ad',
+    source_story_id: null,
+    data: {
+      ad_size: 'quarter',
+      storage_path: ad.copy_storage_path ?? '',
+      file_name: ad.copy_file_name ?? '',
+      ad_id: adId,
+    },
+    layout: defaultAdLayout(bandIndex, 'quarter'),
+  });
+  if (error) {
+    console.error('[addAdToPage]', error);
+    return { ok: false, error: 'Could not add the ad.' };
   }
 
   await supabase

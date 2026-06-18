@@ -109,6 +109,20 @@ export async function getItemSummaries(): Promise<Record<string, NpItemSummary[]
   return map;
 }
 
+/** The issue date typed on the Front Page (its template_data.issue_date).
+ *  Later pages display it in their running head. */
+export async function getIssueDate(): Promise<string> {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('np_pages')
+    .select('template_data')
+    .eq('kind', 'front')
+    .limit(1)
+    .maybeSingle();
+  const td = (data?.template_data ?? {}) as { issue_date?: string };
+  return td.issue_date ?? '';
+}
+
 export async function getPage(pageId: string): Promise<NpPage | null> {
   const supabase = createClient();
   const { data, error } = await supabase

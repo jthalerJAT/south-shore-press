@@ -2,10 +2,12 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
-import { getPages, getPage, getPageItems } from '@/lib/queries/newspaper';
-import { pageMode, coverConfig } from '@/lib/newspaper-templates';
+import { getPages, getPage, getPageItems, getIssueDate } from '@/lib/queries/newspaper';
+import { pageMode, coverConfig, templateId } from '@/lib/newspaper-templates';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
+import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { SectionCover } from '@/components/newspaper/section-cover';
+import { PageTwo } from '@/components/newspaper/page-two';
 import { PrintButton } from './print-button';
 import { ProofBands, type ProofItem } from './proof-bands';
 
@@ -37,11 +39,16 @@ export default async function PagePrintProof({
 
   const page = await getPage(params.pageId);
   if (!page) notFound();
-  const [pages, items] = await Promise.all([getPages(), getPageItems(params.pageId)]);
+  const [pages, items, issueDate] = await Promise.all([
+    getPages(),
+    getPageItems(params.pageId),
+    getIssueDate(),
+  ]);
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
   const title = page.kind === 'generic' ? `Page ${ordinal}` : page.title;
 
   const isTemplate = pageMode(page.kind) === 'template';
+  const tid = templateId(page.kind);
   const cfg = isTemplate ? coverConfig(page.kind) : null;
 
   const proofItems: ProofItem[] = items.map((it) => ({
@@ -68,7 +75,9 @@ export default async function PagePrintProof({
       </div>
 
       <div className="mx-auto bg-white my-6 p-12 shadow-sm w-fit overflow-x-auto">
-        {isTemplate ? (
+        {isTemplate && tid === 'oped' ? (
+          <PageTwo data={normalizeOpEd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
+        ) : isTemplate ? (
           <SectionCover
             data={normalizeCover(page.template_data, page.kind)}
             variant={cfg?.variant ?? 'news'}

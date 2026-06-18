@@ -12,11 +12,14 @@ import {
   isOpenKind,
   isMaster,
   pageMode,
+  templateId,
   type NpKind,
 } from '@/lib/newspaper-templates';
 import { NEWSPAPER_ADS_BUCKET } from '@/lib/queries/newspaper';
+import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
 import { defaultStoryLayout, defaultAdLayout } from '@/lib/newspaper/layout-engine';
 import { normalizeCover, fillSlotFromStory } from '@/lib/newspaper/section-cover';
+import { normalizeOpEd, fillOpEdFromStory, fillOpEdAd } from '@/lib/newspaper/oped';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/newspaper-creator';
@@ -68,17 +71,20 @@ export async function addStoryToPage(
   const story = await getStoryForEdit(sourceStoryId);
   if (!story) return { ok: false, error: 'Story not found.' };
 
-  // Template pages (Front Page, section covers) don't take np_items — dropping
-  // a story fills the next empty cover slot (hero, then tiles) instead.
+  // Template pages don't take np_items — dropping a story fills the next empty
+  // template slot (cover hero/tiles, or the OpEd Main/2nd story).
   if (pageMode(page.kind) === 'template') {
-    const data = fillSlotFromStory(normalizeCover(page.template_data, page.kind), story);
+    const data =
+      templateId(page.kind) === 'oped'
+        ? fillOpEdFromStory(normalizeOpEd(page.template_data), story)
+        : fillSlotFromStory(normalizeCover(page.template_data, page.kind), story);
     const { error } = await supabase
       .from('np_pages')
       .update({ template_data: data, status: 'draft', updated_at: new Date().toISOString() })
       .eq('id', pageId);
     if (error) {
-      console.error('[addStoryToPage:cover]', error);
-      return { ok: false, error: 'Could not add story to the cover.' };
+      console.error('[addStoryToPage:template]', error);
+      return { ok: false, error: 'Could not add story to the page.' };
     }
     revalidatePath(BASE);
     revalidatePath(`${BASE}/${pageId}`);
@@ -151,13 +157,10 @@ export async function addAdToPage(pageId: string, adId: string): Promise<Result>
 
   const { data: page } = await supabase
     .from('np_pages')
-    .select('id, kind')
+    .select('id, kind, template_data')
     .eq('id', pageId)
     .maybeSingle();
   if (!page) return { ok: false, error: 'Page not found.' };
-  if (pageMode(page.kind) === 'template') {
-    return { ok: false, error: 'Ads go on story / interior pages, not template covers.' };
-  }
 
   const { data: ad } = await supabase
     .from('ads')
@@ -165,6 +168,29 @@ export async function addAdToPage(pageId: string, adId: string): Promise<Result>
     .eq('id', adId)
     .maybeSingle();
   if (!ad) return { ok: false, error: 'Ad not found.' };
+
+  // Template pages: only the OpEd (Page 2) has a Bottom Ad slot; covers refuse.
+  if (pageMode(page.kind) === 'template') {
+    if (templateId(page.kind) !== 'oped') {
+      return { ok: false, error: 'This template page has no ad slot.' };
+    }
+    const data = fillOpEdAd(normalizeOpEd(page.template_data), {
+      id: adId,
+      copy_storage_path: ad.copy_storage_path,
+      copy_file_name: ad.copy_file_name,
+    });
+    const { error } = await supabase
+      .from('np_pages')
+      .update({ template_data: data, status: 'draft', updated_at: new Date().toISOString() })
+      .eq('id', pageId);
+    if (error) {
+      console.error('[addAdToPage:oped]', error);
+      return { ok: false, error: 'Could not add the ad.' };
+    }
+    revalidatePath(BASE);
+    revalidatePath(`${BASE}/${pageId}`);
+    return { ok: true };
+  }
 
   const { data: items } = await supabase
     .from('np_items')
@@ -379,6 +405,48 @@ export async function setPageIncluded(pageId: string, included: boolean): Promis
     return { ok: false, error: 'Could not update the page.' };
   }
   revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** Editor-gated signed upload URL for an editorial photo (browser → Storage,
+ *  newspaper-images bucket). */
+export async function requestImageUploadUrl(
+  fileName: string
+): Promise<{ ok: boolean; error?: string; path?: string; token?: string }> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { ok: false, error: 'Uploads are not configured on this deployment.' };
+  }
+  const dot = fileName.lastIndexOf('.');
+  const ext = dot >= 0 ? fileName.slice(dot).toLowerCase() : '';
+  const path = `${randomUUID()}${ext}`;
+  const { data, error } = await admin.storage
+    .from(NEWSPAPER_IMAGES_BUCKET)
+    .createSignedUploadUrl(path);
+  if (error || !data) {
+    console.error('[requestImageUploadUrl]', error);
+    return { ok: false, error: 'Could not start the upload. Is the `newspaper-images` bucket created?' };
+  }
+  return { ok: true, path, token: data.token };
+}
+
+/** Persist a Page 2 (OpEd) template page's fields and lock it. */
+export async function saveOpEd(pageId: string, data: Record<string, unknown>): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[saveOpEd]', error);
+    return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
   return { ok: true };
 }
 

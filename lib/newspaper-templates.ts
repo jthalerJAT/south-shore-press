@@ -44,6 +44,9 @@ export type CoverConfig = {
   defaultBanner: string;
 };
 
+/** Which bespoke template editor/renderer a template-mode page uses. */
+export type TemplateId = 'section_cover' | 'oped';
+
 export type NpTemplate = {
   label: string;
   /** Named tiles a story drops into in order, or 'open' for an unbounded
@@ -51,7 +54,9 @@ export type NpTemplate = {
   slots: SlotDef[] | 'open';
   mode: 'flow' | 'template';
   master: boolean;
-  /** Present only for `mode: 'template'` section-cover pages. */
+  /** Bespoke template kind (template-mode pages only). */
+  template?: TemplateId;
+  /** Present only for section-cover template pages. */
   cover?: CoverConfig;
 };
 
@@ -64,6 +69,7 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     slots: 'open',
     mode: 'template',
     master: true,
+    template: 'section_cover',
     cover: {
       variant: 'news',
       showYearIssue: true,
@@ -77,6 +83,7 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     slots: 'open',
     mode: 'template',
     master: true,
+    template: 'section_cover',
     cover: {
       variant: 'sports',
       showYearIssue: false,
@@ -90,11 +97,12 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     label: 'Page 2',
     slots: [
       { key: 'main_oped', label: 'Main OpEd' },
-      { key: 'lower_story', label: 'Lower Story' },
-      { key: 'lower_ad', label: 'Lower Ad' },
+      { key: 'second_story', label: '2nd Story' },
+      { key: 'bottom_ad', label: 'Bottom Ad' },
     ],
-    mode: 'flow',
+    mode: 'template',
     master: true,
+    template: 'oped',
   },
   generic: { label: 'Page', slots: 'open', mode: 'flow', master: false },
   legals: { label: 'Legals', slots: 'open', mode: 'flow', master: true },
@@ -166,6 +174,11 @@ export function isMaster(kind: string): boolean {
 /** Section-cover config for a template page, or null for flow pages. */
 export function coverConfig(kind: string): CoverConfig | null {
   return templateFor(kind).cover ?? null;
+}
+
+/** Which bespoke template a template-mode page uses (or null for flow). */
+export function templateId(kind: string): TemplateId | null {
+  return templateFor(kind).template ?? null;
 }
 
 /** Template-mode kinds the "+ Add Page" menu offers (besides a blank page). */

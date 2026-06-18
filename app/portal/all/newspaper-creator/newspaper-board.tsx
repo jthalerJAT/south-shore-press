@@ -62,6 +62,7 @@ const EMPTY_DESCRIPTOR: Partial<Record<NpPage['kind'], string>> = {
   sports: 'Sports Page',
   front: 'Front Page (template)',
   sports_cover: 'Sports Cover (template)',
+  page2: 'Page 2 — OpEd (template)',
 };
 
 export function NewspaperBoard({

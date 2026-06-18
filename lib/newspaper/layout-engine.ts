@@ -40,8 +40,11 @@ export const DEFAULT_COLUMNS = 4;
 // Crimson Text matches the printed paper's editorial serif (loaded via
 // next/font in app/layout.tsx as --font-crimson). Falls back to Georgia.
 export const BODY_FONT_FAMILY = "var(--font-crimson), Georgia, 'Times New Roman', serif";
-export const BODY_FONT_SIZE_PX = 13;
-export const BODY_LINE_HEIGHT_PX = 18;
+// Sized to match the printed paper's body text. Crimson Text has a small
+// x-height, so it needs a larger point size than a Georgia-style face to read
+// at the same visual size.
+export const BODY_FONT_SIZE_PX = 15;
+export const BODY_LINE_HEIGHT_PX = 20;
 export const PARA_SPACING_PX = 8;
 
 /** Default embedded-photo height, as a fraction of page content height. */
@@ -400,29 +403,43 @@ export function estimateBodyHeight(
   measurer: Measurer
 ): number {
   const parsed = parseBody(body);
+  const photoBottom = geo.photo ? geo.photo.top + geo.photo.height : 0;
+  const lo0 = Math.max(BODY_LINE_HEIGHT_PX, Math.ceil(photoBottom));
+  if (parsed.words.length === 0) return lo0;
+
+  // Closed-form seed: total single-column text height ÷ columns is very close
+  // to the balanced height. Then expand by whole lines until it fits and
+  // binary-search that last line band to 1px, so the columns pack full and the
+  // article ends near the bottom-right (the "journalism" look) — cheaply enough
+  // to run live as the editor types.
   const colW = columnWidthPx(geo.contentWidthPx, geo.columns, geo.gapPx);
-  const totalTextH = parsed.paragraphs.length
-    ? measurer.measureParas(
-        parsed.paragraphs.map((p) => p.join(' ')),
-        colW
-      )
-    : 0;
+  const totalTextH = measurer.measureParas(
+    parsed.paragraphs.map((p) => p.join(' ')),
+    colW
+  );
   const photoH = geo.photo ? geo.photo.height : 0;
   const photoSpan = geo.photo ? geo.photo.colSpan : 0;
-  const photoBottom = geo.photo ? geo.photo.top + geo.photo.height : 0;
-  let bodyH = Math.max(
-    photoBottom,
-    Math.ceil((totalTextH + photoSpan * photoH) / geo.columns)
-  );
-  bodyH = snapToLine(bodyH);
+  const fits = (h: number) => layoutBand(body, { ...geo, bodyHeightPx: h }, measurer).fits;
 
-  // Refine: grow by whole lines until it actually fits (cap the iterations).
-  for (let i = 0; i < 40; i++) {
-    const res = layoutBand(body, { ...geo, bodyHeightPx: bodyH }, measurer);
-    if (res.fits) break;
-    bodyH += BODY_LINE_HEIGHT_PX * Math.max(1, geo.columns - photoSpan);
+  let hi = Math.max(lo0, Math.ceil((totalTextH + photoSpan * photoH) / geo.columns));
+  let guard = 0;
+  while (hi < CONTENT_H_PX && guard++ < 80 && !fits(hi)) {
+    hi = Math.min(CONTENT_H_PX, hi + BODY_LINE_HEIGHT_PX);
   }
-  return Math.min(bodyH, CONTENT_H_PX);
+
+  let a = Math.max(lo0, hi - BODY_LINE_HEIGHT_PX);
+  let b = hi;
+  let best = hi;
+  while (a <= b) {
+    const mid = (a + b) >> 1;
+    if (fits(mid)) {
+      best = mid;
+      b = mid - 1;
+    } else {
+      a = mid + 1;
+    }
+  }
+  return best;
 }
 
 export function snapToLine(px: number): number {

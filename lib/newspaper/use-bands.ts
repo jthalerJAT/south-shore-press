@@ -66,6 +66,22 @@ function computeStory(
   return { id: input.id, geometry, layoutResult };
 }
 
+/** SSR-safe story geometry without the DOM measurer (no text flow). The client
+ *  re-computes with the real measurer on mount. */
+function computeStorySsr(input: BandInput, contentWidthPx: number): ComputedBand {
+  const layout = input.story!;
+  const photo =
+    layout.photo && input.data.hero_photo_url
+      ? photoRectPx(layout.photo, contentWidthPx, layout.column_count, COLUMN_GAP_PX)
+      : null;
+  const bodyHeightPx = (layout.band_height ?? 0.1) * CONTENT_H_PX;
+  return {
+    id: input.id,
+    geometry: { contentWidthPx, bodyHeightPx, columns: layout.column_count, gapPx: COLUMN_GAP_PX, photo },
+    layoutResult: null,
+  };
+}
+
 function computeAd(input: BandInput, contentWidthPx: number): ComputedBand {
   const adHeightPx = (input.ad?.height ?? 0.23) * CONTENT_H_PX;
   return {
@@ -110,11 +126,16 @@ export function useComputedBands(
 
   const sig = signature(inputs);
   const computed = useMemo(() => {
+    // No DOM on the server — return placeholder geometry; the client re-runs
+    // the measurer on mount (and that's the render Playwright captures).
+    const hasDom = typeof document !== 'undefined';
     const measurer = measurerRef.current!;
     return inputs.map((input) =>
       input.type === 'ad'
         ? computeAd(input, contentWidthPx)
-        : computeStory(input, contentWidthPx, measurer)
+        : hasDom
+        ? computeStory(input, contentWidthPx, measurer)
+        : computeStorySsr(input, contentWidthPx)
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sig, contentWidthPx, ready]);

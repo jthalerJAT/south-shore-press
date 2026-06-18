@@ -30,7 +30,9 @@ function storyLayout(
     band_index: 0,
     column_count: columns,
     band_height: null,
-    photo: hasPhoto ? { mode: 'column', col_start: colStart, col_span: colSpan, top: 0, height: heightFrac } : null,
+    // Nudge the photo top down to the text cap-height so it lines up straight
+    // across with the byline / first line of column 1 (not the box top).
+    photo: hasPhoto ? { mode: 'column', col_start: colStart, col_span: colSpan, top: 0.004, height: heightFrac } : null,
   };
 }
 
@@ -145,7 +147,7 @@ export function PageTwo({
 
       {/* ── Second Story ──────────────────────────────────── */}
       <section>
-        <h3 style={{ fontFamily: 'var(--font-crimson)', fontSize: 36, fontWeight: 700, lineHeight: 1.03, color: BLUE, marginBottom: 10 }}>
+        <h3 className="text-center" style={{ fontFamily: 'var(--font-crimson)', fontSize: 36, fontWeight: 700, lineHeight: 1.03, color: BLUE, marginBottom: 10 }}>
           {data.second.headline || <span style={{ color: '#d4d4d8' }}>[Second Story Headline]</span>}
         </h3>
         {second ? (

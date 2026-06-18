@@ -96,7 +96,7 @@ export function BandRenderer({
                       key={j}
                       style={
                         isByline
-                          ? { margin: 0, textIndent: 0, fontWeight: 700, fontStyle: 'italic' }
+                          ? { margin: '0 0 6px', textIndent: 0, fontWeight: 700, fontStyle: 'italic', fontSize: 16 }
                           : { margin: 0, textIndent: '1.2em' }
                       }
                     >

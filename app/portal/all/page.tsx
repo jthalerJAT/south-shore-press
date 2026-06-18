@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, LayoutGrid, FileEdit, FileText, Newspaper, ArrowRight } from 'lucide-react';
+import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, ArrowRight } from 'lucide-react';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 
@@ -67,6 +67,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Build the weekly print issue — drag stories onto pages, edit content, and lay out the paper.',
       icon: Newspaper,
+    },
+    {
+      href: '/portal/all/ads',
+      title: 'Ad Database',
+      description:
+        'Manage advertisers, ad copy, and scheduled print runs with invoiced / paid tracking.',
+      icon: Megaphone,
     },
   ];
 

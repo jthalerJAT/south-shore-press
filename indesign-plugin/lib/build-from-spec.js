@@ -179,20 +179,27 @@
         /* ignore */
       }
     }
-    // Apply family + style SEPARATELY — the combined "Family\tStyle" string
-    // silently fails when the font substitutes, dropping the bold/italic.
+    // Apply the font robustly: try the combined "Family\tStyle" (works when the
+    // font is installed), fall back to the family, then also set fontStyle
+    // directly. Bold/italic is lost only when the font itself substitutes
+    // (e.g. Crimson Text not installed in InDesign).
     if (s.font) {
+      const styled = s.fontStyle ? s.font + '\t' + s.fontStyle : s.font;
       try {
-        t.appliedFont = s.font;
+        t.appliedFont = styled;
       } catch (e) {
-        /* substitutes */
+        try {
+          t.appliedFont = s.font;
+        } catch (e2) {
+          /* substitutes */
+        }
       }
     }
     if (s.fontStyle) {
       try {
         t.fontStyle = s.fontStyle;
       } catch (e) {
-        /* style not in the (possibly substituted) family */
+        /* style not in the substituted family */
       }
     }
     if (s.size) t.pointSize = s.size;
@@ -217,7 +224,51 @@
         /* ignore */
       }
     }
+    if (s.autoFit) {
+      // Vertical-justify (feather) + copyfit so the body fills its frame and
+      // ends at the bottom-right regardless of article length — automatic on
+      // every build, no manual tuning.
+      try {
+        tf.textFramePreferences.verticalJustification = VerticalJustification.JUSTIFY_ALIGN;
+      } catch (e) {
+        /* ignore */
+      }
+      copyFit(tf, t, s);
+    }
     return tf;
+  }
+
+  // Auto-size the type so the story fills its frame: shrink until it stops
+  // overflowing, then grow until it just would overflow and back off one step.
+  function copyFit(tf, t, s) {
+    let size = s.size || 12;
+    let leading = s.leading || Math.round(size * 1.17);
+    const apply = () => {
+      try {
+        t.pointSize = size;
+        t.leading = leading;
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    let guard = 0;
+    while (tf.overflows && size > 7 && guard++ < 60) {
+      size -= 0.5;
+      leading -= 0.5;
+      apply();
+    }
+    guard = 0;
+    while (!tf.overflows && size < 16 && guard++ < 60) {
+      size += 0.5;
+      leading += 0.5;
+      apply();
+      if (tf.overflows) {
+        size -= 0.5;
+        leading -= 0.5;
+        apply();
+        break;
+      }
+    }
   }
 
   async function placeImage(doc, page, x, y, w, h, url, fit) {
@@ -247,8 +298,10 @@
 
   async function renderElement(doc, page, el, value, x, y, w, h, log) {
     const isEmpty = value === undefined || value === null || String(value).trim() === '';
-    if (el.skipIfEmpty && isEmpty && el.type !== 'rect' && el.type !== 'line') return;
-    if (el.type === 'rect' && el.skipIfEmpty && isEmpty) return;
+    if (el.skipIfEmpty && isEmpty) {
+      if (log && el.bind) log('  · empty in data, skipped: ' + el.bind);
+      return;
+    }
 
     try {
       let obj = null;

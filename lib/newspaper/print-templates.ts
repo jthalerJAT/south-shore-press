@@ -27,6 +27,9 @@ export type PrintStyle = {
   /** Multi-column text frame (InDesign textColumnCount). */
   columns?: number;
   columnGutter?: number;
+  /** Copyfit: auto-size the type + vertical-justify so the story fills its
+   *  frame and ends bottom-right, regardless of article length. */
+  autoFit?: boolean;
 };
 
 export type PrintElement = {
@@ -138,12 +141,12 @@ export const PAGE2_PRINT_SPEC: PrintSpec = {
   margin: 36,
   elements: [
     // ── Running head ────────────────────────────────────────
-    { type: 'text', bounds: [36, 38, 44, 12], prefix: 'Page ', bind: 'page_number', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
-    { type: 'gull', bounds: [84, 40, 22, 9], style: { stroke: NAVY } },
-    { type: 'text', bounds: [112, 38, 140, 12], value: 'The South Shore Press', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
-    { type: 'text', bounds: [254, 38, 110, 12], prefix: '• ', bind: 'issue_date', skipIfEmpty: true, style: { font: BODY_FONT, size: 10, fill: BLACK } },
-    { type: 'text', bounds: [470, 38, 286, 12], value: 'Visit us on the web at www.southshorepress.com', style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },
-    { type: 'rect', bounds: [36, 54, 720, 1], style: { fill: BLACK } },
+    { type: 'text', bounds: [36, 37, 42, 14], prefix: 'Page ', bind: 'page_number', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, fill: BLACK } },
+    { type: 'text', bounds: [80, 36, 16, 15], value: '~', style: { font: BODY_FONT, size: 13, fill: NAVY } },
+    { type: 'text', bounds: [100, 37, 130, 14], value: 'The South Shore Press', style: { font: BODY_FONT, fontStyle: 'Bold', size: 11, fill: BLACK } },
+    { type: 'text', bounds: [232, 37, 150, 14], prefix: '• ', bind: 'issue_date', skipIfEmpty: true, style: { font: BODY_FONT, size: 11, fill: BLACK } },
+    { type: 'text', bounds: [470, 37, 286, 14], value: 'Visit us on the web at www.southshorepress.com', style: { font: BODY_FONT, size: 10, align: 'right', fill: GREY } },
+    { type: 'rect', bounds: [36, 55, 720, 1], style: { fill: BLACK } },
 
     // ── Blue flag (angled) + OpEd headline ──────────────────
     { type: 'poly', bounds: [0, 0, 0, 0], points: [[36, 62], [262, 62], [244, 114], [36, 114]], style: { fill: PAGE2_BLUE } },
@@ -156,7 +159,7 @@ export const PAGE2_PRINT_SPEC: PrintSpec = {
     { type: 'text', bounds: [314, 60, 442, 56], bind: 'main.title', style: { font: BODY_FONT, fontStyle: 'Bold', size: 34, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
 
     // ── Main OpEd body (4 cols) + photo runaround ───────────
-    { type: 'text', bounds: [36, 124, 720, 416], bind: 'main.text', style: { font: BODY_FONT, size: 12, leading: 14, align: 'justify', firstLineIndent: 14, fill: BLACK, columns: 4, columnGutter: 12 } },
+    { type: 'text', bounds: [36, 124, 720, 416], bind: 'main.text', style: { font: BODY_FONT, size: 12, leading: 14, align: 'justify', firstLineIndent: 14, fill: BLACK, columns: 4, columnGutter: 12, autoFit: true } },
     { type: 'image', bounds: [219, 124, 354, 170], bind: 'main.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 24, 6] },
     { type: 'text', bounds: [219, 296, 250, 12], bind: 'main.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Italic', size: 9, fill: GREY } },
     { type: 'text', bounds: [469, 296, 104, 12], prefix: 'Credit: ', bind: 'main.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },
@@ -166,7 +169,7 @@ export const PAGE2_PRINT_SPEC: PrintSpec = {
     // ── Second story (3 cols) ───────────────────────────────
     { type: 'text', bounds: [36, 556, 720, 34], bind: 'second.headline', style: { font: BODY_FONT, fontStyle: 'Bold', size: 28, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
     { type: 'text', bounds: [36, 596, 232, 16], bind: 'second_byline', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold Italic', size: 13, fill: BLACK }, textWrap: true, textWrapOffset: [0, 0, 6, 8] },
-    { type: 'text', bounds: [36, 596, 720, 280], bind: 'second.text', style: { font: BODY_FONT, size: 12, leading: 14, align: 'justify', firstLineIndent: 14, fill: BLACK, columns: 3, columnGutter: 12 } },
+    { type: 'text', bounds: [36, 596, 720, 280], bind: 'second.text', style: { font: BODY_FONT, size: 12, leading: 14, align: 'justify', firstLineIndent: 14, fill: BLACK, columns: 3, columnGutter: 12, autoFit: true } },
     { type: 'image', bounds: [280, 596, 232, 150], bind: 'second.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 24, 6] },
     { type: 'text', bounds: [280, 748, 160, 12], bind: 'second.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Italic', size: 9, fill: GREY } },
     { type: 'text', bounds: [440, 748, 72, 12], prefix: 'Credit: ', bind: 'second.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },

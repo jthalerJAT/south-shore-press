@@ -1,0 +1,23 @@
+%!
+% Ghostscript PDF/X-1a:2001 output-intent definition.
+% The token __ICC_PROFILE__ is replaced at runtime by export-issue-pdf.mjs with
+% the path to a CMYK ICC profile (forward slashes).
+
+[ /Title (The South Shore Press) /DOCINFO pdfmark
+
+/ICCProfile (__ICC_PROFILE__) def
+
+[/_objdef {icc_PDFX} /type /stream /OBJ pdfmark
+[{icc_PDFX} <</N 4>> /PUT pdfmark
+[{icc_PDFX} ICCProfile (r) file /PUT pdfmark
+
+[/_objdef {OutputIntent_PDFX} /type /dict /OBJ pdfmark
+[{OutputIntent_PDFX} <<
+  /Type /OutputIntent
+  /S /GTS_PDFX
+  /OutputCondition (CMYK)
+  /OutputConditionIdentifier (Custom)
+  /Info (CMYK)
+  /DestOutputProfile {icc_PDFX}
+>> /PUT pdfmark
+[{Catalog} <</OutputIntents [ {OutputIntent_PDFX} ]>> /PUT pdfmark

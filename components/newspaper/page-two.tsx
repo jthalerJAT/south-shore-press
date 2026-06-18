@@ -1,24 +1,37 @@
 'use client';
 
 /**
- * PageTwo — to-scale renderer for the Page 2 ("OpEd") template: a Newsroom
- * Main OpEd (blue flag + author photo + columned text + photo), a Second Story,
- * and a Bottom Ad. Shared by the editor preview, View File, and the print
- * proof. Renders at the page content size in unscaled print px.
+ * PageTwo — to-scale renderer for the Page 2 ("OpEd") template. The Main OpEd
+ * and Second Story bodies flow through the shared column engine (BandRenderer +
+ * useComputedBands) so the embedded photo can sit at the top of specific
+ * columns (cols 2–3 for the 4-column OpEd, col 2 for the 3-column second story)
+ * with the text wrapping around it. Shared by the editor preview, View File,
+ * and the print proof.
  */
-import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
+import { CONTENT_W_PX, CONTENT_H_PX, type StoredStoryLayout } from '@/lib/newspaper/layout-engine';
+import { useComputedBands, type BandInput } from '@/lib/newspaper/use-bands';
 import { adFilePublicUrl } from '@/lib/ad-files';
+import { BandRenderer } from './band-renderer';
 import { PageHeader } from './page-header';
 import type { OpEdData } from '@/lib/newspaper/oped';
 
-const NAVY = '#0b2a4a';
 const BLUE = '#1e3a8a';
 
-function paragraphs(body: string | undefined): string[] {
-  return String(body ?? '')
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+function storyLayout(
+  columns: number,
+  colStart: number,
+  colSpan: number,
+  heightFrac: number,
+  hasPhoto: boolean
+): StoredStoryLayout {
+  return {
+    v: 1,
+    kind: 'story',
+    band_index: 0,
+    column_count: columns,
+    band_height: null,
+    photo: hasPhoto ? { mode: 'column', col_start: colStart, col_span: colSpan, top: 0, height: heightFrac } : null,
+  };
 }
 
 function BlueFlag({ columnName, author, photoUrl }: { columnName?: string; author?: string; photoUrl?: string }) {
@@ -35,24 +48,9 @@ function BlueFlag({ columnName, author, photoUrl }: { columnName?: string; autho
         <span className="font-headline" style={{ fontSize: 26, fontWeight: 800, lineHeight: 1 }}>
           {columnName || 'NEWSROOM'}
         </span>
-        <span style={{ fontSize: 11, letterSpacing: '0.06em' }}>
-          BY {(author || '—').toUpperCase()}
-        </span>
+        <span style={{ fontSize: 11, letterSpacing: '0.06em' }}>BY {(author || '—').toUpperCase()}</span>
       </div>
     </div>
-  );
-}
-
-function Figure({ url, caption, width }: { url?: string; caption?: string; width: number }) {
-  if (!url) return null;
-  return (
-    <figure style={{ float: 'right', width, marginLeft: 12, marginBottom: 6 }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt="" style={{ width: '100%', objectFit: 'cover', background: '#e4e4e7' }} />
-      {caption ? (
-        <figcaption style={{ fontSize: 10, color: '#52525b', marginTop: 2 }}>{caption}</figcaption>
-      ) : null}
-    </figure>
   );
 }
 
@@ -65,6 +63,24 @@ export function PageTwo({
   pageNumber: number;
   dateLabel?: string;
 }) {
+  const inputs: BandInput[] = [
+    {
+      id: 'oped',
+      type: 'story',
+      data: { body: data.main.text ?? '', hero_photo_url: data.main.photo_url ?? '' },
+      story: storyLayout(4, 2, 2, 0.2, Boolean(data.main.photo_url)),
+    },
+    {
+      id: 'second',
+      type: 'story',
+      data: { body: data.second.text ?? '', hero_photo_url: data.second.photo_url ?? '' },
+      story: storyLayout(3, 2, 1, 0.14, Boolean(data.second.photo_url)),
+    },
+  ];
+  const { computed } = useComputedBands(inputs, CONTENT_W_PX);
+  const oped = computed[0];
+  const second = computed[1];
+
   const adUrl = data.bottom_ad?.storage_path ? adFilePublicUrl(data.bottom_ad.storage_path) : null;
 
   return (
@@ -83,14 +99,16 @@ export function PageTwo({
         >
           {data.main.title || <span style={{ color: '#d4d4d8' }}>[OpEd Title]</span>}
         </h2>
-        <div style={{ columnCount: 4, columnGap: 16, fontSize: 12.5, lineHeight: '17px', textAlign: 'justify' }}>
-          <Figure url={data.main.photo_url} caption={data.main.photo_caption} width={260} />
-          {paragraphs(data.main.text).map((p, i) => (
-            <p key={i} style={{ margin: '0 0 8px' }}>
-              {p}
-            </p>
-          ))}
-        </div>
+        {oped ? (
+          <BandRenderer
+            type="story"
+            hideHeader
+            data={{ body: data.main.text ?? '', hero_photo_url: data.main.photo_url ?? '' }}
+            geometry={oped.geometry}
+            layoutResult={oped.layoutResult}
+            photoCaption={data.main.photo_caption}
+          />
+        ) : null}
       </section>
 
       <div style={{ borderTop: '1px solid #000', margin: '16px 0' }} />
@@ -105,14 +123,16 @@ export function PageTwo({
             By {data.second.author}
           </p>
         ) : null}
-        <div style={{ columnCount: 3, columnGap: 16, fontSize: 12.5, lineHeight: '17px', textAlign: 'justify' }}>
-          <Figure url={data.second.photo_url} caption={data.second.photo_caption} width={220} />
-          {paragraphs(data.second.text).map((p, i) => (
-            <p key={i} style={{ margin: '0 0 8px' }}>
-              {p}
-            </p>
-          ))}
-        </div>
+        {second ? (
+          <BandRenderer
+            type="story"
+            hideHeader
+            data={{ body: data.second.text ?? '', hero_photo_url: data.second.photo_url ?? '' }}
+            geometry={second.geometry}
+            layoutResult={second.layoutResult}
+            photoCaption={data.second.photo_caption}
+          />
+        ) : null}
         {data.second.extra_photo_url ? (
           <div className="mt-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}

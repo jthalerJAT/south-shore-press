@@ -36,6 +36,10 @@ export type BandRenderProps = {
   /** Editor overlay (photo handle, selection ring) drawn over the body. */
   children?: ReactNode;
   adPublicUrl?: (path: string) => string;
+  /** Skip the headline/byline header (the caller renders its own, e.g. Page 2). */
+  hideHeader?: boolean;
+  /** Caption rendered in small text under the embedded photo. */
+  photoCaption?: string;
 };
 
 export function BandRenderer({
@@ -46,6 +50,8 @@ export function BandRenderer({
   adHeightPx,
   children,
   adPublicUrl,
+  hideHeader,
+  photoCaption,
 }: BandRenderProps) {
   if (type === 'ad') {
     return (
@@ -54,7 +60,7 @@ export function BandRenderer({
   }
   return (
     <article style={{ width: geometry.contentWidthPx }}>
-      <StoryHeader data={data} />
+      {hideHeader ? null : <StoryHeader data={data} />}
       <div
         className="relative"
         style={{ width: geometry.contentWidthPx, height: geometry.bodyHeightPx }}
@@ -83,20 +89,37 @@ export function BandRenderer({
         ))}
 
         {geometry.photo && data.hero_photo_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={data.hero_photo_url}
-            alt=""
-            style={{
-              position: 'absolute',
-              left: geometry.photo.left,
-              top: geometry.photo.top,
-              width: geometry.photo.width,
-              height: geometry.photo.height,
-              objectFit: 'cover',
-              background: '#e4e4e7',
-            }}
-          />
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={data.hero_photo_url}
+              alt=""
+              style={{
+                position: 'absolute',
+                left: geometry.photo.left,
+                top: geometry.photo.top,
+                width: geometry.photo.width,
+                height: geometry.photo.height,
+                objectFit: 'cover',
+                background: '#e4e4e7',
+              }}
+            />
+            {photoCaption ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: geometry.photo.left,
+                  top: geometry.photo.top + geometry.photo.height + 2,
+                  width: geometry.photo.width,
+                  fontSize: 10,
+                  lineHeight: '12px',
+                  color: '#52525b',
+                }}
+              >
+                {photoCaption}
+              </div>
+            ) : null}
+          </>
         ) : null}
 
         {children}

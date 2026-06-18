@@ -65,10 +65,10 @@ export default async function PagePrintProof({
       <div className="no-print bg-white border-b border-zinc-200">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link
-            href={`/portal/all/newspaper-creator/${page.id}/layout`}
+            href={`/portal/all/newspaper-creator/${page.id}`}
             className="text-sm font-medium text-brand-red hover:underline"
           >
-            ← Back to layout
+            ← Back to editor
           </Link>
           <PrintButton />
         </div>

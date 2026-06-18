@@ -30,10 +30,12 @@ export type PrintStyle = {
 };
 
 export type PrintElement = {
-  type: 'text' | 'image' | 'rect' | 'line';
+  type: 'text' | 'image' | 'rect' | 'line' | 'poly' | 'gull';
   /** [x, y, w, h] in points (page coords; in `tiles.template`, cell-relative —
    *  w/h ≤ 0 means cellW/regionH + that value, x/y are offsets in the cell). */
   bounds: [number, number, number, number];
+  /** Polygon vertices [x, y] in points (type 'poly'). */
+  points?: Array<[number, number]>;
   /** Dot-path into the content data, e.g. 'hero.headline', 'year_issue'. In a
    *  tile template, a bare key into the tile object, e.g. 'headline'. */
   bind?: string;
@@ -136,35 +138,38 @@ export const PAGE2_PRINT_SPEC: PrintSpec = {
   margin: 36,
   elements: [
     // ── Running head ────────────────────────────────────────
-    { type: 'text', bounds: [36, 38, 70, 12], prefix: 'Page ', bind: 'page_number', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
-    { type: 'text', bounds: [104, 38, 220, 12], value: 'The South Shore Press', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
-    { type: 'text', bounds: [324, 38, 150, 12], prefix: '• ', bind: 'issue_date', skipIfEmpty: true, style: { font: BODY_FONT, size: 10, fill: BLACK } },
-    { type: 'text', bounds: [486, 38, 270, 12], value: 'Visit us on the web at www.southshorepress.com', style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },
+    { type: 'text', bounds: [36, 38, 44, 12], prefix: 'Page ', bind: 'page_number', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
+    { type: 'gull', bounds: [84, 40, 22, 9], style: { stroke: NAVY } },
+    { type: 'text', bounds: [112, 38, 140, 12], value: 'The South Shore Press', style: { font: BODY_FONT, fontStyle: 'Bold', size: 10, fill: BLACK } },
+    { type: 'text', bounds: [254, 38, 110, 12], prefix: '• ', bind: 'issue_date', skipIfEmpty: true, style: { font: BODY_FONT, size: 10, fill: BLACK } },
+    { type: 'text', bounds: [470, 38, 286, 12], value: 'Visit us on the web at www.southshorepress.com', style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },
     { type: 'rect', bounds: [36, 54, 720, 1], style: { fill: BLACK } },
 
-    // ── Blue flag + OpEd headline ───────────────────────────
-    { type: 'rect', bounds: [36, 62, 232, 52], style: { fill: PAGE2_BLUE } },
+    // ── Blue flag (angled) + OpEd headline ──────────────────
+    { type: 'poly', bounds: [0, 0, 0, 0], points: [[36, 62], [262, 62], [244, 114], [36, 114]], style: { fill: PAGE2_BLUE } },
+    { type: 'poly', bounds: [0, 0, 0, 0], points: [[270, 62], [284, 62], [266, 114], [252, 114]], style: { fill: PAGE2_BLUE } },
+    { type: 'poly', bounds: [0, 0, 0, 0], points: [[290, 62], [300, 62], [282, 114], [272, 114]], style: { fill: PAGE2_BLUE } },
     { type: 'image', bounds: [36, 62, 52, 52], bind: 'main.author_photo_url', fit: 'fill' },
-    { type: 'text', bounds: [96, 63, 168, 12], value: 'From the', style: { font: BODY_FONT, fontStyle: 'Italic', size: 11, fill: WHITE } },
-    { type: 'text', bounds: [96, 74, 168, 26], bind: 'main.column_name', style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 20, uppercase: true, fill: WHITE } },
-    { type: 'text', bounds: [96, 100, 168, 12], prefix: 'BY ', bind: 'main.author', skipIfEmpty: true, style: { font: HEADLINE_FONT, size: 9, uppercase: true, fill: WHITE } },
-    { type: 'text', bounds: [284, 62, 472, 52], bind: 'main.title', style: { font: BODY_FONT, fontStyle: 'Bold', size: 30, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
+    { type: 'text', bounds: [96, 63, 150, 12], value: 'From the', style: { font: BODY_FONT, fontStyle: 'Italic', size: 11, fill: WHITE } },
+    { type: 'text', bounds: [96, 74, 150, 26], bind: 'main.column_name', style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 22, uppercase: true, fill: WHITE } },
+    { type: 'text', bounds: [96, 100, 150, 12], prefix: 'BY ', bind: 'main.author', skipIfEmpty: true, style: { font: HEADLINE_FONT, fontStyle: 'Bold', size: 9, uppercase: true, fill: WHITE } },
+    { type: 'text', bounds: [314, 60, 442, 56], bind: 'main.title', style: { font: BODY_FONT, fontStyle: 'Bold', size: 34, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
 
     // ── Main OpEd body (4 cols) + photo runaround ───────────
-    { type: 'text', bounds: [36, 124, 720, 416], bind: 'main.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'justify', firstLineIndent: 13, fill: BLACK, columns: 4, columnGutter: 12 } },
-    { type: 'image', bounds: [219, 124, 354, 170], bind: 'main.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 22, 6] },
-    { type: 'text', bounds: [219, 296, 250, 12], bind: 'main.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, fill: GREY } },
-    { type: 'text', bounds: [469, 296, 104, 12], prefix: 'Credit: ', bind: 'main.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, align: 'right', fill: GREY } },
+    { type: 'text', bounds: [36, 124, 720, 416], bind: 'main.text', style: { font: BODY_FONT, size: 12, leading: 14, align: 'justify', firstLineIndent: 14, fill: BLACK, columns: 4, columnGutter: 12 } },
+    { type: 'image', bounds: [219, 124, 354, 170], bind: 'main.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 24, 6] },
+    { type: 'text', bounds: [219, 296, 250, 12], bind: 'main.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Italic', size: 9, fill: GREY } },
+    { type: 'text', bounds: [469, 296, 104, 12], prefix: 'Credit: ', bind: 'main.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },
 
     { type: 'rect', bounds: [36, 548, 720, 1], style: { fill: BLACK } },
 
     // ── Second story (3 cols) ───────────────────────────────
-    { type: 'text', bounds: [36, 556, 720, 34], bind: 'second.headline', style: { font: BODY_FONT, fontStyle: 'Bold', size: 24, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
-    { type: 'text', bounds: [36, 596, 232, 14], bind: 'second_byline', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold Italic', size: 11, fill: BLACK }, textWrap: true, textWrapOffset: [0, 0, 4, 8] },
-    { type: 'text', bounds: [36, 596, 720, 280], bind: 'second.text', style: { font: BODY_FONT, size: 11, leading: 13, align: 'justify', firstLineIndent: 13, fill: BLACK, columns: 3, columnGutter: 12 } },
-    { type: 'image', bounds: [280, 596, 232, 150], bind: 'second.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 22, 6] },
-    { type: 'text', bounds: [280, 748, 160, 12], bind: 'second.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, fill: GREY } },
-    { type: 'text', bounds: [440, 748, 72, 12], prefix: 'Credit: ', bind: 'second.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 8, align: 'right', fill: GREY } },
+    { type: 'text', bounds: [36, 556, 720, 34], bind: 'second.headline', style: { font: BODY_FONT, fontStyle: 'Bold', size: 28, align: 'center', vAlign: 'center', fill: PAGE2_BLUE } },
+    { type: 'text', bounds: [36, 596, 232, 16], bind: 'second_byline', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Bold Italic', size: 13, fill: BLACK }, textWrap: true, textWrapOffset: [0, 0, 6, 8] },
+    { type: 'text', bounds: [36, 596, 720, 280], bind: 'second.text', style: { font: BODY_FONT, size: 12, leading: 14, align: 'justify', firstLineIndent: 14, fill: BLACK, columns: 3, columnGutter: 12 } },
+    { type: 'image', bounds: [280, 596, 232, 150], bind: 'second.photo_url', skipIfEmpty: true, fit: 'fill', textWrap: true, textWrapOffset: [0, 6, 24, 6] },
+    { type: 'text', bounds: [280, 748, 160, 12], bind: 'second.photo_caption', skipIfEmpty: true, style: { font: BODY_FONT, fontStyle: 'Italic', size: 9, fill: GREY } },
+    { type: 'text', bounds: [440, 748, 72, 12], prefix: 'Credit: ', bind: 'second.photo_credit', skipIfEmpty: true, style: { font: BODY_FONT, size: 9, align: 'right', fill: GREY } },
 
     // ── Bottom ad ───────────────────────────────────────────
     { type: 'rect', bounds: [36, 884, 720, 3], bind: 'bottom_ad_url', skipIfEmpty: true, style: { fill: PAGE2_BLUE } },

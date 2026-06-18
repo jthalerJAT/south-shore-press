@@ -100,6 +100,49 @@
     return r;
   }
 
+  // Filled polygon through the given [x, y] points (e.g. the angled blue flag).
+  function drawPoly(doc, page, points, fillHex) {
+    const poly = page.polygons.add();
+    try {
+      poly.paths.item(0).entirePath = points;
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      poly.strokeWeight = 0;
+      if (fillHex) poly.fillColor = color(doc, fillHex);
+    } catch (e) {
+      /* ignore */
+    }
+    return poly;
+  }
+
+  // A small two-hump seagull silhouette stroked within the bounds.
+  function drawGull(doc, page, x, y, w, h, strokeHex) {
+    const gl = page.graphicLines.add();
+    const pts = [
+      [x, y + h],
+      [x + w * 0.28, y + h * 0.12],
+      [x + w * 0.5, y + h * 0.62],
+      [x + w * 0.72, y + h * 0.12],
+      [x + w, y + h],
+    ];
+    try {
+      gl.paths.item(0).entirePath = pts;
+    } catch (e) {
+      /* ignore */
+    }
+    try {
+      gl.strokeWeight = 1.5;
+      gl.strokeColor = color(doc, strokeHex || '#0b2a4a');
+      const none = doc.swatches.itemByName('None');
+      if (none && none.isValid) gl.fillColor = none;
+    } catch (e) {
+      /* ignore */
+    }
+    return gl;
+  }
+
   function drawText(doc, page, x, y, w, h, text, style) {
     const tf = page.textFrames.add();
     tf.geometricBounds = gb(x, y, w, h);
@@ -136,15 +179,20 @@
         /* ignore */
       }
     }
-    try {
-      if (s.font) {
-        t.appliedFont = s.fontStyle ? s.font + '\t' + s.fontStyle : s.font;
-      }
-    } catch (e) {
+    // Apply family + style SEPARATELY — the combined "Family\tStyle" string
+    // silently fails when the font substitutes, dropping the bold/italic.
+    if (s.font) {
       try {
         t.appliedFont = s.font;
-      } catch (e2) {
-        /* font missing — InDesign substitutes */
+      } catch (e) {
+        /* substitutes */
+      }
+    }
+    if (s.fontStyle) {
+      try {
+        t.fontStyle = s.fontStyle;
+      } catch (e) {
+        /* style not in the (possibly substituted) family */
       }
     }
     if (s.size) t.pointSize = s.size;
@@ -204,7 +252,13 @@
 
     try {
       let obj = null;
-      if (el.type === 'rect' || el.type === 'line') {
+      if (el.type === 'poly') {
+        drawPoly(doc, page, el.points, el.style && el.style.fill);
+        return;
+      } else if (el.type === 'gull') {
+        drawGull(doc, page, x, y, w, h, el.style && el.style.stroke);
+        return;
+      } else if (el.type === 'rect' || el.type === 'line') {
         obj = drawRect(doc, page, x, y, w, h, el.style && el.style.fill);
       } else if (el.type === 'image') {
         if (isEmpty) return;

@@ -53,6 +53,7 @@ export function createMeasurer(): Measurer {
         const p = document.createElement('p');
         p.textContent = text;
         p.style.margin = '0';
+        p.style.textIndent = '1.2em';
         if (i > 0) p.style.marginTop = `${PARA_SPACING_PX}px`;
         h.appendChild(p);
       });

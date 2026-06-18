@@ -13,6 +13,7 @@ export type OpEdMain = {
   text?: string;
   photo_url?: string;
   photo_caption?: string;
+  photo_credit?: string;
 };
 
 export type OpEdSecond = {
@@ -22,6 +23,7 @@ export type OpEdSecond = {
   photo_url?: string;
   extra_photo_url?: string;
   photo_caption?: string;
+  photo_credit?: string;
 };
 
 export type OpEdAd = {

@@ -241,7 +241,7 @@ export default async function StoryPage({ params }: { params: Params }) {
           paragraphs.map((p, i) => (
             <p
               key={i}
-              className="text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0"
+              className="text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0 indent-[1.5em]"
             >
               {p}
             </p>

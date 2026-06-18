@@ -93,7 +93,10 @@ export function OpEdEditor({
           <TextField label="Title" value={data.main.title ?? ''} onChange={(v) => setMain({ title: v })} />
           <TextArea label="Text" value={data.main.text ?? ''} onChange={(v) => setMain({ text: v })} rows={8} />
           <PhotoField label="Photo" value={data.main.photo_url} onChange={(v) => setMain({ photo_url: v })} onError={setError} />
-          <TextField label="Photo caption" value={data.main.photo_caption ?? ''} onChange={(v) => setMain({ photo_caption: v })} />
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Photo caption" value={data.main.photo_caption ?? ''} onChange={(v) => setMain({ photo_caption: v })} />
+            <TextField label="Photo credit" value={data.main.photo_credit ?? ''} onChange={(v) => setMain({ photo_credit: v })} />
+          </div>
         </Section>
 
         {/* Second Story */}
@@ -104,7 +107,10 @@ export function OpEdEditor({
           <TextArea label="Text" value={data.second.text ?? ''} onChange={(v) => setSecond({ text: v })} rows={5} />
           <PhotoField label="Photo" value={data.second.photo_url} onChange={(v) => setSecond({ photo_url: v })} onError={setError} />
           <PhotoField label="Additional photo" addLabel="+ Add Photo" value={data.second.extra_photo_url} onChange={(v) => setSecond({ extra_photo_url: v })} onError={setError} />
-          <TextField label="Photo caption" value={data.second.photo_caption ?? ''} onChange={(v) => setSecond({ photo_caption: v })} />
+          <div className="grid grid-cols-2 gap-3">
+            <TextField label="Photo caption" value={data.second.photo_caption ?? ''} onChange={(v) => setSecond({ photo_caption: v })} />
+            <TextField label="Photo credit" value={data.second.photo_credit ?? ''} onChange={(v) => setSecond({ photo_credit: v })} />
+          </div>
         </Section>
 
         {/* Bottom Ad */}

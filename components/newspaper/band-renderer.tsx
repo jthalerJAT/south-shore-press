@@ -38,9 +38,14 @@ export type BandRenderProps = {
   adPublicUrl?: (path: string) => string;
   /** Skip the headline/byline header (the caller renders its own, e.g. Page 2). */
   hideHeader?: boolean;
-  /** Caption rendered in small text under the embedded photo. */
+  /** Caption (bottom-left) + credit (bottom-right) under the embedded photo.
+   *  Space for them is reserved inside the photo's exclusion rect. */
   photoCaption?: string;
+  photoCredit?: string;
 };
+
+/** Height reserved at the bottom of the photo rect for the caption/credit row. */
+const PHOTO_CAPTION_STRIP = 16;
 
 export function BandRenderer({
   type,
@@ -52,6 +57,7 @@ export function BandRenderer({
   adPublicUrl,
   hideHeader,
   photoCaption,
+  photoCredit,
 }: BandRenderProps) {
   if (type === 'ad') {
     return (
@@ -80,7 +86,7 @@ export function BandRenderer({
           >
             {run.text
               ? run.text.split('\n\n').map((p, j) => (
-                  <p key={j} style={{ margin: 0 }}>
+                  <p key={j} style={{ margin: 0, textIndent: '1.2em' }}>
                     {p}
                   </p>
                 ))
@@ -88,39 +94,53 @@ export function BandRenderer({
           </div>
         ))}
 
-        {geometry.photo && data.hero_photo_url ? (
-          <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={data.hero_photo_url}
-              alt=""
-              style={{
-                position: 'absolute',
-                left: geometry.photo.left,
-                top: geometry.photo.top,
-                width: geometry.photo.width,
-                height: geometry.photo.height,
-                objectFit: 'cover',
-                background: '#e4e4e7',
-              }}
-            />
-            {photoCaption ? (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: geometry.photo.left,
-                  top: geometry.photo.top + geometry.photo.height + 2,
-                  width: geometry.photo.width,
-                  fontSize: 10,
-                  lineHeight: '12px',
-                  color: '#52525b',
-                }}
-              >
-                {photoCaption}
-              </div>
-            ) : null}
-          </>
-        ) : null}
+        {geometry.photo && data.hero_photo_url
+          ? (() => {
+              const hasStrip = Boolean(photoCaption || photoCredit);
+              const stripH = hasStrip ? PHOTO_CAPTION_STRIP : 0;
+              const imgH = geometry.photo.height - stripH;
+              return (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={data.hero_photo_url}
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      left: geometry.photo.left,
+                      top: geometry.photo.top,
+                      width: geometry.photo.width,
+                      height: imgH,
+                      objectFit: 'cover',
+                      background: '#e4e4e7',
+                    }}
+                  />
+                  {hasStrip ? (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        left: geometry.photo.left,
+                        top: geometry.photo.top + imgH + 1,
+                        width: geometry.photo.width,
+                        height: stripH,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                        fontSize: 9,
+                        lineHeight: '11px',
+                        color: '#52525b',
+                      }}
+                    >
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {photoCaption ?? ''}
+                      </span>
+                      {photoCredit ? <span style={{ whiteSpace: 'nowrap' }}>Credit: {photoCredit}</span> : null}
+                    </div>
+                  ) : null}
+                </>
+              );
+            })()
+          : null}
 
         {children}
       </div>

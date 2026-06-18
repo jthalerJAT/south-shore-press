@@ -35,20 +35,36 @@ function storyLayout(
 }
 
 function BlueFlag({ columnName, author, photoUrl }: { columnName?: string; author?: string; photoUrl?: string }) {
+  const FLAG_H = 72;
   return (
-    <div className="inline-flex items-stretch mb-3" style={{ background: BLUE, color: '#fff' }}>
+    <div className="flex items-stretch shrink-0" style={{ height: FLAG_H }}>
       {photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={photoUrl} alt="" style={{ width: 64, height: 64, objectFit: 'cover' }} />
+        <img src={photoUrl} alt="" style={{ width: FLAG_H, height: FLAG_H, objectFit: 'cover' }} />
       ) : (
-        <div style={{ width: 64, height: 64, background: 'rgba(255,255,255,0.15)' }} />
+        <div style={{ width: FLAG_H, height: FLAG_H, background: '#c7d2fe' }} />
       )}
-      <div className="px-3 py-1 flex flex-col justify-center leading-tight">
-        <span style={{ fontSize: 13, fontStyle: 'italic' }}>From the</span>
-        <span className="font-headline" style={{ fontSize: 26, fontWeight: 800, lineHeight: 1 }}>
+      {/* Blue parallelogram with the slanted right edge */}
+      <div
+        className="flex flex-col justify-center leading-tight"
+        style={{
+          background: BLUE,
+          color: '#fff',
+          paddingLeft: 14,
+          paddingRight: 36,
+          clipPath: 'polygon(0 0, 100% 0, calc(100% - 20px) 100%, 0 100%)',
+        }}
+      >
+        <span style={{ fontSize: 14, fontStyle: 'italic' }}>From the</span>
+        <span className="font-headline" style={{ fontSize: 30, fontWeight: 800, lineHeight: 1 }}>
           {columnName || 'NEWSROOM'}
         </span>
         <span style={{ fontSize: 11, letterSpacing: '0.06em' }}>BY {(author || '—').toUpperCase()}</span>
+      </div>
+      {/* Trailing diagonal stripes */}
+      <div className="flex items-stretch" style={{ marginLeft: 3, gap: 3 }}>
+        <div style={{ width: 16, background: BLUE, transform: 'skewX(-22deg)' }} />
+        <div style={{ width: 9, background: BLUE, transform: 'skewX(-22deg)' }} />
       </div>
     </div>
   );
@@ -92,13 +108,16 @@ export function PageTwo({
 
       {/* ── Main OpEd ─────────────────────────────────────── */}
       <section>
-        <BlueFlag columnName={data.main.column_name} author={data.main.author} photoUrl={data.main.author_photo_url} />
-        <h2
-          className="font-headline text-center"
-          style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.02, color: BLUE, margin: '4px 0 10px' }}
-        >
-          {data.main.title || <span style={{ color: '#d4d4d8' }}>[OpEd Title]</span>}
-        </h2>
+        {/* Headline sits beside the blue flag */}
+        <div className="flex items-center gap-6" style={{ marginBottom: 22 }}>
+          <BlueFlag columnName={data.main.column_name} author={data.main.author} photoUrl={data.main.author_photo_url} />
+          <h2
+            className="font-headline text-center"
+            style={{ fontSize: 40, fontWeight: 800, lineHeight: 1.04, color: BLUE, flex: 1 }}
+          >
+            {data.main.title || <span style={{ color: '#d4d4d8' }}>[OpEd Title]</span>}
+          </h2>
+        </div>
         {oped ? (
           <BandRenderer
             type="story"
@@ -107,6 +126,7 @@ export function PageTwo({
             geometry={oped.geometry}
             layoutResult={oped.layoutResult}
             photoCaption={data.main.photo_caption}
+            photoCredit={data.main.photo_credit}
           />
         ) : null}
       </section>
@@ -119,7 +139,7 @@ export function PageTwo({
           {data.second.headline || <span style={{ color: '#d4d4d8' }}>[Second Story Headline]</span>}
         </h3>
         {data.second.author ? (
-          <p style={{ fontSize: 12, fontStyle: 'italic', color: '#3f3f46', margin: '2px 0 6px' }}>
+          <p style={{ fontSize: 12, fontStyle: 'italic', color: '#3f3f46', margin: '2px 0 12px' }}>
             By {data.second.author}
           </p>
         ) : null}
@@ -131,6 +151,7 @@ export function PageTwo({
             geometry={second.geometry}
             layoutResult={second.layoutResult}
             photoCaption={data.second.photo_caption}
+            photoCredit={data.second.photo_credit}
           />
         ) : null}
         {data.second.extra_photo_url ? (

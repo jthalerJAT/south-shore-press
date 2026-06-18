@@ -83,6 +83,12 @@ export function PageTwo({
    *  / InDesign output show only a placed ad (no label, no box). */
   editing?: boolean;
 }) {
+  // The second story's byline leads column 1 (top-aligned with the photo + the
+  // other columns), so prepend it to the body the engine flows.
+  const secondBody = data.second.author
+    ? `By ${data.second.author}\n\n${data.second.text ?? ''}`
+    : data.second.text ?? '';
+
   const inputs: BandInput[] = [
     {
       id: 'oped',
@@ -93,7 +99,7 @@ export function PageTwo({
     {
       id: 'second',
       type: 'story',
-      data: { body: data.second.text ?? '', hero_photo_url: data.second.photo_url ?? '' },
+      data: { body: secondBody, hero_photo_url: data.second.photo_url ?? '' },
       story: storyLayout(3, 2, 1, 0.14, Boolean(data.second.photo_url)),
     },
   ];
@@ -117,7 +123,7 @@ export function PageTwo({
           <BlueFlag columnName={data.main.column_name} author={data.main.author} photoUrl={data.main.author_photo_url} />
           <h2
             className="text-center"
-            style={{ fontFamily: 'var(--font-crimson)', fontSize: 40, fontWeight: 700, lineHeight: 1.04, color: BLUE, flex: 1 }}
+            style={{ fontFamily: 'var(--font-crimson)', fontSize: 48, fontWeight: 700, lineHeight: 1.04, color: BLUE, flex: 1 }}
           >
             {data.main.title || <span style={{ color: '#d4d4d8' }}>[OpEd Title]</span>}
           </h2>
@@ -139,19 +145,15 @@ export function PageTwo({
 
       {/* ── Second Story ──────────────────────────────────── */}
       <section>
-        <h3 style={{ fontFamily: 'var(--font-crimson)', fontSize: 30, fontWeight: 700, lineHeight: 1.03, color: BLUE, marginBottom: 8 }}>
+        <h3 style={{ fontFamily: 'var(--font-crimson)', fontSize: 36, fontWeight: 700, lineHeight: 1.03, color: BLUE, marginBottom: 10 }}>
           {data.second.headline || <span style={{ color: '#d4d4d8' }}>[Second Story Headline]</span>}
         </h3>
-        {data.second.author ? (
-          <p style={{ fontFamily: 'var(--font-crimson)', fontSize: 14, fontWeight: 700, fontStyle: 'italic', color: '#3f3f46', margin: '10px 0 14px' }}>
-            By {data.second.author}
-          </p>
-        ) : null}
         {second ? (
           <BandRenderer
             type="story"
             hideHeader
-            data={{ body: data.second.text ?? '', hero_photo_url: data.second.photo_url ?? '' }}
+            bylineLead={Boolean(data.second.author)}
+            data={{ body: secondBody, hero_photo_url: data.second.photo_url ?? '' }}
             geometry={second.geometry}
             layoutResult={second.layoutResult}
             photoCaption={data.second.photo_caption}

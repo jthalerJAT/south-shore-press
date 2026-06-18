@@ -38,6 +38,9 @@ export type BandRenderProps = {
   adPublicUrl?: (path: string) => string;
   /** Skip the headline/byline header (the caller renders its own, e.g. Page 2). */
   hideHeader?: boolean;
+  /** Style the very first paragraph (top of column 1) as a byline — bold
+   *  italic, no indent. The caller prepends "By …" to the body. */
+  bylineLead?: boolean;
   /** Caption (bottom-left) + credit (bottom-right) under the embedded photo.
    *  Space for them is reserved inside the photo's exclusion rect. */
   photoCaption?: string;
@@ -56,6 +59,7 @@ export function BandRenderer({
   children,
   adPublicUrl,
   hideHeader,
+  bylineLead,
   photoCaption,
   photoCredit,
 }: BandRenderProps) {
@@ -85,11 +89,21 @@ export function BandRenderer({
             }}
           >
             {run.text
-              ? run.text.split('\n\n').map((p, j) => (
-                  <p key={j} style={{ margin: 0, textIndent: '1.2em' }}>
-                    {p}
-                  </p>
-                ))
+              ? run.text.split('\n\n').map((p, j) => {
+                  const isByline = bylineLead && i === 0 && j === 0;
+                  return (
+                    <p
+                      key={j}
+                      style={
+                        isByline
+                          ? { margin: 0, textIndent: 0, fontWeight: 700, fontStyle: 'italic' }
+                          : { margin: 0, textIndent: '1.2em' }
+                      }
+                    >
+                      {p}
+                    </p>
+                  );
+                })
               : null}
           </div>
         ))}

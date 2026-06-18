@@ -63,7 +63,9 @@ export default async function PrintIssue({
         dangerouslySetInnerHTML={{
           __html: `
         @page { size: 11in 15in; margin: 0; }
-        @media print { header, footer, .no-print { display: none !important; } body { background: #fff !important; } }
+        /* Hide the site chrome on screen + print so this route is just the pages. */
+        header, footer, .no-print { display: none !important; }
+        body { background: #fff !important; }
         .ssp-pg { width: 11in; height: 15in; box-sizing: border-box; padding: 0.5in; overflow: hidden; background: #fff; break-after: page; }
         .ssp-pg:last-child { break-after: auto; }
       `,

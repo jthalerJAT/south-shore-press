@@ -36,6 +36,7 @@ if (!TOKEN) {
 }
 
 const rgb = join(outDir, 'issue-rgb.pdf');
+const prepped = join(outDir, 'issue-rgb-k.pdf');
 const x1a = join(outDir, 'issue-x1a.pdf');
 
 // ── 1. Render to RGB PDF via Playwright ──────────────────────────────────────
@@ -62,13 +63,32 @@ try {
   await browser.close();
 }
 
+// ── 1b. Press pre-pass: neutral RGB -> DeviceGray so black separates K-only ──
+// Chromium emits black text/rules as RGB (0,0,0); a colorimetric CMYK
+// conversion would turn that into rich black. Rewriting neutrals to DeviceGray
+// makes Ghostscript separate them to K-only (verified: DeviceGray -> K, no CMY).
+execFileSync(process.execPath, [join(__dir, 'neutralize-black.mjs'), rgb, prepped], {
+  stdio: 'inherit',
+});
+
 // ── 2. Convert to PDF/X-1a CMYK via Ghostscript ──────────────────────────────
 const gsBin = process.env.GS || (process.platform === 'win32' ? 'gswin64c' : 'gs');
 
 function resolveIcc() {
+  // 1. Explicit override (ideally the PRINTER's newsprint profile).
   if (process.env.CMYK_ICC && existsSync(process.env.CMYK_ICC)) return process.env.CMYK_ICC;
-  // Try a bundled Ghostscript default_cmyk.icc under common Windows install dirs.
-  const bases = ['C:/Program Files/gs', 'C:/Program Files (x86)/gs'];
+  // 2. A newsprint profile checked into the repo next to this script.
+  const repoSnap = join(__dir, 'pdfx', 'USNewsprintSNAP2007.icc');
+  if (existsSync(repoSnap)) return repoSnap;
+  // 3. The US newsprint profile Adobe CC installs (SNAP 2007) — correct for a
+  //    U.S. paper: ~newsprint dot gain + ink limit, unlike the glossy default.
+  const adobe = [
+    'C:/Program Files (x86)/Common Files/Adobe/Color/Profiles/Recommended/USNewsprintSNAP2007.icc',
+    'C:/Program Files/Common Files/Adobe/Color/Profiles/Recommended/USNewsprintSNAP2007.icc',
+  ];
+  for (const p of adobe) if (existsSync(p)) return p;
+  // 4. Last resort: Ghostscript's bundled default_cmyk.icc (glossy — not ideal).
+  const bases = ['C:/Program Files/gs', 'C:/Program Files (x86)/gs', join(process.env.LOCALAPPDATA || '', 'Ghostscript')];
   for (const b of bases) {
     if (!existsSync(b)) continue;
     for (const ver of readdirSync(b)) {
@@ -98,6 +118,7 @@ const gsArgs = [
   '-dBATCH',
   '-dNOPAUSE',
   '-dNOOUTERSAVE',
+  '-dNOSAFER', // permit reading the ICC profile referenced by the def .ps
   '-sDEVICE=pdfwrite',
   '-dCompatibilityLevel=1.3',
   '-dPDFSETTINGS=/prepress',
@@ -108,7 +129,7 @@ const gsArgs = [
   `-sOutputICCProfile=${icc.replace(/\\/g, '/')}`,
   `-sOutputFile=${x1a}`,
   defPath,
-  rgb,
+  prepped, // K-only-prepped input, not the raw RGB
 ];
 
 try {

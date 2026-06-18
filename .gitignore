@@ -33,3 +33,7 @@ pnpm-debug.log*
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
+
+# Adobe/printer ICC profiles (licensed; resolved at runtime, not committed)
+scripts/pdfx/*.icc
+/out/

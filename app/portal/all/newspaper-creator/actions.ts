@@ -433,6 +433,22 @@ export async function requestImageUploadUrl(
   return { ok: true, path, token: data.token };
 }
 
+/** Fetch a story's full detail (incl. body) so an editor picker can fill all
+ *  fields — the board-side story list omits the body for payload size. */
+export async function fetchStoryDetail(
+  id: string
+): Promise<{ headline: string; byline: string; body: string; hero_photo_url: string } | null> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const s = await getStoryForEdit(id);
+  if (!s) return null;
+  return {
+    headline: s.headline ?? '',
+    byline: s.byline ?? '',
+    body: s.body ?? '',
+    hero_photo_url: s.hero_photo_url ?? '',
+  };
+}
+
 /** Persist a Page 2 (OpEd) template page's fields and lock it. */
 export async function saveOpEd(pageId: string, data: Record<string, unknown>): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);

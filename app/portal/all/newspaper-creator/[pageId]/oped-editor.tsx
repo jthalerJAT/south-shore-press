@@ -8,7 +8,7 @@ import { PageTwo } from '@/components/newspaper/page-two';
 import type { OpEdData, OpEdMain, OpEdSecond } from '@/lib/newspaper/oped';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Ad } from '@/lib/queries/ads';
-import { saveOpEd } from '../actions';
+import { saveOpEd, fetchStoryDetail } from '../actions';
 import { uploadImage } from '../image-upload-client';
 
 const PREVIEW_SCALE = 0.42;
@@ -46,15 +46,15 @@ export function OpEdEditor({
     setData((d) => ({ ...d, second: { ...d.second, ...p } }));
   }
 
-  function fillMainFromStory(id: string) {
-    const s = stories.find((x) => x.id === id);
-    if (!s) return;
-    setMain({ title: s.headline ?? '', author: s.byline ?? '', photo_url: s.hero_photo_url ?? '' });
+  async function fillMainFromStory(id: string) {
+    const d = await fetchStoryDetail(id);
+    if (!d) return;
+    setMain({ title: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url });
   }
-  function fillSecondFromStory(id: string) {
-    const s = stories.find((x) => x.id === id);
-    if (!s) return;
-    setSecond({ headline: s.headline ?? '', author: s.byline ?? '', photo_url: s.hero_photo_url ?? '' });
+  async function fillSecondFromStory(id: string) {
+    const d = await fetchStoryDetail(id);
+    if (!d) return;
+    setSecond({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url });
   }
   function insertAd(id: string) {
     const a = ads.find((x) => x.id === id);

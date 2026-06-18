@@ -353,6 +353,15 @@ export function NewspaperBoard({
               >
                 View File
               </Link>
+              <a
+                href="https://github.com/jthalerJAT/south-shore-press/actions/workflows/export-issue.yml"
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Generate the press-ready PDF/X-1a (GitHub Actions → Run workflow → download the artifact)"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-brand-red hover:bg-red-700 rounded transition-colors"
+              >
+                Export Press PDF ↗
+              </a>
             </div>
           </div>
 

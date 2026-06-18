@@ -1,0 +1,52 @@
+name: Export Press PDF
+
+# One-click press export, run from the browser:
+#   GitHub → Actions → "Export Press PDF" → Run workflow.
+# Renders the live /print/issue, applies the K-only-black pre-pass, and converts
+# to PDF/X-1a CMYK with Ghostscript. The result is uploaded as a downloadable
+# artifact (issue-x1a.pdf). No local tools needed.
+#
+# Requires one repo secret:  INDESIGN_API_TOKEN  (same value as the Vercel env).
+# Settings → Secrets and variables → Actions → New repository secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      pages:
+        description: 'Page numbers to export (e.g. "1,2"). Leave blank for the whole issue.'
+        required: false
+        default: ''
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Ghostscript
+        run: sudo apt-get update && sudo apt-get install -y ghostscript
+
+      - name: Install Playwright + Chromium
+        run: |
+          npm i -D playwright
+          npx playwright install --with-deps chromium
+
+      - name: Export PDF/X-1a
+        env:
+          INDESIGN_API_TOKEN: ${{ secrets.INDESIGN_API_TOKEN }}
+          PAGES: ${{ github.event.inputs.pages }}
+          OPEN: '0' # never try to open a viewer in CI
+        run: node scripts/export-issue-pdf.mjs
+
+      - name: Upload PDFs
+        uses: actions/upload-artifact@v4
+        with:
+          name: press-pdf
+          path: |
+            out/issue-x1a.pdf
+            out/issue-rgb.pdf
+          if-no-files-found: error

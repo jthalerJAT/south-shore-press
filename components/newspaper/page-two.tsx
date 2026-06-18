@@ -168,12 +168,14 @@ export function PageTwo({
 
       {/* ── Bottom Ad ─────────────────────────────────────── */}
       {adUrl ? (
-        <section className="mt-auto pt-4">
+        <section className="mt-auto">
+          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px' }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={adUrl} alt={data.bottom_ad?.file_name ?? ''} style={{ width: '100%', maxHeight: 280, objectFit: 'contain' }} />
         </section>
       ) : editing ? (
-        <section className="mt-auto pt-4">
+        <section className="mt-auto">
+          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px' }} />
           <div className="w-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400" style={{ height: 160 }}>
             Bottom Ad slot (editor only)
           </div>

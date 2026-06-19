@@ -74,21 +74,32 @@ async function ensurePrice(plan) {
   });
   if (existing.data.length > 0) {
     const price = existing.data[0];
-    if (price.unit_amount !== plan.amount) {
-      // Stripe prices are immutable — we can't change this one's amount. To
-      // apply the new price, archive (deactivate) the old price in the Stripe
-      // dashboard so its lookup_key frees up, then re-run this script: it will
-      // create a fresh price at the new amount and print the new env value.
-      console.log(
-        `  ⚠ ${plan.productName}: existing price ${price.id} is $${
-          (price.unit_amount ?? 0) / 100
-        }/${plan.interval}, but the catalog now wants $${plan.amount / 100}. ` +
-          `Archive the old price in Stripe, then re-run to create the new one.`
-      );
+    if (price.unit_amount === plan.amount) {
+      console.log(`  ↺ ${plan.productName}: reusing existing price ${price.id}`);
       return price.id;
     }
-    console.log(`  ↺ ${plan.productName}: reusing existing price ${price.id}`);
-    return price.id;
+    // Stripe prices are immutable, so we can't edit the amount. Create a NEW
+    // price on the SAME product, transfer the lookup_key onto it (so this
+    // script + the app keep resolving the right one), and archive the old
+    // price. Existing subscribers stay on the old price; new checkouts use the
+    // new one.
+    const productId = typeof price.product === 'string' ? price.product : price.product.id;
+    const replacement = await stripe.prices.create({
+      product: productId,
+      unit_amount: plan.amount,
+      currency: 'usd',
+      recurring: { interval: plan.interval },
+      lookup_key: plan.lookupKey,
+      transfer_lookup_key: true,
+      metadata: { ssp_tier: plan.lookupKey },
+    });
+    await stripe.prices.update(price.id, { active: false });
+    console.log(
+      `  ⟳ ${plan.productName}: $${(price.unit_amount ?? 0) / 100} → $${
+        plan.amount / 100
+      }/${plan.interval} (new price ${replacement.id}; old ${price.id} archived)`
+    );
+    return replacement.id;
   }
 
   const product = await stripe.products.create({

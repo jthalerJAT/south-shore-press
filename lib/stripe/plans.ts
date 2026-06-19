@@ -39,26 +39,26 @@ export const PLAN_DISPLAY: Record<PlanTier, PlanDisplay> = {
     label: 'All-Access Pass',
     blurb:
       'Unlimited access to all digital content PLUS weekly delivery of our physical newspaper. We thank our loyal customers for supporting us with this option!',
-    amount: 1000,
+    amount: 500,
     interval: 'year',
-    priceLine: '$1,000 per year',
+    priceLine: '$500 per year',
   },
   print_annual: {
     tier: 'print_annual',
     label: 'Weekly Newspaper Delivery (One Year Subscription)',
     blurb: 'Get our weekly newspaper delivered to your door for one year.',
-    amount: 500,
+    amount: 100,
     interval: 'year',
-    priceLine: '$500 per year',
+    priceLine: '$100 per year',
   },
   print_monthly: {
     tier: 'print_monthly',
     label: 'Weekly Newspaper Delivery (Monthly Subscription)',
     blurb:
       'Get our weekly newspaper delivered to your door on a monthly subscription, cancel anytime.',
-    amount: 50,
+    amount: 10,
     interval: 'month',
-    priceLine: '$50 per month',
+    priceLine: '$10 per month',
   },
 };
 

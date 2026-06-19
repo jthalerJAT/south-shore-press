@@ -3,8 +3,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HeroMedia } from '@/components/story/hero-media';
+import { StoryCard } from '@/components/story/story-card';
 import {
   getPublishedStoryByShortId,
+  getPublishedStoriesBySection,
   type StoryDetail,
 } from '@/lib/queries/stories';
 import { parseShortIdFromSlug, buildStoryPath } from '@/lib/slugify';
@@ -94,6 +96,12 @@ export async function generateMetadata({
 export default async function StoryPage({ params }: { params: Params }) {
   const story = await loadStory(params);
   if (!story) notFound();
+
+  // "You Might Also Be Interested In" — up to 4 more stories from this same
+  // section, excluding the one being read.
+  const related = (await getPublishedStoriesBySection(params.section, 5))
+    .filter((s) => s.id !== story.id)
+    .slice(0, 4);
 
   const sectionMeta = SITE_SECTIONS.find((s) => s.slug === params.section);
   const publishedDate = story.published_at
@@ -197,13 +205,17 @@ export default async function StoryPage({ params }: { params: Params }) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
+      <Link
+        href={sectionMeta ? `/${sectionMeta.slug}` : '/'}
+        className="inline-block mb-4 text-sm font-semibold text-zinc-500 hover:text-brand-red transition-colors"
+      >
+        ← Back to {sectionMeta?.label ?? 'Home'}
+      </Link>
+
       {sectionMeta ? (
-        <Link
-          href={`/${sectionMeta.slug}`}
-          className="text-[11px] uppercase tracking-widest text-brand-red font-bold hover:text-brand-red-dark transition-colors"
-        >
+        <div className="text-[11px] uppercase tracking-widest text-brand-red font-bold">
           {sectionMeta.label}
-        </Link>
+        </div>
       ) : null}
 
       {/* v1 headline scale: ~38px, weight 800, tight leading. Tailwind's
@@ -269,14 +281,18 @@ export default async function StoryPage({ params }: { params: Params }) {
         </div>
       ) : null}
 
-      <div className="mt-12 pt-6 border-t border-zinc-200">
-        <Link
-          href={sectionMeta ? `/${sectionMeta.slug}` : '/'}
-          className="text-sm uppercase tracking-widest font-semibold text-brand-red hover:text-brand-red-dark transition-colors"
-        >
-          ← Back to {sectionMeta?.label ?? 'Home'}
-        </Link>
-      </div>
+      {related.length > 0 ? (
+        <section className="mt-14 pt-8 border-t-2 border-brand-red">
+          <h2 className="font-headline text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 mb-6">
+            You Might Also Be Interested In
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {related.map((s) => (
+              <StoryCard key={s.id} story={s} variant="standard" />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </article>
   );
 }

@@ -52,6 +52,23 @@ export const SPORTS_SUBCATEGORIES: ReadonlyArray<SiteSection> = [
 export const PRINT_ONLY_SLUG = 'print-only';
 export const PRINT_ONLY_LABEL = 'Print Edition Only';
 
+/**
+ * Display label for a category slug — the single place that maps a stored
+ * category (e.g. 'national') to what readers see (e.g. 'Nation'). Looks up the
+ * section + sports-subcategory tables; falls back to a title-cased slug for any
+ * unmapped tag. Use this everywhere a category is shown (tile kickers, etc.)
+ * instead of printing the raw slug.
+ */
+export function sectionLabel(slug?: string | null): string {
+  if (!slug) return '';
+  const match = [...SITE_SECTIONS, ...SPORTS_SUBCATEGORIES].find((s) => s.slug === slug);
+  if (match) return match.label;
+  return slug
+    .split('-')
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
 export const SITE = {
   name: 'The South Shore Press',
   tagline: 'From Long Island to the World',

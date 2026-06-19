@@ -46,21 +46,21 @@ const PLANS = [
     envVar: 'STRIPE_PRICE_ALL_ACCESS',
     lookupKey: 'ssp_all_access',
     productName: 'All-Access Pass',
-    amount: 100000, // $1,000.00
+    amount: 50000, // $500.00
     interval: 'year',
   },
   {
     envVar: 'STRIPE_PRICE_PRINT_ANNUAL',
     lookupKey: 'ssp_print_annual',
     productName: 'Weekly Newspaper Delivery (Annual)',
-    amount: 50000, // $500.00
+    amount: 10000, // $100.00
     interval: 'year',
   },
   {
     envVar: 'STRIPE_PRICE_PRINT_MONTHLY',
     lookupKey: 'ssp_print_monthly',
     productName: 'Weekly Newspaper Delivery (Monthly)',
-    amount: 5000, // $50.00
+    amount: 1000, // $10.00
     interval: 'month',
   },
 ];
@@ -74,6 +74,19 @@ async function ensurePrice(plan) {
   });
   if (existing.data.length > 0) {
     const price = existing.data[0];
+    if (price.unit_amount !== plan.amount) {
+      // Stripe prices are immutable — we can't change this one's amount. To
+      // apply the new price, archive (deactivate) the old price in the Stripe
+      // dashboard so its lookup_key frees up, then re-run this script: it will
+      // create a fresh price at the new amount and print the new env value.
+      console.log(
+        `  ⚠ ${plan.productName}: existing price ${price.id} is $${
+          (price.unit_amount ?? 0) / 100
+        }/${plan.interval}, but the catalog now wants $${plan.amount / 100}. ` +
+          `Archive the old price in Stripe, then re-run to create the new one.`
+      );
+      return price.id;
+    }
     console.log(`  ↺ ${plan.productName}: reusing existing price ${price.id}`);
     return price.id;
   }

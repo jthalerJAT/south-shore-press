@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { HeroMedia } from './hero-media';
 import { buildStoryPath } from '@/lib/slugify';
+import { sectionLabel } from '@/lib/site-config';
 import type { StoryListItem } from '@/lib/queries/stories';
 
 type Props = {
@@ -39,7 +40,7 @@ export function StoryCard({ story, variant = 'standard' }: Props) {
         <div className="mt-4">
           {story.categories?.[0] ? (
             <div className="text-xs uppercase tracking-widest text-brand-red font-semibold">
-              {story.categories[0]}
+              {sectionLabel(story.categories[0])}
             </div>
           ) : null}
           <h2 className="mt-2 font-headline text-2xl sm:text-3xl md:text-4xl font-bold leading-tight text-zinc-900 group-hover:text-brand-red transition-colors">
@@ -95,7 +96,7 @@ export function StoryCard({ story, variant = 'standard' }: Props) {
         <div>
           {story.categories?.[0] ? (
             <div className="text-[10px] uppercase tracking-widest text-brand-red font-bold">
-              {story.categories[0]}
+              {sectionLabel(story.categories[0])}
             </div>
           ) : null}
           <h3 className="mt-1 font-headline text-[15px] font-bold leading-snug text-zinc-900 group-hover:text-brand-red transition-colors line-clamp-3">

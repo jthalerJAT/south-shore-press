@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
@@ -34,6 +34,49 @@ export function OpEdEditor({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Measure the page's true (unscaled) height to detect overflow + drive fit.
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  const [naturalHeight, setNaturalHeight] = useState(CONTENT_H_PX);
+  const [fitting, setFitting] = useState(false);
+  const overflow = naturalHeight > CONTENT_H_PX + 4;
+  const photoScale = data.photo_scale ?? 1;
+  const hasPhotos = Boolean(data.main.photo_url || data.second.photo_url);
+
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    const update = () => setNaturalHeight(el.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  function setPhotoScale(v: number) {
+    touch();
+    setData((d) => ({ ...d, photo_scale: v }));
+  }
+
+  // Shrink the photos step by step until the page fits one sheet (the bottom ad
+  // is flex-fill, so it soaks up any slack — only overflow needs fixing).
+  async function adjustPhotosToFit() {
+    if (!hasPhotos) return;
+    setFitting(true);
+    const MIN = 0.4;
+    const STEP = 0.04;
+    const nextFrame = () =>
+      new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    let scale = data.photo_scale ?? 1;
+    for (let i = 0; i < 30; i++) {
+      await nextFrame();
+      const h = pageRef.current?.offsetHeight ?? 0;
+      if (h <= CONTENT_H_PX + 4 || scale <= MIN) break;
+      scale = Math.max(MIN, +(scale - STEP).toFixed(3));
+      setPhotoScale(scale);
+    }
+    setFitting(false);
+  }
 
   function touch() {
     setSaved(false);
@@ -169,15 +212,58 @@ export function OpEdEditor({
       </div>
 
       {/* Live preview */}
-      <div className="lg:sticky lg:top-6 lg:self-start">
+      <div className="lg:sticky lg:top-6 lg:self-start" style={{ width: CONTENT_W_PX * PREVIEW_SCALE }}>
         <div className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">Preview</div>
         <div
           className="border border-zinc-300 shadow-sm overflow-hidden bg-white"
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            <PageTwo data={data} pageNumber={pageNumber} dateLabel={dateLabel} editing />
+            <div ref={pageRef}>
+              <PageTwo data={data} pageNumber={pageNumber} dateLabel={dateLabel} editing />
+            </div>
           </div>
+        </div>
+
+        {/* Overflow warning */}
+        {overflow ? (
+          <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+            ⚠ Content overflows the page by ~{Math.round((naturalHeight - CONTENT_H_PX) / 96 * 100) / 100}in.
+            It will be clipped on the printed sheet — shrink the photos or trim text.
+          </div>
+        ) : null}
+
+        {/* Photo-fit controls */}
+        <div className="mt-3 rounded border border-zinc-200 p-3 space-y-2">
+          <button
+            type="button"
+            onClick={adjustPhotosToFit}
+            disabled={fitting || !hasPhotos}
+            className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 rounded transition-colors"
+          >
+            {fitting ? 'Adjusting…' : 'Adjust photos to fit page'}
+          </button>
+          <div>
+            <label className="flex items-center justify-between text-xs text-zinc-600">
+              <span>Photo size</span>
+              <span>{Math.round(photoScale * 100)}%</span>
+            </label>
+            <input
+              type="range"
+              min={0.4}
+              max={1.8}
+              step={0.02}
+              value={photoScale}
+              onChange={(e) => setPhotoScale(Number(e.target.value))}
+              disabled={!hasPhotos}
+              className="w-full accent-brand-red"
+            />
+          </div>
+          <p className="text-[11px] text-zinc-400">
+            {hasPhotos
+              ? 'Bigger photos use more space; smaller photos free room for text. Save to keep.'
+              : 'Add a photo to the OpEd or 2nd story to use these controls.'}
+          </p>
         </div>
       </div>
     </div>

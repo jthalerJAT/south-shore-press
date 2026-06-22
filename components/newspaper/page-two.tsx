@@ -91,18 +91,19 @@ export function PageTwo({
     ? `By ${data.second.author}\n\n${data.second.text ?? ''}`
     : data.second.text ?? '';
 
+  const ps = data.photo_scale ?? 1;
   const inputs: BandInput[] = [
     {
       id: 'oped',
       type: 'story',
       data: { body: data.main.text ?? '', hero_photo_url: data.main.photo_url ?? '' },
-      story: storyLayout(4, 2, 2, 0.2, Boolean(data.main.photo_url)),
+      story: storyLayout(4, 2, 2, 0.2 * ps, Boolean(data.main.photo_url)),
     },
     {
       id: 'second',
       type: 'story',
       data: { body: secondBody, hero_photo_url: data.second.photo_url ?? '' },
-      story: storyLayout(3, 2, 1, 0.14, Boolean(data.second.photo_url)),
+      story: storyLayout(3, 2, 1, 0.14 * ps, Boolean(data.second.photo_url)),
     },
   ];
   const { computed } = useComputedBands(inputs, CONTENT_W_PX);

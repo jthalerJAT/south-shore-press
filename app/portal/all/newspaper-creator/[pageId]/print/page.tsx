@@ -13,7 +13,7 @@ import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { SectionFlag } from '@/components/newspaper/section-flag';
 import { ColophonRail, COLOPHON_RAIL_W, COLOPHON_GAP } from '@/components/newspaper/colophon-rail';
-import { CONTENT_W_PX } from '@/lib/newspaper/layout-engine';
+import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { PrintButton } from './print-button';
 import { ProofBands, type ProofItem } from './proof-bands';
 
@@ -81,6 +81,10 @@ export default async function PagePrintProof({
       </div>
 
       <div className="mx-auto bg-white my-6 p-12 shadow-sm w-fit overflow-x-auto">
+        {/* Clip to the TRUE printable area (the 10×14in text box of an 11×15
+            page). Anything past the bottom edge is cut off — exactly as it will
+            be on the printed sheet — so this proof can't mislead by stretching. */}
+        <div style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, overflow: 'hidden', position: 'relative', outline: '1px solid #e4e4e7' }}>
         {isTemplate && tid === 'full_ad' ? (
           <FullPageAd data={normalizeFullAd(page.template_data)} />
         ) : isTemplate && tid === 'oped' ? (
@@ -113,6 +117,7 @@ export default async function PagePrintProof({
             )}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

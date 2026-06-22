@@ -8,12 +8,14 @@
  * with the text wrapping around it. Shared by the editor preview, View File,
  * and the print proof.
  */
-import { CONTENT_W_PX, CONTENT_H_PX, type StoredStoryLayout } from '@/lib/newspaper/layout-engine';
+import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS, type StoredStoryLayout } from '@/lib/newspaper/layout-engine';
 import { useComputedBands, type BandInput } from '@/lib/newspaper/use-bands';
 import { adFilePublicUrl } from '@/lib/ad-files';
 import { BandRenderer } from './band-renderer';
 import { PageHeader } from './page-header';
-import type { OpEdData } from '@/lib/newspaper/oped';
+import { OPED_MAIN_COLUMNS, OPED_SECOND_COLUMNS, type OpEdData } from '@/lib/newspaper/oped';
+
+const clampCols = (n: number) => Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, Math.round(n)));
 
 const BLUE = '#1e3a8a';
 
@@ -24,6 +26,9 @@ function storyLayout(
   heightFrac: number,
   hasPhoto: boolean
 ): StoredStoryLayout {
+  // Keep the photo within the column range when the column count changes.
+  const span = Math.min(colSpan, columns);
+  const start = Math.min(colStart, columns - span + 1);
   return {
     v: 1,
     kind: 'story',
@@ -32,7 +37,7 @@ function storyLayout(
     band_height: null,
     // Nudge the photo top down to the text cap-height so it lines up straight
     // across with the byline / first line of column 1 (not the box top).
-    photo: hasPhoto ? { mode: 'column', col_start: colStart, col_span: colSpan, top: 0.004, height: heightFrac } : null,
+    photo: hasPhoto ? { mode: 'column', col_start: start, col_span: span, top: 0.004, height: heightFrac } : null,
   };
 }
 
@@ -99,18 +104,20 @@ export function PageTwo({
   const dividerGap = gap(12, 4);
   const headlineGap = gap(8, 4);
   const adGap = gap(12, 6);
+  const mainCols = clampCols(data.main.columns ?? OPED_MAIN_COLUMNS);
+  const secondCols = clampCols(data.second.columns ?? OPED_SECOND_COLUMNS);
   const inputs: BandInput[] = [
     {
       id: 'oped',
       type: 'story',
       data: { body: data.main.text ?? '', hero_photo_url: data.main.photo_url ?? '' },
-      story: storyLayout(4, 2, 2, 0.2 * ps, Boolean(data.main.photo_url)),
+      story: storyLayout(mainCols, 2, 2, 0.2 * ps, Boolean(data.main.photo_url)),
     },
     {
       id: 'second',
       type: 'story',
       data: { body: secondBody, hero_photo_url: data.second.photo_url ?? '' },
-      story: storyLayout(3, 2, 1, 0.14 * ps, Boolean(data.second.photo_url)),
+      story: storyLayout(secondCols, 2, 1, 0.14 * ps, Boolean(data.second.photo_url)),
     },
   ];
   const { computed } = useComputedBands(inputs, CONTENT_W_PX);

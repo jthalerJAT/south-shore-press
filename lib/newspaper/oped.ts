@@ -14,6 +14,8 @@ export type OpEdMain = {
   photo_url?: string;
   photo_caption?: string;
   photo_credit?: string;
+  /** Number of body columns (default 5, matching the printed paper). */
+  columns?: number;
 };
 
 export type OpEdSecond = {
@@ -24,7 +26,13 @@ export type OpEdSecond = {
   extra_photo_url?: string;
   photo_caption?: string;
   photo_credit?: string;
+  /** Number of body columns (default 4, matching the printed paper). */
+  columns?: number;
 };
+
+/** Defaults matching the 2026-06-24 printed page 2. */
+export const OPED_MAIN_COLUMNS = 5;
+export const OPED_SECOND_COLUMNS = 4;
 
 export type OpEdAd = {
   ad_id?: string;

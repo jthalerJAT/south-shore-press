@@ -3,9 +3,9 @@
 import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
+import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/newspaper/layout-engine';
 import { PageTwo } from '@/components/newspaper/page-two';
-import type { OpEdData, OpEdMain, OpEdSecond } from '@/lib/newspaper/oped';
+import { OPED_MAIN_COLUMNS, OPED_SECOND_COLUMNS, type OpEdData, type OpEdMain, type OpEdSecond } from '@/lib/newspaper/oped';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Ad } from '@/lib/queries/ads';
 import { saveOpEd, fetchStoryDetail } from '../actions';
@@ -150,6 +150,7 @@ export function OpEdEditor({
           </div>
           <HeadlineField label="Title" value={data.main.title ?? ''} onChange={(v) => setMain({ title: v })} />
           <TextArea label="Text" value={data.main.text ?? ''} onChange={(v) => setMain({ text: v })} rows={8} />
+          <ColumnsControl value={data.main.columns ?? OPED_MAIN_COLUMNS} onChange={(n) => setMain({ columns: n })} />
           <PhotoField label="Photo" value={data.main.photo_url} onChange={(v) => setMain({ photo_url: v })} onError={setError} />
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Photo caption" value={data.main.photo_caption ?? ''} onChange={(v) => setMain({ photo_caption: v })} />
@@ -163,6 +164,7 @@ export function OpEdEditor({
           <HeadlineField label="Headline" value={data.second.headline ?? ''} onChange={(v) => setSecond({ headline: v })} />
           <TextField label="Author" value={data.second.author ?? ''} onChange={(v) => setSecond({ author: v })} />
           <TextArea label="Text" value={data.second.text ?? ''} onChange={(v) => setSecond({ text: v })} rows={5} />
+          <ColumnsControl value={data.second.columns ?? OPED_SECOND_COLUMNS} onChange={(n) => setSecond({ columns: n })} />
           <PhotoField label="Photo" value={data.second.photo_url} onChange={(v) => setSecond({ photo_url: v })} onError={setError} />
           <PhotoField label="Additional photo" addLabel="+ Add Photo" value={data.second.extra_photo_url} onChange={(v) => setSecond({ extra_photo_url: v })} onError={setError} />
           <div className="grid grid-cols-2 gap-3">
@@ -351,6 +353,34 @@ function TextArea({
         onChange={(e) => onChange(e.target.value)}
         className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
       />
+    </div>
+  );
+}
+
+function ColumnsControl({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+  const v = Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, Math.round(value)));
+  return (
+    <div className="flex items-center gap-2">
+      <span className="text-sm font-medium text-zinc-700">Columns</span>
+      <div className="inline-flex items-center border border-zinc-300 rounded overflow-hidden">
+        <button
+          type="button"
+          onClick={() => onChange(Math.max(MIN_COLUMNS, v - 1))}
+          disabled={v <= MIN_COLUMNS}
+          className="px-2.5 py-1 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+        >
+          −
+        </button>
+        <span className="px-3 py-1 text-sm tabular-nums border-x border-zinc-300 min-w-[2.25rem] text-center">{v}</span>
+        <button
+          type="button"
+          onClick={() => onChange(Math.min(MAX_COLUMNS, v + 1))}
+          disabled={v >= MAX_COLUMNS}
+          className="px-2.5 py-1 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }

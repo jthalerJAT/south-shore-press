@@ -6,14 +6,17 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
+// Journalists may ADD to the library (their story photos) but not delete from it.
+const CONTRIBUTOR_ROLES = ['journalist', 'editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/owned-images';
 
 type Result = { ok: boolean; error?: string };
 
 /** Index an uploaded image in the Owned Images library. Called right after a
- *  photo is uploaded to the newspaper-images bucket (from any Photo field). */
+ *  photo is uploaded to the newspaper-images bucket (from any Photo field).
+ *  Open to journalists — they add photos to stories they're working on. */
 export async function recordOwnedImage(storagePath: string, fileName?: string): Promise<Result> {
-  const user = await requireRole([...EDITOR_ROLES], BASE);
+  const user = await requireRole([...CONTRIBUTOR_ROLES], BASE);
   const admin = createAdminClient();
   const { error } = await admin
     .from('owned_images')

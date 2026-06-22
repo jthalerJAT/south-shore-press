@@ -23,6 +23,9 @@ import { normalizeOpEd, fillOpEdFromStory, fillOpEdAd } from '@/lib/newspaper/op
 import { fillFullAdFromAd, normalizeFullAd } from '@/lib/newspaper/full-ad';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
+// Journalists can upload photos for stories they're working on (but not manage
+// the issue) — used to gate the shared image-upload action below.
+const CONTRIBUTOR_ROLES = ['journalist', 'editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/newspaper-creator';
 
 type Result = { ok: boolean; error?: string };
@@ -501,12 +504,12 @@ export async function setPageIncluded(pageId: string, included: boolean): Promis
   return { ok: true };
 }
 
-/** Editor-gated signed upload URL for an editorial photo (browser → Storage,
- *  newspaper-images bucket). */
+/** Signed upload URL for an editorial photo (browser → Storage, newspaper-images
+ *  bucket). Available to journalists too — they add photos to their own stories. */
 export async function requestImageUploadUrl(
   fileName: string
 ): Promise<{ ok: boolean; error?: string; path?: string; token?: string }> {
-  await requireRole([...EDITOR_ROLES], BASE);
+  await requireRole([...CONTRIBUTOR_ROLES], BASE);
   let admin;
   try {
     admin = createAdminClient();

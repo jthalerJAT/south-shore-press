@@ -40,13 +40,13 @@ export const DEFAULT_COLUMNS = 4;
 // Crimson Text matches the printed paper's editorial serif (loaded via
 // next/font in app/layout.tsx as --font-crimson). Falls back to Georgia.
 export const BODY_FONT_FAMILY = "var(--font-crimson), Georgia, 'Times New Roman', serif";
-// Sized to match the printed paper's body text. Crimson Text has a small
-// x-height, so it needs a larger point size than a Georgia-style face to read
-// at the same visual size.
-export const BODY_FONT_SIZE_PX = 15;
-// Tight newspaper leading (~1.13×) to match the printed paper.
-export const BODY_LINE_HEIGHT_PX = 17;
-export const PARA_SPACING_PX = 4;
+// Matched to the printed paper (measured from the 2026-06-24 issue, page 2):
+// body is Crimson Text 10.5pt with ~11pt leading — a tight ~1.05× pitch. At
+// 96dpi that's 14px / 15px. This density is what lets a full page of text +
+// photos + ad fit one sheet; bigger type/looser leading overflows.
+export const BODY_FONT_SIZE_PX = 14;
+export const BODY_LINE_HEIGHT_PX = 15;
+export const PARA_SPACING_PX = 2;
 
 /** Default embedded-photo height, as a fraction of page content height. */
 export const DEFAULT_PHOTO_HEIGHT_FRAC = 0.18;

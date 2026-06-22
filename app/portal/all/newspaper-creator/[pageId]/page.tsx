@@ -101,7 +101,10 @@ export default async function NewspaperPageEditorPage({
     );
   }
 
-  const items = await getPageItems(params.pageId);
+  const [items, editorStories] = await Promise.all([
+    getPageItems(params.pageId),
+    getAllStoriesForEditor(),
+  ]);
   const tmpl = templateFor(page.kind);
 
   return (
@@ -124,6 +127,7 @@ export default async function NewspaperPageEditorPage({
           data: it.data ?? {},
         }))}
         initialShowColophon={Boolean((page.template_data as { show_colophon?: boolean })?.show_colophon)}
+        editorStories={editorStories}
       />
     </PortalShell>
   );

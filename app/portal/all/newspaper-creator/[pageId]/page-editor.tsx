@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
+import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import { PhotoUrlField } from '../photo-url-field';
 import { HeadlineField } from '../headline-field';
-import { savePage, requestAdUploadUrl, setColophonRail, type SavedItem } from '../actions';
+import { savePage, requestAdUploadUrl, setColophonRail, fetchStoryDetail, type SavedItem } from '../actions';
 
 const ADS_BUCKET = 'newspaper-ads';
 
@@ -31,6 +32,7 @@ export function PageEditor({
   initialSectionName,
   initialItems,
   initialShowColophon = false,
+  editorStories,
 }: {
   pageId: string;
   pageTitle: string;
@@ -39,12 +41,21 @@ export function PageEditor({
   initialSectionName: string;
   initialItems: Array<Pick<EditorItem, 'type' | 'slot_key' | 'source_story_id' | 'data'>>;
   initialShowColophon?: boolean;
+  /** Website stories for the per-card "Fill from story" picker. */
+  editorStories: EditorStoryRow[];
 }) {
   const router = useRouter();
   const [sectionName, setSectionName] = useState(initialSectionName);
   const [showColophon, setShowColophon] = useState(initialShowColophon);
+  // Empty page → start with two blank article slots so the editor shows fields
+  // to fill (with "Fill from story") instead of a blank form.
   const [items, setItems] = useState<EditorItem[]>(() =>
-    initialItems.map((it) => ({ ...it, localId: newLocalId() }))
+    initialItems.length > 0
+      ? initialItems.map((it) => ({ ...it, localId: newLocalId() }))
+      : [
+          { localId: newLocalId(), type: 'story', slot_key: null, source_story_id: null, data: {} },
+          { localId: newLocalId(), type: 'story', slot_key: null, source_story_id: null, data: {} },
+        ]
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +78,28 @@ export function PageEditor({
   }
   function remove(localId: string) {
     setItems((prev) => prev.filter((it) => it.localId !== localId));
+  }
+  async function fillFromStory(localId: string, storyId: string) {
+    const d = await fetchStoryDetail(storyId);
+    if (!d) return;
+    setItems((prev) =>
+      prev.map((it) =>
+        it.localId === localId
+          ? {
+              ...it,
+              source_story_id: storyId,
+              data: {
+                ...it.data,
+                headline: d.headline,
+                byline: d.byline,
+                body: d.body,
+                hero_photo_url: d.hero_photo_url,
+              },
+            }
+          : it
+      )
+    );
+    setSaved(false);
   }
   function addStory() {
     setItems((prev) => [
@@ -159,6 +192,8 @@ export function PageEditor({
               item={it}
               index={stories.indexOf(it) + 1}
               slots={slots}
+              editorStories={editorStories}
+              onFill={fillFromStory}
               onPatch={patch}
               onSlot={setSlot}
               onRemove={remove}
@@ -286,6 +321,8 @@ function StoryCard({
   item,
   index,
   slots,
+  editorStories,
+  onFill,
   onPatch,
   onSlot,
   onRemove,
@@ -293,6 +330,8 @@ function StoryCard({
   item: EditorItem;
   index: number;
   slots: SlotDef[] | null;
+  editorStories: EditorStoryRow[];
+  onFill: (id: string, storyId: string) => void;
   onPatch: (id: string, p: Record<string, any>) => void;
   onSlot: (id: string, v: string) => void;
   onRemove: (id: string) => void;
@@ -310,6 +349,24 @@ function StoryCard({
       onRemove={() => onRemove(item.localId)}
     >
       <div className="flex flex-col gap-4">
+        <div>
+          <label className="block text-xs font-medium text-zinc-500 mb-1">Fill this slot from a website story</label>
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onFill(item.localId, e.target.value);
+              e.target.value = '';
+            }}
+            className="block w-full max-w-md rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
+          >
+            <option value="">Fill from story…</option>
+            {editorStories.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.headline.length > 70 ? s.headline.slice(0, 67) + '…' : s.headline}
+              </option>
+            ))}
+          </select>
+        </div>
         <HeadlineField label="Headline" value={d.headline ?? ''} onChange={(v) => onPatch(item.localId, { headline: v })} />
         <Field label="Deck / Subline" value={d.subline ?? ''} onChange={(v) => onPatch(item.localId, { subline: v })} />
         <Field label="Byline" value={d.byline ?? ''} onChange={(v) => onPatch(item.localId, { byline: v })} />

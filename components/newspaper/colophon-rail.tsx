@@ -8,6 +8,7 @@
  * fixed narrow column width inside an interior flow page.
  */
 import { Seagull } from './seagull';
+import { PLAN_DISPLAY } from '@/lib/stripe/plans';
 
 const SERIF = "var(--font-crimson), Georgia, 'Times New Roman', serif";
 
@@ -92,11 +93,15 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
         <p style={{ fontWeight: 700, marginTop: 3 }}>Sales Manager</p>
         <p>Fred Towle</p>
         <p style={{ fontStyle: 'italic', marginTop: 4 }}>First Copy Free. Each Additional Copy is 75¢</p>
-        <p style={{ fontWeight: 700, fontStyle: 'italic', marginTop: 3 }}>$9.00 Monthly Subscription</p>
-        <p style={{ fontWeight: 700, fontStyle: 'italic' }}>$100.00 One Year Subscription -</p>
+        <p style={{ fontWeight: 700, fontStyle: 'italic', marginTop: 3 }}>
+          ${PLAN_DISPLAY.print_monthly.amount}.00 Monthly Subscription
+        </p>
+        <p style={{ fontWeight: 700, fontStyle: 'italic' }}>
+          ${PLAN_DISPLAY.print_annual.amount}.00 One Year Subscription -
+        </p>
         <p style={{ fontStyle: 'italic' }}>(Print, Digital &amp; Newsletter)</p>
         <p style={{ fontWeight: 700, fontStyle: 'italic', marginTop: 3 }}>
-          $150.00 One Year Premium Subscription -
+          ${PLAN_DISPLAY.all_access.amount}.00 One Year Premium Subscription -
         </p>
         <p style={{ fontStyle: 'italic' }}>(ALL ACCESS - Print, Digital, Exclusive Digital &amp; Newsletter)</p>
       </div>

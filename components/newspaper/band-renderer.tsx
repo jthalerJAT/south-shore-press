@@ -50,6 +50,8 @@ export type BandRenderProps = {
 
 /** Height reserved at the bottom of the photo rect for the caption/credit row. */
 const PHOTO_CAPTION_STRIP = 16;
+/** Navy used for interior-page story headlines, matching the printed paper. */
+const HEADLINE_NAVY = '#1e3a8a';
 
 export function BandRenderer({
   type,
@@ -185,12 +187,19 @@ function StoryHeader({ data }: { data: NpStoryData }) {
         </div>
       ) : null}
 
-      <h2 className="font-headline font-bold text-zinc-900 leading-tight" style={{ fontSize: 26 }}>
+      {/* House style: navy, bold, centered headline spanning the band, with the
+          byline as a bold-italic line below (matching the printed interior pages). */}
+      <h2
+        className="font-headline font-bold leading-tight text-center"
+        style={{ fontSize: 32, color: HEADLINE_NAVY }}
+      >
         {data.headline || <span className="text-zinc-300">[Headline]</span>}
       </h2>
-      {data.subline ? <p className="text-zinc-600" style={{ fontSize: 15 }}>{data.subline}</p> : null}
+      {data.subline ? (
+        <p className="text-center text-zinc-600 italic" style={{ fontSize: 16 }}>{data.subline}</p>
+      ) : null}
       {!data.blue_flag && data.byline ? (
-        <p className="italic text-zinc-600" style={{ fontSize: 12 }}>By {data.byline}</p>
+        <p className="italic font-bold text-zinc-800 mt-1" style={{ fontSize: 14 }}>By {data.byline}</p>
       ) : null}
     </div>
   );

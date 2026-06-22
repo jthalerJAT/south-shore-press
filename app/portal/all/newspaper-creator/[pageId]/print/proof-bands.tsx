@@ -68,6 +68,8 @@ export function ProofBands({
             layoutResult={c.layoutResult}
             adHeightPx={c.adHeightPx}
             adPublicUrl={adUrl}
+            photoCaption={it.data.photo_caption}
+            photoCredit={it.data.photo_credit}
           />
         );
       })}

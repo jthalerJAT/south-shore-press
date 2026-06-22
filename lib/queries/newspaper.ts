@@ -38,6 +38,8 @@ export type NpStoryData = {
   body?: string;
   hero_photo_url?: string;
   extra_photo_urls?: string[];
+  photo_caption?: string;
+  photo_credit?: string;
   blue_flag?: boolean;
   blue_flag_section?: string;
   author_photo_url?: string;

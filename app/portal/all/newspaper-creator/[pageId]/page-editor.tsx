@@ -324,6 +324,10 @@ function StoryCard({
         </div>
 
         <Field label="Hero photo URL" value={d.hero_photo_url ?? ''} onChange={(v) => onPatch(item.localId, { hero_photo_url: v })} />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Photo Caption" value={d.photo_caption ?? ''} onChange={(v) => onPatch(item.localId, { photo_caption: v })} />
+          <Field label="Photo Credit" value={d.photo_credit ?? ''} onChange={(v) => onPatch(item.localId, { photo_credit: v })} />
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-zinc-700">Additional photos</label>

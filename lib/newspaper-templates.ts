@@ -142,25 +142,55 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
   },
 };
 
-/** The pages seeded for a fresh issue, in order. "Add New Page" inserts a
- *  `generic` page in the front-matter run (after the last generic, before
- *  Legals). */
-export const DEFAULT_PAGES: ReadonlyArray<{ kind: NpKind; title: string }> = [
+/** The pages seeded for a fresh issue, in order — mirroring the real 32-page
+ *  South Shore Press (2026-06-17 reference issue). Interior content pages are
+ *  `generic` flow pages; `section` seeds the section-flag (Section Name). Each
+ *  page's bespoke nuance (article counts, page-5 info rail, etc.) is refined
+ *  one by one. "Add New Page" still inserts a blank generic page. */
+export const DEFAULT_PAGES: ReadonlyArray<{ kind: NpKind; title: string; section?: string }> = [
   { kind: 'front', title: 'Front Page' },
-  { kind: 'page2', title: 'Page 2' },
-  { kind: 'full_page_ad', title: 'Page 3' },
-  { kind: 'legals', title: 'Legals' },
+  { kind: 'page2', title: 'Newsroom / Op-Ed' },
+  { kind: 'full_page_ad', title: 'Welcome Ad' },
+  { kind: 'generic', title: 'Op-Ed', section: 'OP-ED' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
+  { kind: 'generic', title: 'DC Insider', section: 'DC INSIDER' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'generic', title: 'History Lessons', section: 'HISTORY LESSONS' },
+  { kind: 'generic', title: 'Suffolk Closeup', section: 'SUFFOLK CLOSEUP' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'generic', title: 'Ask Nancy', section: 'ASK NANCY' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'legals', title: 'Legal Notices' },
+  { kind: 'legals', title: 'Legals / Classifieds' },
   { kind: 'classifieds', title: 'Classifieds' },
-  { kind: 'fun_times', title: 'Fun Times' },
+  { kind: 'generic', title: 'Living on Long Island', section: 'LIVING ON LONG ISLAND' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'fantasy_baseball', title: 'Fantasy Baseball' },
-  { kind: 'betting_barton', title: 'Betting With Barton' },
-  { kind: 'sports_cover', title: 'Sports Cover' },
-  { kind: 'sports', title: 'Sports' },
-  { kind: 'back', title: 'Back Page' },
+  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
+  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
+  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
+  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
+  { kind: 'sports_cover', title: 'Sports Back Cover' },
 ];
 
 export function templateFor(kind: string): NpTemplate {
   return NEWSPAPER_TEMPLATES[kind as NpKind] ?? NEWSPAPER_TEMPLATES.generic;
+}
+
+/** Board / editor heading for a page: its descriptive title, falling back to
+ *  "Page N" only for a blank/just-added generic page (title 'Page' or empty). */
+export function pageHeading(title: string | null | undefined, ordinal: number): string {
+  const t = (title ?? '').trim();
+  return !t || t === 'Page' ? `Page ${ordinal}` : t;
 }
 
 /** True if the page uses an unbounded open list of stories rather than fixed

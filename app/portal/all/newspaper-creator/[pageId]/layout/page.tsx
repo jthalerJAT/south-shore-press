@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getPages, getPage, getPageItems } from '@/lib/queries/newspaper';
+import { pageHeading } from '@/lib/newspaper-templates';
 import { LayoutEditor, type InitialItem } from './layout-editor';
 
 export const metadata: Metadata = {
@@ -27,7 +28,7 @@ export default async function NewspaperLayoutPage({
 
   const [pages, items] = await Promise.all([getPages(), getPageItems(params.pageId)]);
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
-  const displayTitle = page.kind === 'generic' ? `Page ${ordinal}` : page.title;
+  const displayTitle = pageHeading(page.title, ordinal);
 
   const initialItems: InitialItem[] = items.map((it) => ({
     id: it.id,

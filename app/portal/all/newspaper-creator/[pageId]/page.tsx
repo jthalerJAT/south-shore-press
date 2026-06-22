@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getPages, getPage, getPageItems, getIssueDate } from '@/lib/queries/newspaper';
-import { templateFor, pageMode, coverConfig, templateId } from '@/lib/newspaper-templates';
+import { templateFor, pageMode, coverConfig, templateId, pageHeading } from '@/lib/newspaper-templates';
 import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 import { getAds } from '@/lib/queries/ads';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
@@ -36,7 +36,7 @@ export default async function NewspaperPageEditorPage({
 
   const pages = await getPages();
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
-  const displayTitle = page.kind === 'generic' ? `Page ${ordinal}` : page.title;
+  const displayTitle = pageHeading(page.title, ordinal);
 
   // Template pages use a bespoke field editor; flow pages use the story-form
   // Page Editor + the Phase 2A layout engine.

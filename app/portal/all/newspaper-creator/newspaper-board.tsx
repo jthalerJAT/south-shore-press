@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { NpPage, NpItemSummary } from '@/lib/queries/newspaper';
 import type { Ad } from '@/lib/queries/ads';
-import { isMaster, ADDABLE_TEMPLATE_KINDS, type NpKind } from '@/lib/newspaper-templates';
+import { isMaster, ADDABLE_TEMPLATE_KINDS, pageHeading, type NpKind } from '@/lib/newspaper-templates';
 import {
   addStoryToPage,
   addAdToPage,
@@ -34,6 +34,7 @@ import {
   reorderPages,
   deletePage,
   resetIssueContent,
+  reseedPages,
   setPageIncluded,
 } from './actions';
 
@@ -44,7 +45,7 @@ export type LegalChip = { id: string; dateLabel: string; url: string; fileName: 
 type LeftTab = 'stories' | 'ads' | 'legals';
 
 function displayTitle(page: NpPage, ordinal: number): string {
-  return page.kind === 'generic' ? `Page ${ordinal}` : page.title;
+  return pageHeading(page.title, ordinal);
 }
 
 const STATUS_BADGE: Record<NpPage['status'], string> = {
@@ -219,6 +220,16 @@ export function NewspaperBoard({
     run(() => resetIssueContent());
   }
 
+  function handleReseed() {
+    if (
+      !confirm(
+        'Rebuild the entire page list to the standard 32-page issue? This DELETES every current page and its content and re-creates the default skeleton. This cannot be undone.'
+      )
+    )
+      return;
+    run(() => reseedPages());
+  }
+
   const pageIds = useMemo(() => order.map((p) => p.id), [order]);
 
   return (
@@ -346,6 +357,15 @@ export function NewspaperBoard({
                 className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 rounded transition-colors"
               >
                 Reset Content
+              </button>
+              <button
+                type="button"
+                onClick={handleReseed}
+                disabled={isPending}
+                title="Delete all pages and rebuild the standard 32-page issue skeleton"
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 rounded transition-colors"
+              >
+                Rebuild Pages
               </button>
               <Link
                 href="/portal/all/newspaper-creator/view"

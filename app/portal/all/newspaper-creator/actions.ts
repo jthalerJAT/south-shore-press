@@ -49,12 +49,42 @@ export async function seedDefaultPages(): Promise<Result> {
     page_order: i + 1,
     kind: p.kind,
     title: p.title,
+    section_name: p.section ?? null,
     status: 'tbd',
   }));
   const { error } = await supabase.from('np_pages').insert(rows);
   if (error) {
     console.error('[seedDefaultPages]', error);
     return { ok: false, error: 'Could not seed pages.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** Rebuild the entire page list from DEFAULT_PAGES — DESTRUCTIVE: deletes every
+ *  page and its content, then re-seeds the standard 32-page issue skeleton.
+ *  For applying a new default structure to the current working issue. */
+export async function reseedPages(): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+
+  const { error: delErr } = await supabase.from('np_pages').delete().not('id', 'is', null);
+  if (delErr) {
+    console.error('[reseedPages] delete', delErr);
+    return { ok: false, error: 'Could not clear the existing pages.' };
+  }
+
+  const rows = DEFAULT_PAGES.map((p, i) => ({
+    page_order: i + 1,
+    kind: p.kind,
+    title: p.title,
+    section_name: p.section ?? null,
+    status: 'tbd',
+  }));
+  const { error } = await supabase.from('np_pages').insert(rows);
+  if (error) {
+    console.error('[reseedPages] insert', error);
+    return { ok: false, error: 'Could not rebuild the pages.' };
   }
   revalidatePath(BASE);
   return { ok: true };

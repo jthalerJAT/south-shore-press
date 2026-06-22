@@ -7,6 +7,8 @@ import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
+import { PageHeader } from '@/components/newspaper/page-header';
+import { SectionFlag } from '@/components/newspaper/section-flag';
 import { CONTENT_W_PX } from '@/lib/newspaper/layout-engine';
 import type { NpPage } from '@/lib/queries/newspaper';
 import { ProofBands, type ProofItem } from '../../portal/all/newspaper-creator/[pageId]/print/proof-bands';
@@ -87,11 +89,13 @@ export default async function PrintIssue({
                 variant={cfg?.variant ?? 'news'}
                 mastheadWord={cfg?.mastheadWord}
               />
-            ) : r.proofItems.length > 0 ? (
+            ) : (
               <div style={{ width: CONTENT_W_PX }}>
-                <ProofBands items={r.proofItems} />
+                <PageHeader pageNumber={r.ordinal} dateLabel={issueDate} />
+                <SectionFlag label={r.page.section_name} />
+                {r.proofItems.length > 0 ? <ProofBands items={r.proofItems} /> : null}
               </div>
-            ) : null}
+            )}
           </div>
         );
       })}

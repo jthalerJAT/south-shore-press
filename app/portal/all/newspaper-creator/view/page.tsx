@@ -3,13 +3,15 @@ import Link from 'next/link';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getPages, getPageItems, getIssueDate } from '@/lib/queries/newspaper';
-import { pageMode, coverConfig, templateId } from '@/lib/newspaper-templates';
+import { pageMode, coverConfig, templateId, pageHeading } from '@/lib/newspaper-templates';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
+import { PageHeader } from '@/components/newspaper/page-header';
+import { SectionFlag } from '@/components/newspaper/section-flag';
 import { PAGE_W_PX, PAGE_H_PX, CONTENT_W_PX, MARGIN_IN, DPI } from '@/lib/newspaper/layout-engine';
 import { ProofBands, type ProofItem } from '../[pageId]/print/proof-bands';
 
@@ -62,7 +64,7 @@ export default async function NewspaperViewFile() {
       <div className="flex flex-col items-center gap-8 bg-zinc-200/60 rounded p-6">
         {rendered.map(({ page, ...r }, i) => {
           const ordinal = i + 1;
-          const title = page.kind === 'generic' ? `Page ${ordinal}` : page.title;
+          const title = pageHeading(page.title, ordinal);
           const cfg = coverConfig(page.kind);
           return (
             <div key={page.id} className="w-full flex flex-col items-center">
@@ -85,12 +87,16 @@ export default async function NewspaperViewFile() {
                         variant={cfg?.variant ?? 'news'}
                         mastheadWord={cfg?.mastheadWord}
                       />
-                    ) : (r as { proofItems: ProofItem[] }).proofItems.length > 0 ? (
-                      <div style={{ width: CONTENT_W_PX }}>
-                        <ProofBands items={(r as { proofItems: ProofItem[] }).proofItems} />
-                      </div>
                     ) : (
-                      <p className="text-sm text-zinc-300 italic">Blank page</p>
+                      <div style={{ width: CONTENT_W_PX }}>
+                        <PageHeader pageNumber={ordinal} dateLabel={issueDate} />
+                        <SectionFlag label={page.section_name} />
+                        {(r as { proofItems: ProofItem[] }).proofItems.length > 0 ? (
+                          <ProofBands items={(r as { proofItems: ProofItem[] }).proofItems} />
+                        ) : (
+                          <p className="text-sm text-zinc-300 italic">Blank page</p>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

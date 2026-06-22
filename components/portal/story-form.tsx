@@ -12,6 +12,7 @@ import {
   PRINT_ONLY_LABEL,
 } from '@/lib/site-config';
 import { StatusBadge } from './status-badge';
+import { PhotoUrlField } from '@/app/portal/all/newspaper-creator/photo-url-field';
 import { cn } from '@/lib/utils';
 
 type StoryDefaults = {
@@ -75,6 +76,9 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
   // disable the UI for clarity).
   const disabled = !canEdit ||
     (isJournalist && (status === 'published' || status === 'unpublished'));
+
+  // Hero media is controlled so the "+ Upload Photo" button can set the URL.
+  const [heroUrl, setHeroUrl] = useState(defaults?.hero_photo_url ?? '');
 
   return (
     <form action={formAction} className="flex flex-col gap-6">
@@ -253,13 +257,12 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         htmlFor="hero_photo_url"
         hint="Paste an image URL or a YouTube link (watch / shorts / youtu.be all work)."
       >
-        <input
-          id="hero_photo_url"
+        <PhotoUrlField
           name="hero_photo_url"
-          type="url"
-          defaultValue={defaults?.hero_photo_url ?? ''}
+          value={heroUrl}
+          onChange={setHeroUrl}
           disabled={disabled}
-          className="block w-full rounded border border-zinc-300 px-3 py-2 text-base focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500"
+          placeholder="Paste an image or YouTube URL, or upload →"
         />
       </Field>
 
@@ -478,16 +481,15 @@ function ExtraPhotosField({
   return (
     <div className="flex flex-col gap-2">
       {rows.map((url, idx) => (
-        <div key={idx} className="flex items-center gap-2">
-          <input
-            type="url"
-            name="extra_photo_url"
-            value={url}
-            onChange={(e) => updateRow(idx, e.target.value)}
-            disabled={disabled}
-            placeholder="https://…"
-            className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500"
-          />
+        <div key={idx} className="flex items-start gap-2">
+          <div className="flex-1">
+            <PhotoUrlField
+              name="extra_photo_url"
+              value={url}
+              onChange={(v) => updateRow(idx, v)}
+              disabled={disabled}
+            />
+          </div>
           {/* Only show Remove if there's more than one row OR the row has
               content; otherwise the lone empty row stays as a paste target. */}
           {rows.length > 1 || url ? (

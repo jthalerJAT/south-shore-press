@@ -16,6 +16,9 @@ export function PhotoUrlField({
   onChange,
   addLabel = '+ Upload Photo',
   hint,
+  name,
+  disabled,
+  placeholder = 'Paste a photo URL, or upload →',
 }: {
   /** Omit for compact rows (e.g. an additional-photos list). */
   label?: string;
@@ -23,6 +26,10 @@ export function PhotoUrlField({
   onChange: (url: string) => void;
   addLabel?: string;
   hint?: string;
+  /** Set so the input participates in a native FormData submit. */
+  name?: string;
+  disabled?: boolean;
+  placeholder?: string;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -46,10 +53,12 @@ export function PhotoUrlField({
       {label ? <label className="block text-sm font-medium text-zinc-700">{label}</label> : null}
       <div className={`flex items-center gap-2 ${label ? 'mt-1' : ''}`}>
         <input
+          name={name}
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
-          placeholder="Paste a photo URL, or upload →"
-          className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          placeholder={placeholder}
+          disabled={disabled}
+          className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500"
         />
         <input
           ref={fileRef}
@@ -61,7 +70,7 @@ export function PhotoUrlField({
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          disabled={uploading}
+          disabled={uploading || disabled}
           className="shrink-0 inline-flex items-center px-3 py-2 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
         >
           {uploading ? 'Uploading…' : addLabel}
@@ -70,7 +79,17 @@ export function PhotoUrlField({
       {value ? (
         <div className="mt-2 flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={value} alt="" className="w-16 h-16 object-cover bg-zinc-100 rounded border border-zinc-200" />
+          {/* key=value remounts on change so a previously-failed (e.g. YouTube)
+              thumbnail re-tries; onError hides non-image URLs gracefully. */}
+          <img
+            key={value}
+            src={value}
+            alt=""
+            onError={(e) => {
+              e.currentTarget.style.display = 'none';
+            }}
+            className="w-16 h-16 object-cover bg-zinc-100 rounded border border-zinc-200"
+          />
           <button type="button" onClick={() => onChange('')} className="text-xs text-red-600 hover:underline">
             remove
           </button>

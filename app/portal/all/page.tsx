@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, ArrowRight } from 'lucide-react';
+import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 
@@ -74,6 +74,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Manage advertisers, ad copy, and scheduled print runs with invoiced / paid tracking.',
       icon: Megaphone,
+    },
+    {
+      href: '/portal/all/owned-images',
+      title: 'Owned Images',
+      description:
+        'Every proprietary photo uploaded through the editor, newest first — reuse or delete them.',
+      icon: ImageIcon,
     },
   ];
 

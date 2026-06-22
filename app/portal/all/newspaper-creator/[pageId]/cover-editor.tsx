@@ -13,6 +13,7 @@ import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import type { SectionCoverData, CoverTile, CoverHero } from '@/lib/newspaper/section-cover';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
+import { PhotoUrlField } from '../photo-url-field';
 import { saveCover } from '../actions';
 
 const PREVIEW_SCALE = 0.4;
@@ -98,7 +99,7 @@ export function CoverEditor({
           <StoryPicker stories={stories} onPick={(id) => { const f = fromStory(id); if (f) setHero({ headline: f.headline, photo_url: f.photo_url, credit: f.credit }); }} />
           <TextField label="Headline" value={data.hero.headline ?? ''} onChange={(v) => setHero({ headline: v })} />
           <TextField label="Sub-headline" value={data.hero.subhead ?? ''} onChange={(v) => setHero({ subhead: v })} />
-          <TextField label="Photo URL" value={data.hero.photo_url ?? ''} onChange={(v) => setHero({ photo_url: v })} />
+          <PhotoUrlField label="Photo URL" value={data.hero.photo_url} onChange={(v) => setHero({ photo_url: v })} />
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Photo credit" value={data.hero.credit ?? ''} onChange={(v) => setHero({ credit: v })} />
             <TextField label="Story on page" value={data.hero.page_ref ?? ''} onChange={(v) => setHero({ page_ref: v })} placeholder="5" />
@@ -133,7 +134,7 @@ export function CoverEditor({
                 <TextField label="Story on page" value={t.page_ref ?? ''} onChange={(v) => setTile(i, { page_ref: v })} />
               </div>
               <TextField label="Headline" value={t.headline ?? ''} onChange={(v) => setTile(i, { headline: v })} />
-              <TextField label="Photo URL" value={t.photo_url ?? ''} onChange={(v) => setTile(i, { photo_url: v })} />
+              <PhotoUrlField label="Photo URL" value={t.photo_url} onChange={(v) => setTile(i, { photo_url: v })} />
               <TextField label="Credit" value={t.credit ?? ''} onChange={(v) => setTile(i, { credit: v })} />
             </div>
           ))}

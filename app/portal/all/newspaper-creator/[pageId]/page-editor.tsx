@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
+import { PhotoUrlField } from '../photo-url-field';
 import { savePage, requestAdUploadUrl, setColophonRail, type SavedItem } from '../actions';
 
 const ADS_BUCKET = 'newspaper-ads';
@@ -323,7 +324,7 @@ function StoryCard({
           <p className="mt-1 text-xs text-zinc-400">{wordCount} words</p>
         </div>
 
-        <Field label="Hero photo URL" value={d.hero_photo_url ?? ''} onChange={(v) => onPatch(item.localId, { hero_photo_url: v })} />
+        <PhotoUrlField label="Hero Photo URL" value={d.hero_photo_url} onChange={(v) => onPatch(item.localId, { hero_photo_url: v })} />
         <div className="grid grid-cols-2 gap-3">
           <Field label="Photo Caption" value={d.photo_caption ?? ''} onChange={(v) => onPatch(item.localId, { photo_caption: v })} />
           <Field label="Photo Credit" value={d.photo_credit ?? ''} onChange={(v) => onPatch(item.localId, { photo_credit: v })} />
@@ -331,22 +332,23 @@ function StoryCard({
 
         <div>
           <label className="block text-sm font-medium text-zinc-700">Additional photos</label>
-          <div className="mt-1 flex flex-col gap-2">
+          <div className="mt-1 flex flex-col gap-3">
             {extra.map((url, i) => (
-              <div key={i} className="flex gap-2">
-                <input
-                  value={url}
-                  onChange={(e) => {
-                    const next = [...extra];
-                    next[i] = e.target.value;
-                    onPatch(item.localId, { extra_photo_urls: next });
-                  }}
-                  className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
-                />
+              <div key={i} className="flex gap-2 items-start">
+                <div className="flex-1">
+                  <PhotoUrlField
+                    value={url}
+                    onChange={(v) => {
+                      const next = [...extra];
+                      next[i] = v;
+                      onPatch(item.localId, { extra_photo_urls: next });
+                    }}
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => onPatch(item.localId, { extra_photo_urls: extra.filter((_, j) => j !== i) })}
-                  className="px-2 text-zinc-400 hover:text-red-600"
+                  className="px-2 py-2 text-zinc-400 hover:text-red-600"
                 >
                   ×
                 </button>
@@ -380,9 +382,9 @@ function StoryCard({
               onChange={(v) => onPatch(item.localId, { blue_flag_section: v })}
               hint="e.g. NEWSROOM, CONGRESSIONAL CORNER (may be blank)"
             />
-            <Field
-              label="Author photo URL"
-              value={d.author_photo_url ?? ''}
+            <PhotoUrlField
+              label="Author Photo URL"
+              value={d.author_photo_url}
               onChange={(v) => onPatch(item.localId, { author_photo_url: v })}
             />
           </div>

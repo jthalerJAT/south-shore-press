@@ -232,7 +232,7 @@ function AdBand({
       </div>
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={data.file_name ?? 'Advertisement'} className="border border-zinc-200" style={{ width, height, objectFit: 'contain' }} />
+        <img src={src} alt={data.file_name ?? 'Advertisement'} className="border border-zinc-200" style={{ width, height, objectFit: 'fill', display: 'block' }} />
       ) : (
         <div
           className="border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400"

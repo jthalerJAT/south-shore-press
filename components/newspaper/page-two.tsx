@@ -171,16 +171,22 @@ export function PageTwo({
       </section>
 
       {/* ── Bottom Ad ─────────────────────────────────────── */}
+      {/* The ad fills the entire remaining bottom rectangle (no letterboxing):
+          the section grows to fill the page, and the creative stretches to it. */}
       {adUrl ? (
-        <section className="mt-auto">
-          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px' }} />
+        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: 16 }}>
+          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px', flexShrink: 0 }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={adUrl} alt={data.bottom_ad?.file_name ?? ''} style={{ width: '100%', maxHeight: 280, objectFit: 'contain' }} />
+          <img
+            src={adUrl}
+            alt={data.bottom_ad?.file_name ?? ''}
+            style={{ width: '100%', flex: '1 1 0%', minHeight: 0, objectFit: 'fill', display: 'block' }}
+          />
         </section>
       ) : editing ? (
-        <section className="mt-auto">
-          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px' }} />
-          <div className="w-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400" style={{ height: 160 }}>
+        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: 16 }}>
+          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px', flexShrink: 0 }} />
+          <div className="w-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400" style={{ flex: '1 1 0%', minHeight: 0 }}>
             Bottom Ad slot (editor only)
           </div>
         </section>

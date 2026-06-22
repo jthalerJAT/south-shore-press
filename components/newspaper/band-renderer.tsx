@@ -96,13 +96,18 @@ export function BandRenderer({
             {run.text
               ? run.text.split('\n\n').map((p, j) => {
                   const isByline = bylineLead && i === 0 && j === 0;
+                  // First chunk of a run is a paragraph CONTINUATION (no indent)
+                  // unless the run starts a fresh paragraph. Later chunks (after
+                  // a blank line within the run) are always new paragraphs.
+                  const isContinuation = j === 0 && !run.startsParagraph;
+                  const indent = !isByline && !isContinuation;
                   return (
                     <p
                       key={j}
                       style={
                         isByline
                           ? { margin: '0 0 6px', textIndent: 0, fontWeight: 700, fontStyle: 'italic', fontSize: 16 }
-                          : { margin: 0, textIndent: '1.2em' }
+                          : { margin: 0, textIndent: indent ? '1.2em' : 0 }
                       }
                     >
                       {p}

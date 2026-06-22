@@ -210,7 +210,15 @@ export function normalizeAdLayout(
 export type ColumnRect = { x: number; w: number };
 export type PhotoRectPx = { left: number; top: number; width: number; height: number; colStart0: number; colSpan: number };
 export type ColumnRun = { colIdx: number; topPx: number; heightPx: number };
-export type RunSlice = ColumnRun & { x: number; w: number; text: string };
+export type RunSlice = ColumnRun & {
+  x: number;
+  w: number;
+  text: string;
+  /** True if this run begins at a paragraph boundary (so its first line should
+   *  be indented). False when it continues a paragraph from the previous column
+   *  — those continuations must NOT be indented. */
+  startsParagraph: boolean;
+};
 
 export type BandGeometry = {
   /** Band width in px (full-width bands == CONTENT_W_PX). */
@@ -349,8 +357,12 @@ export function layoutBand(body: string | undefined, geo: BandGeometry, measurer
 
   for (const run of runs) {
     const rect = rects[run.colIdx];
+    // Does this run start a fresh paragraph, or continue one from the previous
+    // column? (Continuations must not be indented.)
+    const startsParagraph =
+      cursor === 0 || cursor >= total || parsed.words[cursor].p !== parsed.words[cursor - 1].p;
     if (cursor >= total) {
-      out.push({ ...run, x: rect.x, w: rect.w, text: '' });
+      out.push({ ...run, x: rect.x, w: rect.w, text: '', startsParagraph });
       continue;
     }
     // Binary search the largest end (cursor..total] that fits run height.
@@ -372,7 +384,7 @@ export function layoutBand(body: string | undefined, geo: BandGeometry, measurer
       }
     }
     const text = sliceToParas(parsed.words, cursor, best).join('\n\n');
-    out.push({ ...run, x: rect.x, w: rect.w, text });
+    out.push({ ...run, x: rect.x, w: rect.w, text, startsParagraph });
     cursor = best;
   }
 

@@ -50,6 +50,7 @@ export async function seedDefaultPages(): Promise<Result> {
     kind: p.kind,
     title: p.title,
     section_name: p.section ?? null,
+    template_data: p.colophon ? { show_colophon: true } : {},
     status: 'tbd',
   }));
   const { error } = await supabase.from('np_pages').insert(rows);
@@ -79,6 +80,7 @@ export async function reseedPages(): Promise<Result> {
     kind: p.kind,
     title: p.title,
     section_name: p.section ?? null,
+    template_data: p.colophon ? { show_colophon: true } : {},
     status: 'tbd',
   }));
   const { error } = await supabase.from('np_pages').insert(rows);

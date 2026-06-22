@@ -147,12 +147,18 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
  *  `generic` flow pages; `section` seeds the section-flag (Section Name). Each
  *  page's bespoke nuance (article counts, page-5 info rail, etc.) is refined
  *  one by one. "Add New Page" still inserts a blank generic page. */
-export const DEFAULT_PAGES: ReadonlyArray<{ kind: NpKind; title: string; section?: string }> = [
+export const DEFAULT_PAGES: ReadonlyArray<{
+  kind: NpKind;
+  title: string;
+  section?: string;
+  /** Seed the publication-info colophon rail on this page (page 5 in the ref). */
+  colophon?: boolean;
+}> = [
   { kind: 'front', title: 'Front Page' },
   { kind: 'page2', title: 'Newsroom / Op-Ed' },
   { kind: 'full_page_ad', title: 'Welcome Ad' },
   { kind: 'generic', title: 'Op-Ed', section: 'OP-ED' },
-  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL', colophon: true },
   { kind: 'generic', title: 'Local News', section: 'LOCAL' },
   { kind: 'generic', title: 'DC Insider', section: 'DC INSIDER' },
   { kind: 'generic', title: 'Local News', section: 'LOCAL' },

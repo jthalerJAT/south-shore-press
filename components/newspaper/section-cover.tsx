@@ -12,6 +12,11 @@ import type { SectionCoverData, CoverTile } from '@/lib/newspaper/section-cover'
 const NAVY = '#0b2a4a';
 const SSP_BLUE = '#1559b0';
 
+// The printed front page's display faces: Impact (hero) → Anton; Oswald Bold
+// (sub-headline, section tabs, tile headlines, page-ref). Newspaper only.
+const DISPLAY_FONT = "var(--font-news-display), Impact, 'Arial Narrow', sans-serif";
+const CONDENSED_FONT = "var(--font-news-condensed), 'Arial Narrow', sans-serif";
+
 const outlinedHeadline: CSSProperties = {
   color: '#fff',
   WebkitTextStroke: '2px #000',
@@ -92,12 +97,12 @@ export function SectionCover({
 
         <div className="absolute left-0 right-0 bottom-0 p-3">
           {data.hero.headline ? (
-            <div className="font-headline" style={{ ...outlinedHeadline, fontSize: 84 }}>
+            <div style={{ ...outlinedHeadline, fontFamily: DISPLAY_FONT, fontSize: 88 }}>
               {data.hero.headline}
             </div>
           ) : null}
           {data.hero.subhead ? (
-            <div className="font-headline" style={{ color: '#fff', textShadow: '1px 1px 0 #000', fontWeight: 800, fontSize: 30, marginTop: 4 }}>
+            <div style={{ fontFamily: CONDENSED_FONT, color: '#fff', textShadow: '1px 1px 0 #000', fontWeight: 700, fontSize: 30, marginTop: 4 }}>
               {data.hero.subhead}
             </div>
           ) : null}
@@ -110,8 +115,8 @@ export function SectionCover({
 
         {data.hero.page_ref ? (
           <div
-            className="absolute bottom-0 right-0 font-headline"
-            style={{ background: 'var(--brand-red, #c8102e)', color: '#fff', fontWeight: 800, fontSize: 26, padding: '4px 16px' }}
+            className="absolute bottom-0 right-0"
+            style={{ fontFamily: CONDENSED_FONT, background: 'var(--brand-red, #c8102e)', color: '#fff', fontWeight: 700, fontSize: 26, padding: '4px 16px' }}
           >
             PAGE {data.hero.page_ref}
           </div>
@@ -168,7 +173,7 @@ function Tile({ tile }: { tile: CoverTile }) {
       {tile.section_label ? (
         <span
           className="absolute top-1 left-1"
-          style={{ background: NAVY, color: '#fff', fontSize: 11, fontWeight: 800, letterSpacing: '0.05em', padding: '2px 8px', transform: 'skewX(-10deg)' }}
+          style={{ fontFamily: CONDENSED_FONT, background: NAVY, color: '#fff', fontSize: 12, fontWeight: 700, letterSpacing: '0.05em', padding: '2px 8px', transform: 'skewX(-10deg)' }}
         >
           <span style={{ display: 'inline-block', transform: 'skewX(10deg)' }}>{tile.section_label}</span>
         </span>
@@ -176,7 +181,7 @@ function Tile({ tile }: { tile: CoverTile }) {
 
       {/* Headline above credit, bottom-left */}
       <div className="absolute left-2 bottom-1" style={{ right: 80 }}>
-        <div className="font-headline" style={{ color: '#fff', fontWeight: 800, fontSize: 18, lineHeight: 1.02, textShadow: '1px 1px 2px #000' }}>
+        <div style={{ fontFamily: CONDENSED_FONT, color: '#fff', fontWeight: 700, fontSize: 19, lineHeight: 1.02, textShadow: '1px 1px 2px #000' }}>
           {tile.headline || <span style={{ opacity: 0.6 }}>Headline</span>}
         </div>
         {tile.credit ? (

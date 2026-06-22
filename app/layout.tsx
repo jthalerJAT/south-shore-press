@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Source_Sans_3, Crimson_Text, Montserrat } from 'next/font/google';
+import { Playfair_Display, Source_Sans_3, Crimson_Text, Montserrat, Anton, Oswald } from 'next/font/google';
 import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
 import { SiteFooter } from '@/components/site/site-footer';
@@ -41,6 +41,24 @@ const newsHeadline = Montserrat({
   subsets: ['latin'],
   weight: ['600', '700', '800'],
   variable: '--font-news-headline',
+  display: 'swap',
+});
+
+// Front-page DISPLAY headline. The printed paper's hero headline is Impact;
+// Anton is the standard free match (tall, heavy condensed). Newspaper only.
+const newsDisplay = Anton({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-news-display',
+  display: 'swap',
+});
+
+// Oswald — the paper's condensed bold for sub-headlines, section tabs, and
+// front-page tile headlines (exact match to the PDF). Newspaper only.
+const newsCondensed = Oswald({
+  subsets: ['latin'],
+  weight: ['500', '600', '700'],
+  variable: '--font-news-condensed',
   display: 'swap',
 });
 
@@ -95,7 +113,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable} ${newsHeadline.variable}`}
+      className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable} ${newsHeadline.variable} ${newsDisplay.variable} ${newsCondensed.variable}`}
     >
       <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900 font-sans">
         <GlobalJsonLd />

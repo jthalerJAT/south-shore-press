@@ -92,6 +92,13 @@ export function PageTwo({
     : data.second.text ?? '';
 
   const ps = data.photo_scale ?? 1;
+  // Vertical spacing lever: scale the inter-article gaps, never below a floor.
+  const ss = data.space_scale ?? 1;
+  const gap = (base: number, min: number) => Math.max(min, Math.round(base * ss));
+  const flagGap = gap(16, 8);
+  const dividerGap = gap(12, 4);
+  const headlineGap = gap(8, 4);
+  const adGap = gap(12, 6);
   const inputs: BandInput[] = [
     {
       id: 'oped',
@@ -122,7 +129,7 @@ export function PageTwo({
       {/* ── Main OpEd ─────────────────────────────────────── */}
       <section>
         {/* Headline sits beside the blue flag */}
-        <div className="flex items-center gap-6" style={{ marginBottom: 22 }}>
+        <div className="flex items-center gap-6" style={{ marginBottom: flagGap }}>
           <BlueFlag columnName={data.main.column_name} author={data.main.author} photoUrl={data.main.author_photo_url} />
           <h2
             className="text-center"
@@ -144,11 +151,11 @@ export function PageTwo({
         ) : null}
       </section>
 
-      <div style={{ borderTop: '1px solid #000', margin: '16px 0' }} />
+      <div style={{ borderTop: '1px solid #000', margin: `${dividerGap}px 0` }} />
 
       {/* ── Second Story ──────────────────────────────────── */}
       <section>
-        <h3 className="text-center" style={{ fontFamily: "var(--font-news-headline), 'Helvetica Neue', Arial, sans-serif", fontSize: 34, fontWeight: 800, lineHeight: 1.03, color: BLUE, marginBottom: 10, whiteSpace: 'pre-line' }}>
+        <h3 className="text-center" style={{ fontFamily: "var(--font-news-headline), 'Helvetica Neue', Arial, sans-serif", fontSize: 34, fontWeight: 800, lineHeight: 1.03, color: BLUE, marginBottom: headlineGap, whiteSpace: 'pre-line' }}>
           {data.second.headline || <span style={{ color: '#d4d4d8' }}>[Second Story Headline]</span>}
         </h3>
         {second ? (
@@ -175,8 +182,8 @@ export function PageTwo({
       {/* The ad fills the entire remaining bottom rectangle (no letterboxing):
           the section grows to fill the page, and the creative stretches to it. */}
       {adUrl ? (
-        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: 16 }}>
-          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px', flexShrink: 0 }} />
+        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: adGap }}>
+          <div style={{ borderTop: `3px solid ${BLUE}`, margin: `0 0 ${adGap}px`, flexShrink: 0 }} />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={adUrl}
@@ -185,8 +192,8 @@ export function PageTwo({
           />
         </section>
       ) : editing ? (
-        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: 16 }}>
-          <div style={{ borderTop: `3px solid ${BLUE}`, margin: '0 0 12px', flexShrink: 0 }} />
+        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: adGap }}>
+          <div style={{ borderTop: `3px solid ${BLUE}`, margin: `0 0 ${adGap}px`, flexShrink: 0 }} />
           <div className="w-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400" style={{ flex: '1 1 0%', minHeight: 0 }}>
             Bottom Ad slot (editor only)
           </div>

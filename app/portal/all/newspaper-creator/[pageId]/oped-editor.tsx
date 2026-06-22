@@ -41,6 +41,7 @@ export function OpEdEditor({
   const [fitting, setFitting] = useState(false);
   const overflow = naturalHeight > CONTENT_H_PX + 4;
   const photoScale = data.photo_scale ?? 1;
+  const spaceScale = data.space_scale ?? 1;
   const hasPhotos = Boolean(data.main.photo_url || data.second.photo_url);
 
   useEffect(() => {
@@ -57,23 +58,36 @@ export function OpEdEditor({
     touch();
     setData((d) => ({ ...d, photo_scale: v }));
   }
+  function setSpaceScale(v: number) {
+    touch();
+    setData((d) => ({ ...d, space_scale: v }));
+  }
 
-  // Shrink the photos step by step until the page fits one sheet (the bottom ad
-  // is flex-fill, so it soaks up any slack — only overflow needs fixing).
-  async function adjustPhotosToFit() {
-    if (!hasPhotos) return;
+  // Make the page fit one sheet: tighten the spacing first (down to a floor),
+  // then shrink the photos if it still overflows. The bottom ad is flex-fill,
+  // so it soaks up any slack — only overflow needs fixing.
+  async function adjustToFit() {
     setFitting(true);
-    const MIN = 0.4;
-    const STEP = 0.04;
+    const MIN_SPACE = 0.3;
+    const MIN_PHOTO = 0.4;
+    const STEP = 0.06;
     const nextFrame = () =>
       new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-    let scale = data.photo_scale ?? 1;
-    for (let i = 0; i < 30; i++) {
+    let space = data.space_scale ?? 1;
+    let photo = data.photo_scale ?? 1;
+    for (let i = 0; i < 50; i++) {
       await nextFrame();
       const h = pageRef.current?.offsetHeight ?? 0;
-      if (h <= CONTENT_H_PX + 4 || scale <= MIN) break;
-      scale = Math.max(MIN, +(scale - STEP).toFixed(3));
-      setPhotoScale(scale);
+      if (h <= CONTENT_H_PX + 4) break;
+      if (space > MIN_SPACE) {
+        space = Math.max(MIN_SPACE, +(space - STEP).toFixed(3));
+        setSpaceScale(space);
+      } else if (hasPhotos && photo > MIN_PHOTO) {
+        photo = Math.max(MIN_PHOTO, +(photo - STEP).toFixed(3));
+        setPhotoScale(photo);
+      } else {
+        break;
+      }
     }
     setFitting(false);
   }
@@ -233,16 +247,31 @@ export function OpEdEditor({
           </div>
         ) : null}
 
-        {/* Photo-fit controls */}
-        <div className="mt-3 rounded border border-zinc-200 p-3 space-y-2">
+        {/* Fit controls */}
+        <div className="mt-3 rounded border border-zinc-200 p-3 space-y-3">
           <button
             type="button"
-            onClick={adjustPhotosToFit}
-            disabled={fitting || !hasPhotos}
+            onClick={adjustToFit}
+            disabled={fitting}
             className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 rounded transition-colors"
           >
-            {fitting ? 'Adjusting…' : 'Adjust photos to fit page'}
+            {fitting ? 'Adjusting…' : 'Adjust to fit page'}
           </button>
+          <div>
+            <label className="flex items-center justify-between text-xs text-zinc-600">
+              <span>Article spacing</span>
+              <span>{Math.round(spaceScale * 100)}%</span>
+            </label>
+            <input
+              type="range"
+              min={0.3}
+              max={1.6}
+              step={0.05}
+              value={spaceScale}
+              onChange={(e) => setSpaceScale(Number(e.target.value))}
+              className="w-full accent-brand-red"
+            />
+          </div>
           <div>
             <label className="flex items-center justify-between text-xs text-zinc-600">
               <span>Photo size</span>
@@ -256,13 +285,12 @@ export function OpEdEditor({
               value={photoScale}
               onChange={(e) => setPhotoScale(Number(e.target.value))}
               disabled={!hasPhotos}
-              className="w-full accent-brand-red"
+              className="w-full accent-brand-red disabled:opacity-50"
             />
           </div>
           <p className="text-[11px] text-zinc-400">
-            {hasPhotos
-              ? 'Bigger photos use more space; smaller photos free room for text. Save to keep.'
-              : 'Add a photo to the OpEd or 2nd story to use these controls.'}
+            “Adjust to fit” tightens spacing first, then shrinks photos. Or use the sliders manually.
+            Save to keep.
           </p>
         </div>
       </div>

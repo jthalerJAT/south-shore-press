@@ -38,13 +38,16 @@ export type OpEdData = {
   second: OpEdSecond;
   bottom_ad: OpEdAd;
   /** Multiplier on the embedded photo heights (1 = default). Used by the
-   *  "adjust photos to fit page" control to shrink/grow photos so the page fits
-   *  on one sheet. */
+   *  "adjust to fit page" control to shrink/grow photos so the page fits. */
   photo_scale?: number;
+  /** Multiplier on the vertical spacing between articles (1 = default; a floor
+   *  keeps a minimum gap). The other "fit the page" lever, applied before
+   *  shrinking photos. */
+  space_scale?: number;
 };
 
 export function defaultOpEd(): OpEdData {
-  return { v: 1, main: { column_name: 'NEWSROOM' }, second: {}, bottom_ad: null, photo_scale: 1 };
+  return { v: 1, main: { column_name: 'NEWSROOM' }, second: {}, bottom_ad: null, photo_scale: 1, space_scale: 1 };
 }
 
 export function normalizeOpEd(raw: unknown): OpEdData {
@@ -57,6 +60,7 @@ export function normalizeOpEd(raw: unknown): OpEdData {
     second: { ...base.second, ...(r.second ?? {}) },
     bottom_ad: r.bottom_ad ?? null,
     photo_scale: typeof r.photo_scale === 'number' && r.photo_scale > 0 ? r.photo_scale : 1,
+    space_scale: typeof r.space_scale === 'number' && r.space_scale > 0 ? r.space_scale : 1,
   };
 }
 

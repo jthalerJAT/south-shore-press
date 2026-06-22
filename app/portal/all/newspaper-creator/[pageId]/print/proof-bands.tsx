@@ -39,16 +39,23 @@ export function ProofBands({
 }) {
   const inputs: BandInput[] = useMemo(
     () =>
-      items.map((it, i) => ({
-        id: it.id,
-        type: it.type,
-        data: it.data,
-        story:
-          it.type === 'story'
-            ? normalizeStoryLayout(it.layout, i, Boolean(it.data.hero_photo_url))
-            : undefined,
-        ad: it.type === 'ad' ? normalizeAdLayout(it.layout, i, it.data.ad_size ?? 'quarter') : undefined,
-      })),
+      items.map((it, i) => {
+        // House style: the byline is the first line of column 1, top-aligned
+        // with the other columns + the photo. Fold "By …" into the flowed body
+        // so the engine measures + places it there (BandRenderer styles it).
+        const byline = it.type === 'story' ? (it.data.byline ?? '').trim() : '';
+        const body = byline ? `By ${byline}\n\n${it.data.body ?? ''}` : it.data.body ?? '';
+        return {
+          id: it.id,
+          type: it.type,
+          data: { ...it.data, body },
+          story:
+            it.type === 'story'
+              ? normalizeStoryLayout(it.layout, i, Boolean(it.data.hero_photo_url))
+              : undefined,
+          ad: it.type === 'ad' ? normalizeAdLayout(it.layout, i, it.data.ad_size ?? 'quarter') : undefined,
+        };
+      }),
     [items]
   );
   const { computed } = useComputedBands(inputs, contentWidthPx);
@@ -68,6 +75,7 @@ export function ProofBands({
             layoutResult={c.layoutResult}
             adHeightPx={c.adHeightPx}
             adPublicUrl={adUrl}
+            bylineLead={it.type === 'story' && Boolean((it.data.byline ?? '').trim())}
             photoCaption={it.data.photo_caption}
             photoCredit={it.data.photo_credit}
           />

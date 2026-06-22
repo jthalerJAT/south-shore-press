@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Source_Sans_3, Crimson_Text } from 'next/font/google';
+import { Playfair_Display, Source_Sans_3, Crimson_Text, Montserrat } from 'next/font/google';
 import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
 import { SiteFooter } from '@/components/site/site-footer';
@@ -30,6 +30,17 @@ const crimson = Crimson_Text({
   weight: ['400', '600', '700'],
   style: ['normal', 'italic'],
   variable: '--font-crimson',
+  display: 'swap',
+});
+
+// Montserrat — the geometric sans the PRINTED paper uses for headlines
+// (Proxima Nova Bold in the source PDF; Montserrat is its standard free
+// substitute). Used ONLY by the Newspaper Creator renderers, NOT the website,
+// whose headlines stay Playfair (--font-playfair / font-headline).
+const newsHeadline = Montserrat({
+  subsets: ['latin'],
+  weight: ['600', '700', '800'],
+  variable: '--font-news-headline',
   display: 'swap',
 });
 
@@ -84,7 +95,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable}`}
+      className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable} ${newsHeadline.variable}`}
     >
       <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900 font-sans">
         <GlobalJsonLd />

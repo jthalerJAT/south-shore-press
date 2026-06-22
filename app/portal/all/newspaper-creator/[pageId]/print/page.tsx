@@ -12,6 +12,7 @@ import { PageTwo } from '@/components/newspaper/page-two';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { SectionFlag } from '@/components/newspaper/section-flag';
+import { ColophonRail, COLOPHON_RAIL_W, COLOPHON_GAP } from '@/components/newspaper/colophon-rail';
 import { CONTENT_W_PX } from '@/lib/newspaper/layout-engine';
 import { PrintButton } from './print-button';
 import { ProofBands, type ProofItem } from './proof-bands';
@@ -94,7 +95,18 @@ export default async function PagePrintProof({
           <div style={{ width: CONTENT_W_PX }}>
             <PageHeader pageNumber={ordinal} dateLabel={issueDate} />
             <SectionFlag label={page.section_name} />
-            {proofItems.length === 0 ? (
+            {(page.template_data as { show_colophon?: boolean })?.show_colophon ? (
+              <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
+                <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
+                  {proofItems.length > 0 ? (
+                    <ProofBands items={proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} />
+                  ) : (
+                    <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
+                  )}
+                </div>
+                <ColophonRail width={COLOPHON_RAIL_W} />
+              </div>
+            ) : proofItems.length === 0 ? (
               <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
             ) : (
               <ProofBands items={proofItems} />

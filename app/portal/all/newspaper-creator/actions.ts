@@ -459,6 +459,30 @@ export async function saveCover(
   return { ok: true };
 }
 
+/** Toggle the standing publication-info rail (colophon) on a flow page. Stored
+ *  in the page's template_data so flow pages need no extra column. */
+export async function setColophonRail(pageId: string, show: boolean): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { data: page } = await supabase
+    .from('np_pages')
+    .select('template_data')
+    .eq('id', pageId)
+    .maybeSingle();
+  const td = { ...((page?.template_data as Record<string, unknown>) ?? {}), show_colophon: show };
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: td, updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[setColophonRail]', error);
+    return { ok: false, error: 'Could not update the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
 /** Toggle whether a page is included in the printed issue. */
 export async function setPageIncluded(pageId: string, included: boolean): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);

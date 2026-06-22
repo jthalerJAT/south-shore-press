@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
-import { savePage, requestAdUploadUrl, type SavedItem } from '../actions';
+import { savePage, requestAdUploadUrl, setColophonRail, type SavedItem } from '../actions';
 
 const ADS_BUCKET = 'newspaper-ads';
 
@@ -28,6 +28,7 @@ export function PageEditor({
   slots,
   initialSectionName,
   initialItems,
+  initialShowColophon = false,
 }: {
   pageId: string;
   pageTitle: string;
@@ -35,9 +36,11 @@ export function PageEditor({
   slots: SlotDef[] | null;
   initialSectionName: string;
   initialItems: Array<Pick<EditorItem, 'type' | 'slot_key' | 'source_story_id' | 'data'>>;
+  initialShowColophon?: boolean;
 }) {
   const router = useRouter();
   const [sectionName, setSectionName] = useState(initialSectionName);
+  const [showColophon, setShowColophon] = useState(initialShowColophon);
   const [items, setItems] = useState<EditorItem[]>(() =>
     initialItems.map((it) => ({ ...it, localId: newLocalId() }))
   );
@@ -128,6 +131,22 @@ export function PageEditor({
           }}
           className="mt-1 block w-full max-w-md rounded border border-zinc-300 px-3 py-2 text-base focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
         />
+      </div>
+
+      <div className="mt-4">
+        <label className="inline-flex items-center gap-2 text-sm text-zinc-700">
+          <input
+            type="checkbox"
+            checked={showColophon}
+            onChange={(e) => {
+              const v = e.target.checked;
+              setShowColophon(v);
+              setColophonRail(pageId, v);
+            }}
+            className="h-4 w-4 rounded border-zinc-300 text-brand-red focus:ring-brand-red"
+          />
+          Show the publication-info rail (masthead / staff / subscriptions) down the right side
+        </label>
       </div>
 
       <div className="mt-8 space-y-6">

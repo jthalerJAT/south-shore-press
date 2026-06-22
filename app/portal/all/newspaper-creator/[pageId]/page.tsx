@@ -123,6 +123,7 @@ export default async function NewspaperPageEditorPage({
           source_story_id: it.source_story_id,
           data: it.data ?? {},
         }))}
+        initialShowColophon={Boolean((page.template_data as { show_colophon?: boolean })?.show_colophon)}
       />
     </PortalShell>
   );

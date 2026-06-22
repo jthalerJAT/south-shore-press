@@ -29,7 +29,14 @@ export type ProofItem = {
   layout: Record<string, unknown>;
 };
 
-export function ProofBands({ items }: { items: ProofItem[] }) {
+export function ProofBands({
+  items,
+  contentWidthPx = CONTENT_W_PX,
+}: {
+  items: ProofItem[];
+  /** Render width for the bands — narrowed when a side rail shares the page. */
+  contentWidthPx?: number;
+}) {
   const inputs: BandInput[] = useMemo(
     () =>
       items.map((it, i) => ({
@@ -44,11 +51,11 @@ export function ProofBands({ items }: { items: ProofItem[] }) {
       })),
     [items]
   );
-  const { computed } = useComputedBands(inputs);
+  const { computed } = useComputedBands(inputs, contentWidthPx);
   const byId = useMemo(() => Object.fromEntries(computed.map((c) => [c.id, c])), [computed]);
 
   return (
-    <div className="flex flex-col gap-6" style={{ width: CONTENT_W_PX }}>
+    <div className="flex flex-col gap-6" style={{ width: contentWidthPx }}>
       {items.map((it) => {
         const c = byId[it.id];
         if (!c) return null;

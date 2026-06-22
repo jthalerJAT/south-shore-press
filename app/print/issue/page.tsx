@@ -9,6 +9,7 @@ import { PageTwo } from '@/components/newspaper/page-two';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { SectionFlag } from '@/components/newspaper/section-flag';
+import { ColophonRail, COLOPHON_RAIL_W, COLOPHON_GAP } from '@/components/newspaper/colophon-rail';
 import { CONTENT_W_PX } from '@/lib/newspaper/layout-engine';
 import type { NpPage } from '@/lib/queries/newspaper';
 import { ProofBands, type ProofItem } from '../../portal/all/newspaper-creator/[pageId]/print/proof-bands';
@@ -93,7 +94,18 @@ export default async function PrintIssue({
               <div style={{ width: CONTENT_W_PX }}>
                 <PageHeader pageNumber={r.ordinal} dateLabel={issueDate} />
                 <SectionFlag label={r.page.section_name} />
-                {r.proofItems.length > 0 ? <ProofBands items={r.proofItems} /> : null}
+                {(r.page.template_data as { show_colophon?: boolean })?.show_colophon ? (
+                  <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
+                    <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
+                      {r.proofItems.length > 0 ? (
+                        <ProofBands items={r.proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} />
+                      ) : null}
+                    </div>
+                    <ColophonRail width={COLOPHON_RAIL_W} />
+                  </div>
+                ) : r.proofItems.length > 0 ? (
+                  <ProofBands items={r.proofItems} />
+                ) : null}
               </div>
             )}
           </div>

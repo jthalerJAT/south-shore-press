@@ -6,7 +6,7 @@
  * hero, 0–3 tiles, banner) each with a "Fill from story…" picker. Right: a live
  * to-scale SectionCover preview. Save persists template_data + locks the page.
  */
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
@@ -84,7 +84,7 @@ export function CoverEditor({
       <div className="max-w-xl space-y-6">
         {variant === 'news' ? (
           <Section title="Issue header">
-            <TextField label="Year / Issue" value={data.year_issue ?? ''} onChange={(v) => setField('year_issue', v)} placeholder="42ND YEAR • ISSUE 24" />
+            <BulletField label="Year / Issue" value={data.year_issue ?? ''} onChange={(v) => setField('year_issue', v)} placeholder="42ND YEAR • ISSUE 24" />
             <TextField label="Tagline" value={data.tagline ?? ''} onChange={(v) => setField('tagline', v)} />
             <TextField label="Issue date" value={data.issue_date ?? ''} onChange={(v) => setField('issue_date', v)} placeholder="JUNE 17, 2026" />
           </Section>
@@ -210,6 +210,59 @@ function TextField({
         placeholder={placeholder}
         className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
       />
+    </div>
+  );
+}
+
+/** A text field with an "Insert •" button — the bullet that separates Year and
+ *  Issue ("42ND YEAR • ISSUE 24") isn't on the keyboard, so this drops one in at
+ *  the cursor. (Keyboard fallback: Windows Alt+0149, Mac Option+8.) */
+function BulletField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  const ref = useRef<HTMLInputElement | null>(null);
+  function insertBullet() {
+    const el = ref.current;
+    const start = el?.selectionStart ?? value.length;
+    const end = el?.selectionEnd ?? value.length;
+    const next = `${value.slice(0, start)} • ${value.slice(end)}`;
+    onChange(next);
+    const pos = start + 3; // after " • "
+    requestAnimationFrame(() => {
+      if (el) {
+        el.focus();
+        el.setSelectionRange(pos, pos);
+      }
+    });
+  }
+  return (
+    <div>
+      <label className="block text-sm font-medium text-zinc-700">{label}</label>
+      <div className="mt-1 flex items-center gap-2">
+        <input
+          ref={ref}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="flex-1 rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+        />
+        <button
+          type="button"
+          onClick={insertBullet}
+          title="Insert a bullet (•) at the cursor"
+          className="shrink-0 inline-flex items-center px-3 py-2 border border-zinc-300 hover:bg-zinc-50 text-sm font-medium text-zinc-700 rounded transition-colors"
+        >
+          Insert •
+        </button>
+      </div>
     </div>
   );
 }

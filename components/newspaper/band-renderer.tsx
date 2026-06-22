@@ -193,7 +193,7 @@ function StoryHeader({ data, hideByline }: { data: NpStoryData; hideByline?: boo
           byline as a bold-italic line below (matching the printed interior pages). */}
       <h2
         className="leading-tight text-center"
-        style={{ fontFamily: NEWS_HEADLINE_FONT, fontWeight: 800, fontSize: 32, color: HEADLINE_NAVY }}
+        style={{ fontFamily: NEWS_HEADLINE_FONT, fontWeight: 800, fontSize: 32, color: HEADLINE_NAVY, whiteSpace: 'pre-line' }}
       >
         {data.headline || <span className="text-zinc-300">[Headline]</span>}
       </h2>

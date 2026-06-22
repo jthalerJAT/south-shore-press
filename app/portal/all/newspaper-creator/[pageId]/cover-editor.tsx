@@ -14,6 +14,7 @@ import { SectionCover } from '@/components/newspaper/section-cover';
 import type { SectionCoverData, CoverTile, CoverHero } from '@/lib/newspaper/section-cover';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import { PhotoUrlField } from '../photo-url-field';
+import { HeadlineField } from '../headline-field';
 import { saveCover } from '../actions';
 
 const PREVIEW_SCALE = 0.4;
@@ -263,39 +264,6 @@ function BulletField({
           Insert •
         </button>
       </div>
-    </div>
-  );
-}
-
-/** A headline field that allows a MANUAL line break: Shift+Enter inserts a
- *  newline (so you can control where the text wraps); plain Enter is ignored so
- *  the form isn't accidentally broken. The newline is honoured at render time
- *  via white-space: pre-line. */
-function HeadlineField({
-  label,
-  value,
-  onChange,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  placeholder?: string;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-zinc-700">{label}</label>
-      <textarea
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) e.preventDefault();
-        }}
-        placeholder={placeholder}
-        rows={2}
-        className="mt-1 block w-full resize-y rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
-      />
-      <p className="mt-1 text-xs text-zinc-400">Shift+Enter to force a line break.</p>
     </div>
   );
 }

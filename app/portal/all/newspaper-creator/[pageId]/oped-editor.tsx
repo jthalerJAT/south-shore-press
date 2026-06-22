@@ -10,6 +10,7 @@ import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Ad } from '@/lib/queries/ads';
 import { saveOpEd, fetchStoryDetail } from '../actions';
 import { uploadImage } from '../image-upload-client';
+import { HeadlineField } from '../headline-field';
 
 const PREVIEW_SCALE = 0.42;
 
@@ -90,7 +91,7 @@ export function OpEdEditor({
             <TextField label="Column name" value={data.main.column_name ?? ''} onChange={(v) => setMain({ column_name: v })} placeholder="NEWSROOM" />
             <TextField label="Author" value={data.main.author ?? ''} onChange={(v) => setMain({ author: v })} />
           </div>
-          <TextField label="Title" value={data.main.title ?? ''} onChange={(v) => setMain({ title: v })} />
+          <HeadlineField label="Title" value={data.main.title ?? ''} onChange={(v) => setMain({ title: v })} />
           <TextArea label="Text" value={data.main.text ?? ''} onChange={(v) => setMain({ text: v })} rows={8} />
           <PhotoField label="Photo" value={data.main.photo_url} onChange={(v) => setMain({ photo_url: v })} onError={setError} />
           <div className="grid grid-cols-2 gap-3">
@@ -102,7 +103,7 @@ export function OpEdEditor({
         {/* Second Story */}
         <Section title="Second Story">
           <StoryPicker stories={stories} onPick={fillSecondFromStory} />
-          <TextField label="Headline" value={data.second.headline ?? ''} onChange={(v) => setSecond({ headline: v })} />
+          <HeadlineField label="Headline" value={data.second.headline ?? ''} onChange={(v) => setSecond({ headline: v })} />
           <TextField label="Author" value={data.second.author ?? ''} onChange={(v) => setSecond({ author: v })} />
           <TextArea label="Text" value={data.second.text ?? ''} onChange={(v) => setSecond({ text: v })} rows={5} />
           <PhotoField label="Photo" value={data.second.photo_url} onChange={(v) => setSecond({ photo_url: v })} onError={setError} />

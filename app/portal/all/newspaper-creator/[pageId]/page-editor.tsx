@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
 import { PhotoUrlField } from '../photo-url-field';
+import { HeadlineField } from '../headline-field';
 import { savePage, requestAdUploadUrl, setColophonRail, type SavedItem } from '../actions';
 
 const ADS_BUCKET = 'newspaper-ads';
@@ -309,7 +310,7 @@ function StoryCard({
       onRemove={() => onRemove(item.localId)}
     >
       <div className="flex flex-col gap-4">
-        <Field label="Headline" value={d.headline ?? ''} onChange={(v) => onPatch(item.localId, { headline: v })} />
+        <HeadlineField label="Headline" value={d.headline ?? ''} onChange={(v) => onPatch(item.localId, { headline: v })} />
         <Field label="Deck / Subline" value={d.subline ?? ''} onChange={(v) => onPatch(item.localId, { subline: v })} />
         <Field label="Byline" value={d.byline ?? ''} onChange={(v) => onPatch(item.localId, { byline: v })} />
 

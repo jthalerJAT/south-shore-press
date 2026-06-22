@@ -97,8 +97,8 @@ export function CoverEditor({
 
         <Section title="Hero">
           <StoryPicker stories={stories} onPick={(id) => { const f = fromStory(id); if (f) setHero({ headline: f.headline, photo_url: f.photo_url, credit: f.credit }); }} />
-          <TextField label="Headline" value={data.hero.headline ?? ''} onChange={(v) => setHero({ headline: v })} />
-          <TextField label="Sub-headline" value={data.hero.subhead ?? ''} onChange={(v) => setHero({ subhead: v })} />
+          <HeadlineField label="Headline" value={data.hero.headline ?? ''} onChange={(v) => setHero({ headline: v })} />
+          <HeadlineField label="Sub-headline" value={data.hero.subhead ?? ''} onChange={(v) => setHero({ subhead: v })} />
           <PhotoUrlField label="Photo URL" value={data.hero.photo_url} onChange={(v) => setHero({ photo_url: v })} />
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Photo credit" value={data.hero.credit ?? ''} onChange={(v) => setHero({ credit: v })} />
@@ -133,7 +133,7 @@ export function CoverEditor({
                 <TextField label="Section label" value={t.section_label ?? ''} onChange={(v) => setTile(i, { section_label: v })} placeholder="LOCAL" />
                 <TextField label="Story on page" value={t.page_ref ?? ''} onChange={(v) => setTile(i, { page_ref: v })} />
               </div>
-              <TextField label="Headline" value={t.headline ?? ''} onChange={(v) => setTile(i, { headline: v })} />
+              <HeadlineField label="Headline" value={t.headline ?? ''} onChange={(v) => setTile(i, { headline: v })} />
               <PhotoUrlField label="Photo URL" value={t.photo_url} onChange={(v) => setTile(i, { photo_url: v })} />
               <TextField label="Credit" value={t.credit ?? ''} onChange={(v) => setTile(i, { credit: v })} />
             </div>
@@ -210,6 +210,39 @@ function TextField({
         placeholder={placeholder}
         className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
       />
+    </div>
+  );
+}
+
+/** A headline field that allows a MANUAL line break: Shift+Enter inserts a
+ *  newline (so you can control where the text wraps); plain Enter is ignored so
+ *  the form isn't accidentally broken. The newline is honoured at render time
+ *  via white-space: pre-line. */
+function HeadlineField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-zinc-700">{label}</label>
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) e.preventDefault();
+        }}
+        placeholder={placeholder}
+        rows={2}
+        className="mt-1 block w-full resize-y rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+      />
+      <p className="mt-1 text-xs text-zinc-400">Shift+Enter to force a line break.</p>
     </div>
   );
 }

@@ -97,12 +97,12 @@ export function SectionCover({
 
         <div className="absolute left-0 right-0 bottom-0 p-3">
           {data.hero.headline ? (
-            <div style={{ ...outlinedHeadline, fontFamily: DISPLAY_FONT, fontSize: 88 }}>
+            <div style={{ ...outlinedHeadline, fontFamily: DISPLAY_FONT, fontSize: 88, whiteSpace: 'pre-line' }}>
               {data.hero.headline}
             </div>
           ) : null}
           {data.hero.subhead ? (
-            <div style={{ fontFamily: CONDENSED_FONT, color: '#fff', textShadow: '1px 1px 0 #000', fontWeight: 700, fontSize: 30, marginTop: 4 }}>
+            <div style={{ fontFamily: CONDENSED_FONT, color: '#fff', textShadow: '1px 1px 0 #000', fontWeight: 700, fontSize: 30, marginTop: 4, whiteSpace: 'pre-line' }}>
               {data.hero.subhead}
             </div>
           ) : null}
@@ -181,7 +181,7 @@ function Tile({ tile }: { tile: CoverTile }) {
 
       {/* Headline above credit, bottom-left */}
       <div className="absolute left-2 bottom-1" style={{ right: 80 }}>
-        <div style={{ fontFamily: CONDENSED_FONT, color: '#fff', fontWeight: 700, fontSize: 19, lineHeight: 1.02, textShadow: '1px 1px 2px #000' }}>
+        <div style={{ fontFamily: CONDENSED_FONT, color: '#fff', fontWeight: 700, fontSize: 19, lineHeight: 1.02, textShadow: '1px 1px 2px #000', whiteSpace: 'pre-line' }}>
           {tile.headline || <span style={{ opacity: 0.6 }}>Headline</span>}
         </div>
         {tile.credit ? (

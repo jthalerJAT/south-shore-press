@@ -62,7 +62,9 @@ export function ProofBands({
   const byId = useMemo(() => Object.fromEntries(computed.map((c) => [c.id, c])), [computed]);
 
   return (
-    <div className="flex flex-col gap-6" style={{ width: contentWidthPx }}>
+    // Tighter inter-story spacing (was a loose 24px gap); a thin rule + small
+    // gap reads more like a newspaper.
+    <div className="flex flex-col" style={{ width: contentWidthPx, gap: 14 }}>
       {items.map((it) => {
         const c = byId[it.id];
         if (!c) return null;

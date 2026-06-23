@@ -47,7 +47,7 @@ export type CoverConfig = {
 };
 
 /** Which bespoke template editor/renderer a template-mode page uses. */
-export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad';
+export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified';
 
 export type NpTemplate = {
   label: string;
@@ -122,7 +122,7 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
   },
   generic: { label: 'Page', slots: 'open', mode: 'flow', master: false },
   legals: { label: 'Legals', slots: 'open', mode: 'flow', master: true },
-  classifieds: { label: 'Classifieds', slots: 'open', mode: 'flow', master: true },
+  classifieds: { label: 'Classifieds', slots: 'open', mode: 'template', master: true, template: 'classified' },
   fun_times: {
     label: 'Fun Times',
     slots: [

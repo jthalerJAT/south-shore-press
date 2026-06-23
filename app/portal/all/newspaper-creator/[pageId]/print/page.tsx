@@ -8,9 +8,11 @@ import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
+import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
+import { ClassifiedPage } from '@/components/newspaper/classified-page';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { SectionFlag } from '@/components/newspaper/section-flag';
@@ -93,6 +95,8 @@ export default async function PagePrintProof({
           <PageTwo data={normalizeOpEd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'page_four' ? (
           <PageFour data={normalizePageFour(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
+        ) : isTemplate && tid === 'classified' ? (
+          <ClassifiedPage data={normalizeClassifiedPage(page.template_data)} />
         ) : isTemplate ? (
           <SectionCover
             data={normalizeCover(page.template_data, page.kind)}

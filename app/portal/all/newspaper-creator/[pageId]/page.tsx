@@ -10,10 +10,13 @@ import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
+import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
+import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
 import { CoverEditor } from './cover-editor';
 import { OpEdEditor } from './oped-editor';
 import { PageFourEditor } from './page-four-editor';
+import { ClassifiedEditor } from './classified-editor';
 import { FullAdEditor } from './full-ad-editor';
 
 export const metadata: Metadata = {
@@ -103,6 +106,30 @@ export default async function NewspaperPageEditorPage({
             initialData={normalizePageFour(page.template_data)}
             stories={stories}
             ads={ads}
+          />
+        </PortalShell>
+      );
+    }
+
+    if (tid === 'classified') {
+      const classifieds = await getClassifiedsList();
+      const options = classifieds.map((c) => ({
+        id: c.id,
+        dateLabel: formatClassifiedDate(c.classified_date),
+        fileName: c.file_name,
+        storagePath: c.storage_path,
+      }));
+      return (
+        <PortalShell
+          user={user}
+          activeTab="all"
+          title={`Edit — ${displayTitle}`}
+          backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+        >
+          <ClassifiedEditor
+            pageId={page.id}
+            initialData={normalizeClassifiedPage(page.template_data)}
+            options={options}
           />
         </PortalShell>
       );

@@ -7,10 +7,12 @@ import { pageMode, coverConfig, templateId, pageHeading } from '@/lib/newspaper-
 import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { normalizePageFour } from '@/lib/newspaper/page-four';
+import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
+import { ClassifiedPage } from '@/components/newspaper/classified-page';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { SectionFlag } from '@/components/newspaper/section-flag';
@@ -86,6 +88,8 @@ export default async function NewspaperViewFile() {
                       <PageTwo data={normalizeOpEd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' && templateId(page.kind) === 'page_four' ? (
                       <PageFour data={normalizePageFour(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
+                    ) : r.kind === 'template' && templateId(page.kind) === 'classified' ? (
+                      <ClassifiedPage data={normalizeClassifiedPage(page.template_data)} />
                     ) : r.kind === 'template' ? (
                       <SectionCover
                         data={normalizeCover(page.template_data, page.kind)}

@@ -29,6 +29,7 @@ import { isMaster, ADDABLE_TEMPLATE_KINDS, ASSIGNABLE_KINDS, pageHeading, templa
 import {
   addStoryToPage,
   addAdToPage,
+  addClassifiedToPage,
   addPage,
   addStandardPage,
   reorderPages,
@@ -43,7 +44,10 @@ import {
  *  the client doesn't import the server-only legals query module). */
 export type LegalChip = { id: string; dateLabel: string; url: string; fileName: string | null };
 
-type LeftTab = 'stories' | 'ads' | 'legals';
+/** Pre-resolved classified record for the Classifieds tab (draggable). */
+export type ClassifiedChip = { id: string; dateLabel: string; url: string; fileName: string | null };
+
+type LeftTab = 'stories' | 'ads' | 'legals' | 'classifieds';
 
 function displayTitle(page: NpPage, ordinal: number): string {
   return pageHeading(page.title, ordinal);
@@ -57,7 +61,7 @@ const STATUS_BADGE: Record<NpPage['status'], string> = {
 
 const EMPTY_DESCRIPTOR: Partial<Record<NpPage['kind'], string>> = {
   legals: 'Legal Page',
-  classifieds: 'Classified Page',
+  classifieds: 'Classifieds (drop a classified)',
   fun_times: 'Fun Times Page',
   fantasy_baseball: 'Fantasy Baseball Page',
   betting_barton: 'Betting With Barton Page',
@@ -74,12 +78,14 @@ export function NewspaperBoard({
   stories,
   ads,
   legals,
+  classifieds,
 }: {
   pages: NpPage[];
   summaries: Record<string, NpItemSummary[]>;
   stories: EditorStoryRow[];
   ads: Ad[];
   legals: LegalChip[];
+  classifieds: ClassifiedChip[];
 }) {
   const router = useRouter();
   const [dragId, setDragId] = useState<string | null>(null);
@@ -127,11 +133,22 @@ export function NewspaperBoard({
     );
   }, [legals, searchQ]);
 
+  const visibleClassifieds = useMemo(() => {
+    const needle = searchQ.trim().toLowerCase();
+    if (!needle) return classifieds;
+    return classifieds.filter((c) =>
+      [c.dateLabel, c.fileName ?? ''].join(' ').toLowerCase().includes(needle)
+    );
+  }, [classifieds, searchQ]);
+
   const dragStory = dragId?.startsWith('story-')
     ? stories.find((s) => `story-${s.id}` === dragId) ?? null
     : null;
   const dragAd = dragId?.startsWith('ad-')
     ? ads.find((a) => `ad-${a.id}` === dragId) ?? null
+    : null;
+  const dragClassified = dragId?.startsWith('classified-')
+    ? classifieds.find((c) => `classified-${c.id}` === dragId) ?? null
     : null;
 
   function handleDragStart(e: DragStartEvent) {
@@ -167,6 +184,19 @@ export function NewspaperBoard({
       startTransition(async () => {
         const res = await addAdToPage(pageId, adId);
         if (!res.ok) setError(res.error ?? 'Could not add the ad.');
+        else router.refresh();
+      });
+      return;
+    }
+
+    // Classified chip → classifieds page (assigns the uploaded file).
+    if (activeId.startsWith('classified-')) {
+      const classifiedId = activeId.slice('classified-'.length);
+      const pageId = order.some((p) => p.id === overId) ? overId : null;
+      if (!pageId) return;
+      startTransition(async () => {
+        const res = await addClassifiedToPage(pageId, classifiedId);
+        if (!res.ok) setError(res.error ?? 'Could not add the classified.');
         else router.refresh();
       });
       return;
@@ -260,10 +290,10 @@ export function NewspaperBoard({
       ) : null}
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT — content tabs (Stories / Ads / Legals) */}
+        {/* LEFT — content tabs (Stories / Ads / Legals / Classifieds) */}
         <div className="lg:col-span-5 lg:sticky lg:top-6 lg:self-start lg:max-h-[80vh] lg:overflow-y-auto">
           <div className="flex border-b border-zinc-200 mb-2">
-            {(['stories', 'ads', 'legals'] as LeftTab[]).map((t) => (
+            {(['stories', 'ads', 'legals', 'classifieds'] as LeftTab[]).map((t) => (
               <button
                 key={t}
                 type="button"
@@ -323,6 +353,23 @@ export function NewspaperBoard({
               </ul>
               <p className="mt-1 text-[11px] text-zinc-400">
                 Legals come from <strong>Legals Upload</strong> (reference list — click to view).
+              </p>
+            </>
+          ) : null}
+
+          {tab === 'classifieds' ? (
+            <>
+              <ul className="mt-2 border border-zinc-200 rounded divide-y divide-zinc-100 bg-white">
+                {visibleClassifieds.length === 0 ? (
+                  <li className="px-3 py-6 text-center text-sm text-zinc-400">
+                    No classifieds uploaded yet.
+                  </li>
+                ) : (
+                  visibleClassifieds.map((c) => <ClassifiedChipDraggable key={c.id} classified={c} />)
+                )}
+              </ul>
+              <p className="mt-1 text-[11px] text-zinc-400">
+                Classifieds come from <strong>Classified Upload</strong>. Drag one onto a classifieds page.
               </p>
             </>
           ) : null}
@@ -431,6 +478,7 @@ export function NewspaperBoard({
       <DragOverlay>
         {dragStory ? <StoryChipPresentation story={dragStory} dragging /> : null}
         {dragAd ? <AdChipPresentation ad={dragAd} dragging /> : null}
+        {dragClassified ? <ClassifiedChipPresentation classified={dragClassified} dragging /> : null}
       </DragOverlay>
     </DndContext>
   );
@@ -648,6 +696,47 @@ function AdChipPresentation({ ad, dragging }: { ad: Ad; dragging?: boolean }) {
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-medium text-zinc-900 truncate">{ad.business_name}</div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">{ad.copy_file_name || 'Ad'}</div>
+      </div>
+    </div>
+  );
+}
+
+function ClassifiedChipDraggable({ classified }: { classified: ClassifiedChip }) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `classified-${classified.id}`,
+    data: { classified },
+  });
+  return (
+    <li
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        'px-3 py-2 cursor-grab active:cursor-grabbing flex items-start gap-2 hover:bg-zinc-50 transition-colors',
+        isDragging && 'opacity-30'
+      )}
+    >
+      <GripVertical className="w-4 h-4 text-zinc-300 mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium text-zinc-900 truncate">{classified.dateLabel}</div>
+        <div className="mt-0.5 text-[11px] text-zinc-500 truncate">{classified.fileName || 'Classified PDF'}</div>
+      </div>
+    </li>
+  );
+}
+
+function ClassifiedChipPresentation({ classified, dragging }: { classified: ClassifiedChip; dragging?: boolean }) {
+  return (
+    <div
+      className={cn(
+        'px-3 py-2 flex items-start gap-2 bg-white border border-brand-red rounded shadow-lg w-72',
+        dragging && 'cursor-grabbing'
+      )}
+    >
+      <GripVertical className="w-4 h-4 text-zinc-300 mt-0.5 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[13px] font-medium text-zinc-900 truncate">{classified.dateLabel}</div>
+        <div className="mt-0.5 text-[11px] text-zinc-500 truncate">{classified.fileName || 'Classified PDF'}</div>
       </div>
     </div>
   );

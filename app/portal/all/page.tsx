@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ArrowRight } from 'lucide-react';
+import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, ArrowRight } from 'lucide-react';
 import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 
@@ -67,6 +67,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Upload and manage the weekly legal-notice PDFs shown on the public Legals page.',
       icon: FileText,
+    },
+    {
+      href: '/portal/all/classifieds',
+      title: 'Classified Upload',
+      description:
+        'Upload classified-pages PDFs, then drop them onto the classifieds pages in the Newspaper Creator.',
+      icon: ClipboardList,
     },
     {
       href: '/portal/all/newspaper-creator',

@@ -22,6 +22,7 @@ import { normalizeCover, fillSlotFromStory } from '@/lib/newspaper/section-cover
 import { normalizeOpEd, fillOpEdFromStory, fillOpEdAd } from '@/lib/newspaper/oped';
 import { normalizePageFour, fillPageFourFromStory, fillPageFourAd } from '@/lib/newspaper/page-four';
 import { fillFullAdFromAd, normalizeFullAd } from '@/lib/newspaper/full-ad';
+import { normalizeClassifiedPage, fillClassifiedFromRecord } from '@/lib/newspaper/classified';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 // Journalists can upload photos for stories they're working on (but not manage
@@ -575,6 +576,65 @@ export async function saveFullAd(pageId: string, data: Record<string, unknown>):
   if (error) {
     console.error('[saveFullAd]', error);
     return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Persist a classifieds template page's assigned file and lock it. */
+export async function saveClassifiedPage(pageId: string, data: Record<string, unknown>): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[saveClassifiedPage]', error);
+    return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Board drag: assign an uploaded classified to a classifieds template page. */
+export async function addClassifiedToPage(pageId: string, classifiedId: string): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+
+  const { data: page } = await supabase
+    .from('np_pages')
+    .select('id, kind, template_data')
+    .eq('id', pageId)
+    .maybeSingle();
+  if (!page) return { ok: false, error: 'Page not found.' };
+  if (templateId(page.kind) !== 'classified') {
+    return { ok: false, error: 'Drop a classified onto a classifieds page.' };
+  }
+
+  const { data: rec } = await supabase
+    .from('classifieds')
+    .select('id, storage_path, file_name')
+    .eq('id', classifiedId)
+    .maybeSingle();
+  if (!rec) return { ok: false, error: 'Classified not found.' };
+
+  const r = rec as { id: string; storage_path?: string | null; file_name?: string | null };
+  const data = fillClassifiedFromRecord(normalizeClassifiedPage(page.template_data), {
+    id: r.id,
+    storage_path: r.storage_path,
+    file_name: r.file_name,
+  }) as unknown as Record<string, unknown>;
+
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'draft', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[addClassifiedToPage]', error);
+    return { ok: false, error: 'Could not add the classified.' };
   }
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${pageId}`);

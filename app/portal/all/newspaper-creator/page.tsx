@@ -6,8 +6,9 @@ import { getPages, getItemSummaries } from '@/lib/queries/newspaper';
 import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 import { getAds } from '@/lib/queries/ads';
 import { getLegalsList, legalPublicUrl, formatLegalDate } from '@/lib/queries/legals';
+import { getClassifiedsList, classifiedPublicUrl, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { DEFAULT_PAGES } from '@/lib/newspaper-templates';
-import { NewspaperBoard, type LegalChip } from './newspaper-board';
+import { NewspaperBoard, type LegalChip, type ClassifiedChip } from './newspaper-board';
 
 export const metadata: Metadata = {
   title: 'Newspaper Creator',
@@ -37,20 +38,27 @@ export default async function NewspaperCreatorPage() {
     pages = await getPages();
   }
 
-  const [summaries, stories, ads, legalsRaw] = await Promise.all([
+  const [summaries, stories, ads, legalsRaw, classifiedsRaw] = await Promise.all([
     getItemSummaries(),
     getAllStoriesForEditor(),
     getAds(),
     getLegalsList(),
+    getClassifiedsList(),
   ]);
 
-  // Pre-resolve legals to plain data so the client board doesn't import the
-  // server-only legals query module.
+  // Pre-resolve legals + classifieds to plain data so the client board doesn't
+  // import the server-only query modules.
   const legals: LegalChip[] = legalsRaw.map((l) => ({
     id: l.id,
     dateLabel: formatLegalDate(l.legal_date),
     url: legalPublicUrl(l.storage_path),
     fileName: l.file_name,
+  }));
+  const classifieds: ClassifiedChip[] = classifiedsRaw.map((c) => ({
+    id: c.id,
+    dateLabel: formatClassifiedDate(c.classified_date),
+    url: classifiedPublicUrl(c.storage_path),
+    fileName: c.file_name,
   }));
 
   return (
@@ -66,6 +74,7 @@ export default async function NewspaperCreatorPage() {
         stories={stories}
         ads={ads}
         legals={legals}
+        classifieds={classifieds}
       />
     </PortalShell>
   );

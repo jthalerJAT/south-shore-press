@@ -44,7 +44,7 @@ export default async function PortalEditStoryPage({
   // this default is right >90% of the time.)
   const backHref =
     user.role === 'journalist'
-      ? { href: '/portal', label: 'My Drafts' }
+      ? { href: '/portal', label: 'Story Editor' }
       : { href: '/portal/all/edit-stories', label: 'Edit Stories' };
 
   return (

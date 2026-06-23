@@ -237,13 +237,8 @@ export async function updateStoryAction(
     user.role
   );
 
-  // Journalists can't trigger publish / unpublish / downgrade intents.
-  if (
-    user.role === 'journalist' &&
-    (intent === 'publish' || intent === 'unpublish' || intent === 'downgrade')
-  ) {
-    return { error: 'Insufficient permissions for that action.' };
-  }
+  // Journalists may publish/unpublish/downgrade their OWN stories (the
+  // author check above already restricts them to their own work).
 
   const published_at =
     next.setPublishedAt === 'now'

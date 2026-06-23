@@ -7,6 +7,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { AD_FILES_BUCKET } from '@/lib/queries/ads';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
+// Deleting ads / ad runs is admin-only; editors may add and edit but not delete.
+const ADMIN_ROLES = ['admin', 'master admin'] as const;
 const BASE = '/portal/all/ads';
 
 type Result = { ok: boolean; error?: string };
@@ -103,7 +105,7 @@ export async function updateAd(id: string, input: AdInput): Promise<Result> {
 }
 
 export async function deleteAd(id: string): Promise<Result> {
-  await requireRole([...EDITOR_ROLES], BASE);
+  await requireRole([...ADMIN_ROLES], BASE);
   const admin = createAdminClient();
 
   // Gather storage paths (ad copy + every run's insert order) to clean up.
@@ -178,7 +180,7 @@ export async function updateAdRun(id: string, adId: string, input: AdRunInput): 
 }
 
 export async function deleteAdRun(id: string, adId: string): Promise<Result> {
-  await requireRole([...EDITOR_ROLES], BASE);
+  await requireRole([...ADMIN_ROLES], BASE);
   const admin = createAdminClient();
   const { data: run } = await admin
     .from('ad_runs')

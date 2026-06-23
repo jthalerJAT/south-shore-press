@@ -5,8 +5,9 @@ import { requireRole } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
 
-const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
-// Journalists may ADD to the library (their story photos) but not delete from it.
+// Deleting from the library is admin-only; journalists and editors may add
+// (their story photos) but not delete from it.
+const ADMIN_ROLES = ['admin', 'master admin'] as const;
 const CONTRIBUTOR_ROLES = ['journalist', 'editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/owned-images';
 
@@ -31,7 +32,7 @@ export async function recordOwnedImage(storagePath: string, fileName?: string): 
 
 /** Remove an image from the library + its storage object. */
 export async function deleteOwnedImage(id: string): Promise<Result> {
-  await requireRole([...EDITOR_ROLES], BASE);
+  await requireRole([...ADMIN_ROLES], BASE);
   const admin = createAdminClient();
   const { data } = await admin
     .from('owned_images')

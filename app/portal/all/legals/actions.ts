@@ -7,6 +7,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { LEGALS_BUCKET } from '@/lib/queries/legals';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
+// Deleting legals is admin-only; editors may add but not remove.
+const ADMIN_ROLES = ['admin', 'master admin'] as const;
 
 /** Mint a signed upload URL so the browser can upload a PDF straight to
  *  Storage (no Vercel body-size limit). Editor-gated. */
@@ -86,7 +88,7 @@ export async function createLegalAction(input: {
 export async function deleteLegalAction(
   id: string
 ): Promise<{ ok: boolean; error?: string }> {
-  await requireRole([...EDITOR_ROLES], '/portal/all/legals');
+  await requireRole([...ADMIN_ROLES], '/portal/all/legals');
   if (!id) return { ok: false, error: 'Missing id.' };
 
   const admin = createAdminClient();

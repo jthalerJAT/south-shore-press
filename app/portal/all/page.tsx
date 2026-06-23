@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, ArrowRight } from 'lucide-react';
-import { requireRole } from '@/lib/auth';
+import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 
 export const metadata: Metadata = {
@@ -24,6 +24,10 @@ export default async function EditorPortalLandingPage() {
     '/portal/all'
   );
 
+  // Only admins manage credentials — editors see every other tile but not
+  // this one.
+  const showCredentials = canManageCredentials(user);
+
   const tiles: Array<{
     href: string;
     title: string;
@@ -31,14 +35,17 @@ export default async function EditorPortalLandingPage() {
     icon: typeof Users;
     badge?: string;
   }> = [
-    {
-      href: '/portal/all/credentials',
-      title: 'Credentials',
-      description:
-        'Promote or demote users between journalist, editor, and admin roles.',
-      icon: Users,
-      badge: 'Coming soon',
-    },
+    ...(showCredentials
+      ? [
+          {
+            href: '/portal/all/credentials',
+            title: 'Credentials',
+            description:
+              'Promote or demote users between journalist, editor, and admin roles.',
+            icon: Users,
+          },
+        ]
+      : []),
     {
       href: '/portal/all/site-layout',
       title: 'Site Layout',

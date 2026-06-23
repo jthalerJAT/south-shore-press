@@ -70,12 +70,10 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
     role === 'editor' || role === 'admin' || role === 'master admin';
   const isJournalist = !isEditor;
 
-  // Read-only states: journalist looking at their own published/unpublished
-  // story (editor must downgrade first), OR journalist looking at someone
-  // else's story (server action would reject the write anyway, but we
-  // disable the UI for clarity).
-  const disabled = !canEdit ||
-    (isJournalist && (status === 'published' || status === 'unpublished'));
+  // Journalists now publish/manage their OWN stories, so the only read-only
+  // case is editing a story you don't own (canEdit is false then; the server
+  // also rejects the write).
+  const disabled = !canEdit;
 
   // Hero media is controlled so the "+ Upload Photo" button can set the URL.
   const [heroUrl, setHeroUrl] = useState(defaults?.hero_photo_url ?? '');
@@ -109,8 +107,8 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         <div className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2 flex items-center gap-3">
           <StatusBadge status={status} />
           <span>
-            {isJournalist && (status === 'published' || status === 'unpublished')
-              ? 'Read-only: an editor needs to downgrade this story to draft before you can edit it.'
+            {isJournalist
+              ? 'Read-only: you can only edit your own stories.'
               : 'Read-only.'}
           </span>
         </div>
@@ -296,31 +294,24 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
             {status === 'draft' || mode === 'create' ? 'Save Draft' : 'Save Changes'}
           </SubmitBtn>
 
-          {/* Journalist: Submit (draft → submitted). Label per v1 spec. */}
-          {isJournalist && status === 'draft' ? (
-            <SubmitBtn intent="submit" variant="secondary">
-              Submit Story
-            </SubmitBtn>
-          ) : null}
-
-          {/* Editor/admin: Publish (covers first-publish AND re-publish
-              of an unpublished story). v1 spec uses "Publish Story"
-              consistently for both. */}
-          {isEditor && status !== 'published' ? (
+          {/* Publish — available to editors AND journalists (journalists for
+              their own stories only; the form is disabled otherwise). Covers
+              first-publish AND re-publish of an unpublished story. */}
+          {status !== 'published' ? (
             <SubmitBtn intent="publish" variant="secondary">
               Publish Story
             </SubmitBtn>
           ) : null}
 
-          {/* Editor/admin: Unpublish */}
-          {isEditor && status === 'published' ? (
+          {/* Unpublish */}
+          {status === 'published' ? (
             <SubmitBtn intent="unpublish" variant="warning">
               Unpublish
             </SubmitBtn>
           ) : null}
 
-          {/* Editor/admin: Downgrade to Draft */}
-          {isEditor && status !== 'draft' ? (
+          {/* Downgrade to Draft */}
+          {status !== 'draft' ? (
             <SubmitBtn intent="downgrade" variant="ghost">
               Downgrade to Draft
             </SubmitBtn>

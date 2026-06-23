@@ -1,9 +1,9 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import { requireUser } from '@/lib/auth';
+import { requireUser, canManageAllStories } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { AllStoriesView } from '@/components/portal/all-stories-view';
-import { getMyDrafts } from '@/lib/queries/editor-stories';
+import { getAllStoriesForEditor, getStoriesAuthoredBy } from '@/lib/queries/editor-stories';
 
 export const metadata: Metadata = {
   title: 'My stories',
@@ -24,13 +24,18 @@ export default async function PortalMyDraftsPage({
   searchParams: { denied?: string; deleted?: string };
 }) {
   const user = await requireUser('/portal');
-  const drafts = await getMyDrafts(user.id);
+  // Editors/admins manage every story; a journalist sees only their own
+  // (all statuses). Same table either way — just a different row set.
+  const isEditor = canManageAllStories(user.role);
+  const stories = isEditor
+    ? await getAllStoriesForEditor()
+    : await getStoriesAuthoredBy(user.id);
 
   return (
     <PortalShell
       user={user}
       activeTab="mine"
-      title="My Drafts"
+      title="Story Editor"
       backLink={{ href: '/', label: 'Homepage' }}
     >
       {searchParams.denied ? (
@@ -42,14 +47,14 @@ export default async function PortalMyDraftsPage({
         <FlashBox tone="green">Story deleted.</FlashBox>
       ) : null}
 
-      {/* Same filter UI as /portal/all but with the status tab row
-          suppressed since every row here is a draft. Custom empty
-          message points users at the New Story button. */}
       <Suspense fallback={null}>
         <AllStoriesView
-          stories={drafts}
-          hideStatusFilter
-          emptyMessage="No drafts yet. Click + Start New Story to get going."
+          stories={stories}
+          emptyMessage={
+            isEditor
+              ? 'No stories yet.'
+              : 'No stories yet. Click + Start New Story to write one.'
+          }
         />
       </Suspense>
     </PortalShell>

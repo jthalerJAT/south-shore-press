@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, ArrowRight } from 'lucide-react';
+import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ArrowRight } from 'lucide-react';
 import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 
@@ -88,6 +88,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Every proprietary photo uploaded through the editor, newest first — reuse or delete them.',
       icon: ImageIcon,
+    },
+    {
+      href: '/portal/all/social',
+      title: 'Social Media',
+      description:
+        'Compose and publish posts. Drag a story into a tweet and push it to the SSP X account.',
+      icon: Share2,
     },
   ];
 

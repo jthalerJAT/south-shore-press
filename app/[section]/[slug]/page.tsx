@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { HeroMedia } from '@/components/story/hero-media';
 import { StoryCard } from '@/components/story/story-card';
+import { ArticleShare } from '@/components/site/article-share';
 import {
   getPublishedStoryByShortId,
   getPublishedStoriesBySection,
@@ -230,13 +231,17 @@ export default async function StoryPage({ params }: { params: Params }) {
         </p>
       ) : null}
 
-      {/* Byline + date row, with bottom border underline (matches v1) */}
-      <div className="mt-6 pb-5 border-b border-zinc-200 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-zinc-500 font-medium">
-        {authorName ? <span>By {authorName}</span> : null}
-        {authorName && formattedDate ? <span aria-hidden="true">·</span> : null}
-        {formattedDate ? (
-          <time dateTime={story.published_at ?? ''}>{formattedDate}</time>
-        ) : null}
+      {/* Byline + date row, with bottom border underline (matches v1). Share
+          buttons sit beside the byline on the right. */}
+      <div className="mt-6 pb-5 border-b border-zinc-200 flex flex-wrap items-center justify-between gap-x-3 gap-y-3 text-[13px] text-zinc-500 font-medium">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {authorName ? <span>By {authorName}</span> : null}
+          {authorName && formattedDate ? <span aria-hidden="true">·</span> : null}
+          {formattedDate ? (
+            <time dateTime={story.published_at ?? ''}>{formattedDate}</time>
+          ) : null}
+        </div>
+        <ArticleShare url={canonicalUrl} title={story.headline} byline={authorName} />
       </div>
 
       {/* 8px rounded corners on hero — matches v1's --radius */}

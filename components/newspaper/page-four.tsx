@@ -143,10 +143,12 @@ export function PageFour({
 
       {/* ── Top article (full width) ──────────────────────── */}
       <section>
-        <div className="flex items-center" style={{ gap: 16, marginBottom: headlineGap }}>
+        {/* Headline is centered in the space to the RIGHT of the flag and its
+            top lines up with the top of the flag (items-start). */}
+        <div className="flex items-start" style={{ gap: 16, marginBottom: headlineGap }}>
           <PageFlag label={data.top.flag_label} />
           <h2
-            style={{ fontFamily: HEADLINE_FONT, fontSize: 36, fontWeight: 800, lineHeight: 1.04, color: '#111', whiteSpace: 'pre-line', flex: 1 }}
+            style={{ fontFamily: HEADLINE_FONT, fontSize: 36, fontWeight: 800, lineHeight: 1.04, color: '#111', whiteSpace: 'pre-line', textAlign: 'center', flex: 1 }}
           >
             {data.top.headline || <span style={{ color: '#d4d4d8' }}>[Top Article Headline]</span>}
           </h2>
@@ -193,10 +195,10 @@ export function PageFour({
             so it lines up with the top of the ad on the left. */}
         <div style={{ width: BOTTOM_ARTICLE_W, flexShrink: 0 }}>
           <div style={{ borderTop: '1.5px solid #000', marginBottom: headlineGap }} />
-          <div className="flex items-center" style={{ gap: 12, marginBottom: headlineGap }}>
+          <div className="flex items-start" style={{ gap: 12, marginBottom: headlineGap }}>
             <PageFlag label={data.bottom.flag_label} />
             <h3
-              style={{ fontFamily: HEADLINE_FONT, fontSize: 30, fontWeight: 800, lineHeight: 1.04, color: '#111', whiteSpace: 'pre-line', flex: 1 }}
+              style={{ fontFamily: HEADLINE_FONT, fontSize: 30, fontWeight: 800, lineHeight: 1.04, color: '#111', whiteSpace: 'pre-line', textAlign: 'center', flex: 1 }}
             >
               {data.bottom.headline || <span style={{ color: '#d4d4d8' }}>[Bottom Article Headline]</span>}
             </h3>

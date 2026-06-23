@@ -88,13 +88,33 @@ const SPORTS_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   })),
 ];
 
+// /local also has a custom layout (Top Stories rail + 5×3 main tile grid),
+// so it gets its own groups and the generic section.local group is suppressed.
+const LOCAL_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
+  {
+    key: 'section.local.recent',
+    title: 'Local Page — Top Stories Rail',
+    description: '10 headlines in the right-side rail on /local',
+    count: 10,
+  },
+  {
+    key: 'section.local.top',
+    title: 'Local Page — Main Tiles',
+    description: '15 stories shown 3×5 in the main grid on /local',
+    count: 15,
+  },
+];
+
+const CUSTOM_LAYOUT_SLUGS = new Set(['sports', 'local']);
+
 const SECTION_GROUPS: ReadonlyArray<SlotGroup> = [
-  ...SITE_SECTIONS.filter((s) => s.slug !== 'sports').map((s) => ({
+  ...SITE_SECTIONS.filter((s) => !CUSTOM_LAYOUT_SLUGS.has(s.slug)).map((s) => ({
     key: `section.${s.slug}`,
     title: `${s.label} Page`,
     description: `Top 3 stories on /${s.slug}`,
     count: 3,
   })),
+  ...LOCAL_PAGE_GROUPS,
   ...SPORTS_PAGE_GROUPS,
 ];
 

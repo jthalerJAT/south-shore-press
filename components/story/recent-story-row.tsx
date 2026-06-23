@@ -1,13 +1,13 @@
 import Link from 'next/link';
-import { HeroMedia } from '@/components/story/hero-media';
+import { HeroMedia } from './hero-media';
 import { buildStoryPath } from '@/lib/slugify';
 import { sectionLabel } from '@/lib/site-config';
 import type { StoryListItem } from '@/lib/queries/stories';
 
 /**
  * Horizontal "recent story" row: thumbnail on the left, then section label,
- * headline, and blurb (subline) on the right. Used in the Sports page's
- * "Recent Stories" list below the sub-sections.
+ * headline, and blurb (subline) on the right. Used in the Sports + Local
+ * "Recent Stories" lists below the main grids.
  */
 export function RecentStoryRow({ story }: { story: StoryListItem }) {
   const href = buildStoryPath({

@@ -7,7 +7,7 @@ import { getAllPins, resolveSlotStories } from '@/lib/queries/site-layout';
 import { SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
 import { SportsSubsection } from './sports-subsection';
-import { RecentStoryRow } from './recent-story-row';
+import { RecentStoryRow } from '@/components/story/recent-story-row';
 
 // Default tiles shown per sub-section (3 across × 2 high) before "View All".
 const TILES_PER_SUBSECTION = 6;

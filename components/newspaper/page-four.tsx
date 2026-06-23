@@ -148,7 +148,7 @@ export function PageFour({
         <div className="flex items-start" style={{ gap: 16, marginBottom: headlineGap }}>
           <PageFlag label={data.top.flag_label} />
           <h2
-            style={{ fontFamily: HEADLINE_FONT, fontSize: 36, fontWeight: 800, lineHeight: 1.04, color: '#111', whiteSpace: 'pre-line', textAlign: 'center', flex: 1 }}
+            style={{ fontFamily: HEADLINE_FONT, fontSize: 36, fontWeight: 800, lineHeight: 1.04, color: NAVY, whiteSpace: 'pre-line', textAlign: 'center', flex: 1 }}
           >
             {data.top.headline || <span style={{ color: '#d4d4d8' }}>[Top Article Headline]</span>}
           </h2>
@@ -198,7 +198,7 @@ export function PageFour({
           <div className="flex items-start" style={{ gap: 12, marginBottom: headlineGap }}>
             <PageFlag label={data.bottom.flag_label} />
             <h3
-              style={{ fontFamily: HEADLINE_FONT, fontSize: 30, fontWeight: 800, lineHeight: 1.04, color: '#111', whiteSpace: 'pre-line', textAlign: 'center', flex: 1 }}
+              style={{ fontFamily: HEADLINE_FONT, fontSize: 30, fontWeight: 800, lineHeight: 1.04, color: NAVY, whiteSpace: 'pre-line', textAlign: 'center', flex: 1 }}
             >
               {data.bottom.headline || <span style={{ color: '#d4d4d8' }}>[Bottom Article Headline]</span>}
             </h3>

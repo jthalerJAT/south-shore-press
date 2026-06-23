@@ -121,7 +121,9 @@ export function BandRenderer({
         {geometry.photo && data.hero_photo_url
           ? (() => {
               const hasStrip = Boolean(photoCaption || photoCredit);
-              const stripH = hasStrip ? PHOTO_CAPTION_STRIP : 0;
+              // Always reserve the caption/credit strip below the photo — even
+              // when empty — so body text is never flush against the image.
+              const stripH = PHOTO_CAPTION_STRIP;
               const imgH = geometry.photo.height - stripH;
               return (
                 <>

@@ -181,6 +181,9 @@ export default async function NewspaperPageEditorPage({
           data: it.data ?? {},
         }))}
         initialShowColophon={Boolean((page.template_data as { show_colophon?: boolean })?.show_colophon)}
+        initialPhotoScale={(page.template_data as { photo_scale?: number })?.photo_scale ?? 1}
+        initialSpaceScale={(page.template_data as { space_scale?: number })?.space_scale ?? 1}
+        initialColumns={(page.template_data as { columns?: number | null })?.columns ?? null}
         editorStories={editorStories}
       />
     </PortalShell>

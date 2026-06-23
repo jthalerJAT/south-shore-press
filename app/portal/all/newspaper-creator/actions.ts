@@ -499,6 +499,34 @@ export async function setColophonRail(pageId: string, show: boolean): Promise<Re
   return { ok: true };
 }
 
+/** Persist a flow page's "fit" levers (photo size / spacing / column count)
+ *  into template_data, alongside show_colophon. The proof + preview read these
+ *  to render the page. No extra column needed. */
+export async function setPageFit(
+  pageId: string,
+  fit: { photo_scale?: number; space_scale?: number; columns?: number | null }
+): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { data: page } = await supabase
+    .from('np_pages')
+    .select('template_data')
+    .eq('id', pageId)
+    .maybeSingle();
+  const td = { ...((page?.template_data as Record<string, unknown>) ?? {}), ...fit };
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: td, updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[setPageFit]', error);
+    return { ok: false, error: 'Could not save the layout settings.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
 /** Toggle whether a page is included in the printed issue. */
 export async function setPageIncluded(pageId: string, included: boolean): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);

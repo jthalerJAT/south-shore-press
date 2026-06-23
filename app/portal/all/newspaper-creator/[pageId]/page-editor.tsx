@@ -1,16 +1,20 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
+import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/newspaper/layout-engine';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
+import { SectionFlag } from '@/components/newspaper/section-flag';
+import { ProofBands, type ProofItem } from './print/proof-bands';
 import { PhotoUrlField } from '../photo-url-field';
 import { HeadlineField } from '../headline-field';
-import { savePage, requestAdUploadUrl, setColophonRail, fetchStoryDetail, type SavedItem } from '../actions';
+import { savePage, requestAdUploadUrl, setColophonRail, setPageFit, fetchStoryDetail, type SavedItem } from '../actions';
 
 const ADS_BUCKET = 'newspaper-ads';
+const PREVIEW_SCALE = 0.42;
 
 type EditorItem = {
   localId: string;
@@ -32,6 +36,9 @@ export function PageEditor({
   initialSectionName,
   initialItems,
   initialShowColophon = false,
+  initialPhotoScale = 1,
+  initialSpaceScale = 1,
+  initialColumns = null,
   editorStories,
 }: {
   pageId: string;
@@ -41,12 +48,26 @@ export function PageEditor({
   initialSectionName: string;
   initialItems: Array<Pick<EditorItem, 'type' | 'slot_key' | 'source_story_id' | 'data'>>;
   initialShowColophon?: boolean;
+  initialPhotoScale?: number;
+  initialSpaceScale?: number;
+  initialColumns?: number | null;
   /** Website stories for the per-card "Fill from story" picker. */
   editorStories: EditorStoryRow[];
 }) {
   const router = useRouter();
   const [sectionName, setSectionName] = useState(initialSectionName);
   const [showColophon, setShowColophon] = useState(initialShowColophon);
+  const [photoScale, setPhotoScale] = useState(initialPhotoScale);
+  const [spaceScale, setSpaceScale] = useState(initialSpaceScale);
+  // Page-wide column override (null = use each story's default). Default the
+  // control to 4 (the house default) when unset.
+  const [columns, setColumns] = useState<number>(initialColumns ?? 4);
+
+  // Preview overflow measurement + "adjust to fit".
+  const pageRef = useRef<HTMLDivElement | null>(null);
+  const [naturalHeight, setNaturalHeight] = useState(CONTENT_H_PX);
+  const [fitting, setFitting] = useState(false);
+  const overflow = naturalHeight > CONTENT_H_PX + 4;
   // Empty page → start with two blank article slots so the editor shows fields
   // to fill (with "Fill from story") instead of a blank form.
   const [items, setItems] = useState<EditorItem[]>(() =>
@@ -60,6 +81,45 @@ export function PageEditor({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return;
+    const update = () => setNaturalHeight(el.offsetHeight);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Tighten spacing first (to a floor), then shrink photos, until the page fits.
+  async function adjustToFit() {
+    setFitting(true);
+    const MIN_SPACE = 0.3;
+    const MIN_PHOTO = 0.4;
+    const STEP = 0.06;
+    const nextFrame = () =>
+      new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    let space = spaceScale;
+    let photo = photoScale;
+    for (let i = 0; i < 50; i++) {
+      await nextFrame();
+      const h = pageRef.current?.offsetHeight ?? 0;
+      if (h <= CONTENT_H_PX + 4) break;
+      if (space > MIN_SPACE) {
+        space = Math.max(MIN_SPACE, +(space - STEP).toFixed(3));
+        setSpaceScale(space);
+        setSaved(false);
+      } else if (photo > MIN_PHOTO) {
+        photo = Math.max(MIN_PHOTO, +(photo - STEP).toFixed(3));
+        setPhotoScale(photo);
+        setSaved(false);
+      } else {
+        break;
+      }
+    }
+    setFitting(false);
+  }
 
   function patch(localId: string, partial: Record<string, any>) {
     setSaved(false);
@@ -124,6 +184,11 @@ export function PageEditor({
       data: it.data,
     }));
     const res = await savePage(pageId, sectionName, payload);
+    if (res.ok) {
+      // Persist the page-level fit levers into template_data (separate from the
+      // np_items savePage replaces).
+      await setPageFit(pageId, { photo_scale: photoScale, space_scale: spaceScale, columns });
+    }
     setSaving(false);
     if (!res.ok) {
       setError(res.error ?? 'Could not save.');
@@ -134,9 +199,17 @@ export function PageEditor({
   }
 
   const stories = items.filter((i) => i.type === 'story');
+  const hasPhotos = items.some((it) => it.type === 'story' && it.data.hero_photo_url);
+  const proofItems: ProofItem[] = items.map((it) => ({
+    id: it.localId,
+    type: it.type,
+    data: it.data as ProofItem['data'],
+    layout: {},
+  }));
 
   return (
-    <div className="max-w-3xl">
+    <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8">
+      <div className="max-w-2xl">
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href={`/portal/all/newspaper-creator/${pageId}/layout`}
@@ -253,6 +326,103 @@ export function PageEditor({
           content here resets a custom page layout to the default — arrange the layout last, in{' '}
           <strong>Edit Page Layout</strong>.
         </p>
+      </div>
+      </div>
+
+      {/* ── Right: live preview + fit controls ─────────────── */}
+      <div className="lg:sticky lg:top-6 lg:self-start" style={{ width: CONTENT_W_PX * PREVIEW_SCALE }}>
+        <div className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">Preview</div>
+        <div
+          className="border border-zinc-300 shadow-sm overflow-hidden bg-white"
+          style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
+        >
+          <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
+            <div ref={pageRef} style={{ width: CONTENT_W_PX, background: '#fff', color: '#111' }}>
+              <SectionFlag label={sectionName} />
+              {proofItems.length > 0 ? (
+                <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} />
+              ) : (
+                <p className="text-sm text-zinc-400 italic">Add a story or ad to see the preview.</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {overflow ? (
+          <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
+            ⚠ Content overflows the page by ~{Math.round((naturalHeight - CONTENT_H_PX) / 96 * 100) / 100}in.
+            It will be clipped on the printed sheet — shrink photos, tighten spacing, or trim text.
+          </div>
+        ) : null}
+
+        <div className="mt-3 rounded border border-zinc-200 p-3 space-y-3">
+          <button
+            type="button"
+            onClick={adjustToFit}
+            disabled={fitting}
+            className="w-full inline-flex items-center justify-center px-3 py-2 text-sm font-medium text-white bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 rounded transition-colors"
+          >
+            {fitting ? 'Adjusting…' : 'Adjust to fit page'}
+          </button>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-zinc-700">Columns</span>
+            <div className="inline-flex items-center border border-zinc-300 rounded overflow-hidden">
+              <button
+                type="button"
+                onClick={() => { setColumns((c) => Math.max(MIN_COLUMNS, c - 1)); setSaved(false); }}
+                disabled={columns <= MIN_COLUMNS}
+                className="px-2.5 py-1 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+              >
+                −
+              </button>
+              <span className="px-3 py-1 text-sm tabular-nums border-x border-zinc-300 min-w-[2.25rem] text-center">{columns}</span>
+              <button
+                type="button"
+                onClick={() => { setColumns((c) => Math.min(MAX_COLUMNS, c + 1)); setSaved(false); }}
+                disabled={columns >= MAX_COLUMNS}
+                className="px-2.5 py-1 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="flex items-center justify-between text-xs text-zinc-600">
+              <span>Article spacing</span>
+              <span>{Math.round(spaceScale * 100)}%</span>
+            </label>
+            <input
+              type="range"
+              min={0.3}
+              max={1.6}
+              step={0.05}
+              value={spaceScale}
+              onChange={(e) => { setSpaceScale(Number(e.target.value)); setSaved(false); }}
+              className="w-full accent-brand-red"
+            />
+          </div>
+          <div>
+            <label className="flex items-center justify-between text-xs text-zinc-600">
+              <span>Photo size</span>
+              <span>{Math.round(photoScale * 100)}%</span>
+            </label>
+            <input
+              type="range"
+              min={0.4}
+              max={1.8}
+              step={0.02}
+              value={photoScale}
+              onChange={(e) => { setPhotoScale(Number(e.target.value)); setSaved(false); }}
+              disabled={!hasPhotos}
+              className="w-full accent-brand-red disabled:opacity-50"
+            />
+          </div>
+          <p className="text-[11px] text-zinc-400">
+            Columns, spacing and photo size apply to the whole page. Click <strong>Save Page Content</strong> to keep them.
+          </p>
+        </div>
       </div>
     </div>
   );

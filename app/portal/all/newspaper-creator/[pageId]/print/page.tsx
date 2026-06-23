@@ -61,6 +61,12 @@ export default async function PagePrintProof({
   const tid = templateId(page.kind);
   const cfg = isTemplate ? coverConfig(page.kind) : null;
 
+  // Flow-page "fit" levers (set in the page editor, stored in template_data).
+  const fit = (page.template_data ?? {}) as { photo_scale?: number; space_scale?: number; columns?: number | null };
+  const photoScale = fit.photo_scale ?? 1;
+  const spaceScale = fit.space_scale ?? 1;
+  const fitColumns = fit.columns ?? undefined;
+
   const proofItems: ProofItem[] = items.map((it) => ({
     id: it.id,
     type: it.type,
@@ -111,7 +117,7 @@ export default async function PagePrintProof({
               <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
                 <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
                   {proofItems.length > 0 ? (
-                    <ProofBands items={proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} />
+                    <ProofBands items={proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
                   ) : (
                     <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
                   )}
@@ -121,7 +127,7 @@ export default async function PagePrintProof({
             ) : proofItems.length === 0 ? (
               <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
             ) : (
-              <ProofBands items={proofItems} />
+              <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
             )}
           </div>
         )}

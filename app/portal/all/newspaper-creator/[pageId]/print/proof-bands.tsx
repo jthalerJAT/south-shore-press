@@ -11,6 +11,8 @@ import {
   normalizeStoryLayout,
   normalizeAdLayout,
   CONTENT_W_PX,
+  MIN_COLUMNS,
+  MAX_COLUMNS,
 } from '@/lib/newspaper/layout-engine';
 import { useComputedBands, type BandInput } from '@/lib/newspaper/use-bands';
 import { BandRenderer } from '@/components/newspaper/band-renderer';
@@ -32,11 +34,20 @@ export type ProofItem = {
 export function ProofBands({
   items,
   contentWidthPx = CONTENT_W_PX,
+  photoScale = 1,
+  spaceScale = 1,
+  columns,
 }: {
   items: ProofItem[];
   /** Render width for the bands — narrowed when a side rail shares the page. */
   contentWidthPx?: number;
+  /** Page-level "fit" levers (set from the page editor's controls). */
+  photoScale?: number;
+  spaceScale?: number;
+  /** When set, override every story band's column count (page-wide +/−). */
+  columns?: number;
 }) {
+  const clampCols = (n: number) => Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, Math.round(n)));
   const inputs: BandInput[] = useMemo(
     () =>
       items.map((it, i) => {
@@ -45,26 +56,34 @@ export function ProofBands({
         // so the engine measures + places it there (BandRenderer styles it).
         const byline = it.type === 'story' ? (it.data.byline ?? '').trim() : '';
         const body = byline ? `By ${byline}\n\n${it.data.body ?? ''}` : it.data.body ?? '';
+        let story =
+          it.type === 'story'
+            ? normalizeStoryLayout(it.layout, i, Boolean(it.data.hero_photo_url))
+            : undefined;
+        if (story) {
+          if (columns) story = { ...story, column_count: clampCols(columns) };
+          if (story.photo && photoScale !== 1) {
+            story = { ...story, photo: { ...story.photo, height: story.photo.height * photoScale } };
+          }
+        }
         return {
           id: it.id,
           type: it.type,
           data: { ...it.data, body },
-          story:
-            it.type === 'story'
-              ? normalizeStoryLayout(it.layout, i, Boolean(it.data.hero_photo_url))
-              : undefined,
+          story,
           ad: it.type === 'ad' ? normalizeAdLayout(it.layout, i, it.data.ad_size ?? 'quarter') : undefined,
         };
       }),
-    [items]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, photoScale, columns]
   );
   const { computed } = useComputedBands(inputs, contentWidthPx);
   const byId = useMemo(() => Object.fromEntries(computed.map((c) => [c.id, c])), [computed]);
 
   return (
     // Tighter inter-story spacing (was a loose 24px gap); a thin rule + small
-    // gap reads more like a newspaper.
-    <div className="flex flex-col" style={{ width: contentWidthPx, gap: 14 }}>
+    // gap reads more like a newspaper. Scaled by the page's spacing lever.
+    <div className="flex flex-col" style={{ width: contentWidthPx, gap: Math.max(4, Math.round(14 * spaceScale)) }}>
       {items.map((it) => {
         const c = byId[it.id];
         if (!c) return null;

@@ -71,6 +71,10 @@ export default async function NewspaperViewFile() {
           const ordinal = i + 1;
           const title = pageHeading(page.title, ordinal);
           const cfg = coverConfig(page.kind);
+          const fit = (page.template_data ?? {}) as { photo_scale?: number; space_scale?: number; columns?: number | null };
+          const photoScale = fit.photo_scale ?? 1;
+          const spaceScale = fit.space_scale ?? 1;
+          const fitColumns = fit.columns ?? undefined;
           return (
             <div key={page.id} className="w-full flex flex-col items-center">
               <div className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">
@@ -107,13 +111,16 @@ export default async function NewspaperViewFile() {
                                 <ProofBands
                                   items={(r as { proofItems: ProofItem[] }).proofItems}
                                   contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP}
+                                  photoScale={photoScale}
+                                  spaceScale={spaceScale}
+                                  columns={fitColumns}
                                 />
                               ) : null}
                             </div>
                             <ColophonRail width={COLOPHON_RAIL_W} />
                           </div>
                         ) : (r as { proofItems: ProofItem[] }).proofItems.length > 0 ? (
-                          <ProofBands items={(r as { proofItems: ProofItem[] }).proofItems} />
+                          <ProofBands items={(r as { proofItems: ProofItem[] }).proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
                         ) : (
                           <p className="text-sm text-zinc-300 italic">Blank page</p>
                         )}

@@ -83,8 +83,8 @@ const SPORTS_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   ...SPORTS_SUBCATEGORIES.map((sub) => ({
     key: `section.sports.${sub.slug}`,
     title: `Sports Page — ${sub.label} Block`,
-    description: `4 stories shown 2x2 in the ${sub.label} block on /sports`,
-    count: 4,
+    description: `6 stories shown 3x2 in the ${sub.label} block on /sports`,
+    count: 6,
   })),
 ];
 

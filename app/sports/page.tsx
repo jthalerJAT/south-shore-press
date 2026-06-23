@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { StoryCard } from '@/components/story/story-card';
+import { TopStoriesRail } from '@/components/story/top-stories-rail';
 import {
   getPublishedStoriesBySection,
 } from '@/lib/queries/stories';
@@ -8,6 +8,9 @@ import { SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
 import { SportsSubsection } from './sports-subsection';
 import { RecentStoryRow } from './recent-story-row';
+
+// Default tiles shown per sub-section (3 across × 2 high) before "View All".
+const TILES_PER_SUBSECTION = 6;
 
 // ISR — same 60s window as the homepage. Publishing or pin changes
 // trigger an explicit revalidatePath('/sports') in their actions.
@@ -46,12 +49,13 @@ export default async function SportsPage() {
   // each sub-section's published list. We cap each pool well above
   // its render limit so pinned older stories are still in the set
   // and don't silently fall back to recency.
-  const [pins, recent, subStories] = await Promise.all([
+  const [pins, pool, subStories] = await Promise.all([
     getAllPins(),
     // 'sports' tag catches everything — sub-cat stories are auto-tagged
     // with 'sports' in the save action, and legacy sports-only stories
-    // still match this.
-    getPublishedStoriesBySection('sports', 60),
+    // still match this. Pulled deep so the bottom "Recent Stories" list
+    // (everything not already shown) has plenty to draw from.
+    getPublishedStoriesBySection('sports', 100),
     Promise.all(
       SPORTS_SUBCATEGORIES.map(async (sub) => ({
         slug: sub.slug,
@@ -61,16 +65,13 @@ export default async function SportsPage() {
     ),
   ]);
 
-  const recentStories = resolveSlotStories(
+  // Right-rail "Top Stories" — reverse-chron, or the admin's manual order from
+  // Site Layout (slot section.sports.recent).
+  const topStories = resolveSlotStories(
     pins.filter((p) => p.slot_key === 'section.sports.recent'),
-    recent,
+    pool,
     10
   );
-
-  // "You Might Also Be Interested In" — 4 more sports stories not already in
-  // the Recent list.
-  const recentIds = new Set(recentStories.map((s) => s.id));
-  const alsoStories = recent.filter((s) => !recentIds.has(s.id)).slice(0, 4);
 
   const subSectionsResolved = subStories.map(({ slug, title, stories }) => ({
     slug,
@@ -78,12 +79,20 @@ export default async function SportsPage() {
     stories: resolveSlotStories(
       pins.filter((p) => p.slot_key === `section.sports.${slug}`),
       stories,
-      // We pass the full pool here (not 4) so the "View All" expansion
-      // has all stories to show. Pin resolution still places pinned
-      // stories in the first N positions; the rest are reverse-chron.
-      Math.max(stories.length, 4)
+      // Pass the full pool so "View All" can expand; pins still order the
+      // first N, the rest are reverse-chron.
+      Math.max(stories.length, TILES_PER_SUBSECTION)
     ),
   }));
+
+  // Bottom "Recent Stories" — reverse-chron of every other sports story NOT
+  // already shown in the 18 default tiles (6 per sub-section) or the Top
+  // Stories rail.
+  const shownIds = new Set<string>(topStories.map((s) => s.id));
+  for (const sub of subSectionsResolved) {
+    for (const s of sub.stories.slice(0, TILES_PER_SUBSECTION)) shownIds.add(s.id);
+  }
+  const recentStories = pool.filter((s) => !shownIds.has(s.id));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -96,19 +105,28 @@ export default async function SportsPage() {
         </h1>
       </div>
 
-      {/* Three sub-sections stacked, each a 3×2 tile grid with View All. */}
-      <div className="space-y-2">
-        {subSectionsResolved.map((sub) => (
-          <SportsSubsection
-            key={sub.slug}
-            title={sub.title}
-            sectionSlug={sub.slug}
-            stories={sub.stories}
-          />
-        ))}
+      {/* Two columns: sub-section tile grids (left) + Top Stories rail (right). */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-start">
+        {/* LEFT — 3 sub-sections, each a 3×2 tile grid with View All. */}
+        <div className="lg:col-span-8 space-y-2">
+          {subSectionsResolved.map((sub) => (
+            <SportsSubsection
+              key={sub.slug}
+              title={sub.title}
+              sectionSlug={sub.slug}
+              stories={sub.stories}
+            />
+          ))}
+        </div>
+
+        {/* RIGHT — Top Stories rail (sticky), reverse-chron or admin-pinned. */}
+        <aside className="lg:col-span-4 lg:sticky lg:top-6 lg:self-start">
+          <TopStoriesRail stories={topStories} title="Top Stories" />
+        </aside>
       </div>
 
-      {/* Recent stories — horizontal rows (thumbnail left, headline + blurb). */}
+      {/* Recent Stories — everything else in sports not shown above, reverse-
+          chron, as horizontal rows (thumbnail left, headline + blurb right). */}
       {recentStories.length > 0 ? (
         <section className="mt-12 pt-8 border-t-2 border-brand-red">
           <h2 className="font-headline text-2xl font-bold tracking-tight text-zinc-900 mb-2">
@@ -117,20 +135,6 @@ export default async function SportsPage() {
           <div>
             {recentStories.map((story) => (
               <RecentStoryRow key={story.id} story={story} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {/* You Might Also Be Interested In — 4 across. */}
-      {alsoStories.length > 0 ? (
-        <section className="mt-12 pt-8 border-t-2 border-brand-red">
-          <h2 className="font-headline text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 mb-6">
-            You Might Also Be Interested In
-          </h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-            {alsoStories.map((story) => (
-              <StoryCard key={story.id} story={story} variant="standard" />
             ))}
           </div>
         </section>

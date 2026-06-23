@@ -46,6 +46,8 @@ function parseStoryFormData(formData: FormData) {
   const byline = String(formData.get('byline') ?? '').trim();
   const body = String(formData.get('body') ?? '');
   const hero_photo_url = String(formData.get('hero_photo_url') ?? '').trim();
+  const photo_caption = String(formData.get('photo_caption') ?? '').trim();
+  const photo_credit = String(formData.get('photo_credit') ?? '').trim();
 
   // extra_photo_urls comes in as N inputs all named "extra_photo_url"
   // (one per dynamic row in the editor). FormData.getAll() returns
@@ -81,6 +83,8 @@ function parseStoryFormData(formData: FormData) {
     byline: byline || null,
     body: body || null,
     hero_photo_url: hero_photo_url || null,
+    photo_caption: photo_caption || null,
+    photo_credit: photo_credit || null,
     // Arrays kept as arrays (empty if user provided nothing) so we don't
     // trip Postgres NOT NULL constraints on these columns.
     extra_photo_urls,

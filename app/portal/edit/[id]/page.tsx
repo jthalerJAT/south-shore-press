@@ -75,6 +75,8 @@ export default async function PortalEditStoryPage({
           byline: story.byline,
           body: story.body,
           hero_photo_url: story.hero_photo_url,
+          photo_caption: story.photo_caption,
+          photo_credit: story.photo_credit,
           extra_photo_urls: story.extra_photo_urls,
           categories: story.categories,
           status: story.status,

@@ -42,6 +42,8 @@ export type StoryListItem = {
 export type StoryDetail = StoryListItem & {
   body: string | null;
   extra_photo_urls: string[] | null;
+  photo_caption: string | null;
+  photo_credit: string | null;
   created_at: string;
   author_id: string | null;
   author: { display_name: string | null } | null;
@@ -52,6 +54,7 @@ const LIST_COLUMNS =
 
 const DETAIL_COLUMNS = `
   id, headline, subline, byline, body, hero_photo_url, extra_photo_urls,
+  photo_caption, photo_credit,
   categories, status, published_at, created_at, author_id,
   author:profiles!stories_author_id_fkey(display_name)
 `;

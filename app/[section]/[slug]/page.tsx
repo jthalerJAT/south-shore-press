@@ -247,6 +247,14 @@ export default async function StoryPage({ params }: { params: Params }) {
       {/* 8px rounded corners on hero — matches v1's --radius */}
       <div className="mt-7">
         <HeroMedia url={story.hero_photo_url} alt={heroAlt} variant="hero" priority />
+        {story.photo_caption || story.photo_credit ? (
+          <div className="mt-2 flex flex-wrap items-baseline justify-between gap-x-3 text-[12px] text-zinc-500">
+            <span>{story.photo_caption ?? ''}</span>
+            {story.photo_credit ? (
+              <span className="italic whitespace-nowrap">Credit: {story.photo_credit}</span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {/* Body: v1 scale (16px) but with a slightly loosened line-height

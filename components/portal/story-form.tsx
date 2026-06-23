@@ -22,6 +22,8 @@ type StoryDefaults = {
   byline?: string | null;
   body?: string | null;
   hero_photo_url?: string | null;
+  photo_caption?: string | null;
+  photo_credit?: string | null;
   extra_photo_urls?: string[] | null;
   categories?: string[] | null;
   status?: 'draft' | 'submitted' | 'published' | 'unpublished';
@@ -263,6 +265,30 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
           placeholder="Paste an image or YouTube URL, or upload →"
         />
       </Field>
+
+      {/* Photo caption + credit — both optional */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <Field label="Photo caption" htmlFor="photo_caption" hint="Optional. Shown under the hero photo.">
+          <input
+            id="photo_caption"
+            name="photo_caption"
+            type="text"
+            defaultValue={defaults?.photo_caption ?? ''}
+            disabled={disabled}
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-base focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500"
+          />
+        </Field>
+        <Field label="Photo credit" htmlFor="photo_credit" hint="Optional. e.g. the photographer or source.">
+          <input
+            id="photo_credit"
+            name="photo_credit"
+            type="text"
+            defaultValue={defaults?.photo_credit ?? ''}
+            disabled={disabled}
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-base focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500"
+          />
+        </Field>
+      </div>
 
       {/* Body */}
       <Field label="Body" htmlFor="body" hint="Plain text. Blank lines separate paragraphs.">

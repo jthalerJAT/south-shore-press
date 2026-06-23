@@ -95,6 +95,8 @@ export async function getAllStoriesForEditor(): Promise<EditorStoryRow[]> {
 export type EditorStoryDetail = EditorStoryRow & {
   body: string | null;
   extra_photo_urls: string[] | null;
+  photo_caption: string | null;
+  photo_credit: string | null;
 };
 
 /** Single story by full UUID, for the edit form. */
@@ -104,7 +106,7 @@ export async function getStoryForEdit(
   const supabase = createClient();
   const { data, error } = await supabase
     .from('stories')
-    .select(`${ROW_COLUMNS}, body, extra_photo_urls`)
+    .select(`${ROW_COLUMNS}, body, extra_photo_urls, photo_caption, photo_credit`)
     .eq('id', id)
     .maybeSingle();
   if (error) {

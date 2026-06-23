@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { TopStoriesRail } from '@/components/story/top-stories-rail';
+import { StoryCard } from '@/components/story/story-card';
 import {
   getPublishedStoriesBySection,
 } from '@/lib/queries/stories';
@@ -7,6 +7,7 @@ import { getAllPins, resolveSlotStories } from '@/lib/queries/site-layout';
 import { SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
 import { SportsSubsection } from './sports-subsection';
+import { RecentStoryRow } from './recent-story-row';
 
 // ISR — same 60s window as the homepage. Publishing or pin changes
 // trigger an explicit revalidatePath('/sports') in their actions.
@@ -66,6 +67,11 @@ export default async function SportsPage() {
     10
   );
 
+  // "You Might Also Be Interested In" — 4 more sports stories not already in
+  // the Recent list.
+  const recentIds = new Set(recentStories.map((s) => s.id));
+  const alsoStories = recent.filter((s) => !recentIds.has(s.id)).slice(0, 4);
+
   const subSectionsResolved = subStories.map(({ slug, title, stories }) => ({
     slug,
     title,
@@ -90,24 +96,45 @@ export default async function SportsPage() {
         </h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:items-start">
-        {/* LEFT — 3 sub-sections stacked */}
-        <div className="lg:col-span-8 space-y-2">
-          {subSectionsResolved.map((sub) => (
-            <SportsSubsection
-              key={sub.slug}
-              title={sub.title}
-              sectionSlug={sub.slug}
-              stories={sub.stories}
-            />
-          ))}
-        </div>
-
-        {/* RIGHT — recent-stories rail (sticky on lg+) */}
-        <aside className="lg:col-span-4 lg:sticky lg:top-6 lg:self-start">
-          <TopStoriesRail stories={recentStories} title="Recent Stories" />
-        </aside>
+      {/* Three sub-sections stacked, each a 3×2 tile grid with View All. */}
+      <div className="space-y-2">
+        {subSectionsResolved.map((sub) => (
+          <SportsSubsection
+            key={sub.slug}
+            title={sub.title}
+            sectionSlug={sub.slug}
+            stories={sub.stories}
+          />
+        ))}
       </div>
+
+      {/* Recent stories — horizontal rows (thumbnail left, headline + blurb). */}
+      {recentStories.length > 0 ? (
+        <section className="mt-12 pt-8 border-t-2 border-brand-red">
+          <h2 className="font-headline text-2xl font-bold tracking-tight text-zinc-900 mb-2">
+            Recent Stories
+          </h2>
+          <div>
+            {recentStories.map((story) => (
+              <RecentStoryRow key={story.id} story={story} />
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* You Might Also Be Interested In — 4 across. */}
+      {alsoStories.length > 0 ? (
+        <section className="mt-12 pt-8 border-t-2 border-brand-red">
+          <h2 className="font-headline text-xl sm:text-2xl font-bold tracking-tight text-zinc-900 mb-6">
+            You Might Also Be Interested In
+          </h2>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {alsoStories.map((story) => (
+              <StoryCard key={story.id} story={story} variant="standard" />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

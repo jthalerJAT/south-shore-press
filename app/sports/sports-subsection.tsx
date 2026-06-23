@@ -8,10 +8,10 @@ import type { StoryListItem } from '@/lib/queries/stories';
  * Collapsible sub-section block used on the /sports page for each of
  * Local Sports / Pro Sports / Fantasy Sports.
  *
- * Default view: a 2x2 grid (up to 4 stories).
- * Expanded view: a wider grid with every story in the section.
- * "View All" link toggles between the two states — same control
- * collapses back to the 2x2 when expanded.
+ * Default view: a 3-across × 2-row grid (up to 6 stories).
+ * Expanded view: the same grid with every story in the section (up to the
+ * 50-story fetch cap). "View All" toggles between the two states — same
+ * control collapses back to 6 when expanded.
  *
  * Empty state: a dashed "Stories coming soon" placeholder so the
  * section heading is still visible to readers + editors.
@@ -26,8 +26,8 @@ export function SportsSubsection({
   stories: StoryListItem[];
 }) {
   const [expanded, setExpanded] = useState(false);
-  const hasOverflow = stories.length > 4;
-  const shown = expanded ? stories : stories.slice(0, 4);
+  const hasOverflow = stories.length > 6;
+  const shown = expanded ? stories : stories.slice(0, 6);
 
   return (
     <section className="mt-8 first:mt-0">
@@ -57,7 +57,7 @@ export function SportsSubsection({
           Stories coming soon.
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {shown.map((story) => (
             <StoryCard key={story.id} story={story} variant="standard" />
           ))}

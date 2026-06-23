@@ -20,6 +20,7 @@ import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
 import { defaultStoryLayout, defaultAdLayout, type AdSizeValue } from '@/lib/newspaper/layout-engine';
 import { normalizeCover, fillSlotFromStory } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd, fillOpEdFromStory, fillOpEdAd } from '@/lib/newspaper/oped';
+import { normalizePageFour, fillPageFourFromStory, fillPageFourAd } from '@/lib/newspaper/page-four';
 import { fillFullAdFromAd, normalizeFullAd } from '@/lib/newspaper/full-ad';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
@@ -117,9 +118,12 @@ export async function addStoryToPage(
   // Template pages don't take np_items — dropping a story fills the next empty
   // template slot (cover hero/tiles, or the OpEd Main/2nd story).
   if (pageMode(page.kind) === 'template') {
+    const tid = templateId(page.kind);
     const data =
-      templateId(page.kind) === 'oped'
+      tid === 'oped'
         ? fillOpEdFromStory(normalizeOpEd(page.template_data), story)
+        : tid === 'page_four'
+        ? fillPageFourFromStory(normalizePageFour(page.template_data), story)
         : fillSlotFromStory(normalizeCover(page.template_data, page.kind), story);
     const { error } = await supabase
       .from('np_pages')
@@ -224,6 +228,12 @@ export async function addAdToPage(pageId: string, adId: string): Promise<Result>
     let data: Record<string, unknown> | null = null;
     if (tid === 'oped') {
       data = fillOpEdAd(normalizeOpEd(page.template_data), {
+        id: adId,
+        copy_storage_path: ad.copy_storage_path,
+        copy_file_name: ad.copy_file_name,
+      }) as unknown as Record<string, unknown>;
+    } else if (tid === 'page_four') {
+      data = fillPageFourAd(normalizePageFour(page.template_data), {
         id: adId,
         copy_storage_path: ad.copy_storage_path,
         copy_file_name: ad.copy_file_name,
@@ -556,6 +566,43 @@ export async function saveFullAd(pageId: string, data: Record<string, unknown>):
   if (error) {
     console.error('[saveFullAd]', error);
     return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Persist a Page 4 (Op-Ed Page) template page's fields and lock it. */
+export async function savePageFour(pageId: string, data: Record<string, unknown>): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[savePageFour]', error);
+    return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Change a page's template kind (e.g. convert a blank flow page into the
+ *  Op-Ed Page template). Resets the page to 'tbd' since the new renderer reads
+ *  a different content shape; existing content rows are left in place but
+ *  unused by the new template. */
+export async function setPageKind(pageId: string, kind: NpKind): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ kind, status: 'tbd', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[setPageKind]', error);
+    return { ok: false, error: 'Could not change the page type.' };
   }
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${pageId}`);

@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { NpPage, NpItemSummary } from '@/lib/queries/newspaper';
 import type { Ad } from '@/lib/queries/ads';
-import { isMaster, ADDABLE_TEMPLATE_KINDS, pageHeading, type NpKind } from '@/lib/newspaper-templates';
+import { isMaster, ADDABLE_TEMPLATE_KINDS, ASSIGNABLE_KINDS, pageHeading, templateFor, type NpKind } from '@/lib/newspaper-templates';
 import {
   addStoryToPage,
   addAdToPage,
@@ -36,6 +36,7 @@ import {
   resetIssueContent,
   reseedPages,
   setPageIncluded,
+  setPageKind,
 } from './actions';
 
 /** Pre-resolved legal record for the Legals tab (server builds url + date so
@@ -64,6 +65,7 @@ const EMPTY_DESCRIPTOR: Partial<Record<NpPage['kind'], string>> = {
   front: 'Front Page (template)',
   sports_cover: 'Sports Cover (template)',
   page2: 'Page 2 — OpEd (template)',
+  oped_page: 'Op-Ed Page (template)',
 };
 
 export function NewspaperBoard({
@@ -196,6 +198,18 @@ export function NewspaperBoard({
     if (isMaster(page.kind)) return;
     if (!confirm(`Delete "${displayTitle(page, ordinal)}" and its content? This can't be undone.`)) return;
     run(() => deletePage(page.id));
+  }
+
+  function handleSetKind(page: NpPage, ordinal: number, kind: NpKind) {
+    if (kind === page.kind) return;
+    const label = templateFor(kind).label;
+    if (
+      !confirm(
+        `Change "${displayTitle(page, ordinal)}" to the ${label} template? Any content already on this page may no longer appear (it isn't deleted — switch back to restore it).`
+      )
+    )
+      return;
+    run(() => setPageKind(page.id, kind));
   }
 
   function toggleInclude(pageId: string, included: boolean) {
@@ -405,6 +419,7 @@ export function NewspaperBoard({
                     subtitles={summaries[page.id] ?? []}
                     onDelete={() => handleDelete(page, i + 1)}
                     onToggleInclude={(v) => toggleInclude(page.id, v)}
+                    onSetKind={(k) => handleSetKind(page, i + 1, k)}
                   />
                 ))}
               </ul>
@@ -427,12 +442,14 @@ function SortablePageRow({
   subtitles,
   onDelete,
   onToggleInclude,
+  onSetKind,
 }: {
   page: NpPage;
   ordinal: number;
   subtitles: NpItemSummary[];
   onDelete: () => void;
   onToggleInclude: (included: boolean) => void;
+  onSetKind: (kind: NpKind) => void;
 }) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver } =
     useSortable({ id: page.id });
@@ -487,6 +504,7 @@ function SortablePageRow({
             {EMPTY_DESCRIPTOR[page.kind] ?? 'No content yet'}
           </div>
         )}
+        <PageTypeSelect kind={page.kind} onChange={onSetKind} />
       </div>
       <span
         className={cn(
@@ -517,6 +535,28 @@ function SortablePageRow({
         <Trash2 className="w-4 h-4" />
       </button>
     </li>
+  );
+}
+
+/** Per-row page-type selector — converts a page to another template/layout
+ *  kind. Shows the current kind even when it isn't an assignable option (e.g.
+ *  the seeded covers). */
+function PageTypeSelect({ kind, onChange }: { kind: NpKind; onChange: (k: NpKind) => void }) {
+  const inList = ASSIGNABLE_KINDS.some((o) => o.kind === kind);
+  return (
+    <select
+      value={kind}
+      onChange={(e) => onChange(e.target.value as NpKind)}
+      title="Page type / template"
+      className="mt-1 text-[11px] text-zinc-500 bg-transparent border border-zinc-200 rounded px-1 py-0.5 max-w-full focus:border-brand-red focus:outline-none"
+    >
+      {!inList ? <option value={kind}>{templateFor(kind).label}</option> : null}
+      {ASSIGNABLE_KINDS.map((o) => (
+        <option key={o.kind} value={o.kind}>
+          {o.label}
+        </option>
+      ))}
+    </select>
   );
 }
 

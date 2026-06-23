@@ -19,6 +19,7 @@ export type NpKind =
   | 'front'
   | 'sports_cover'
   | 'page2'
+  | 'oped_page'
   | 'full_page_ad'
   | 'generic'
   | 'legals'
@@ -46,7 +47,7 @@ export type CoverConfig = {
 };
 
 /** Which bespoke template editor/renderer a template-mode page uses. */
-export type TemplateId = 'section_cover' | 'oped' | 'full_ad';
+export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad';
 
 export type NpTemplate = {
   label: string;
@@ -105,6 +106,13 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     master: true,
     template: 'oped',
   },
+  oped_page: {
+    label: 'Op-Ed Page',
+    slots: 'open',
+    mode: 'template',
+    master: true,
+    template: 'page_four',
+  },
   full_page_ad: {
     label: 'Full Page Ad',
     slots: 'open',
@@ -157,7 +165,7 @@ export const DEFAULT_PAGES: ReadonlyArray<{
   { kind: 'front', title: 'Front Page' },
   { kind: 'page2', title: 'Newsroom / Op-Ed' },
   { kind: 'full_page_ad', title: 'Welcome Ad' },
-  { kind: 'generic', title: 'Op-Ed', section: 'OP-ED' },
+  { kind: 'oped_page', title: 'Op-Ed' },
   { kind: 'generic', title: 'Local News', section: 'LOCAL', colophon: true },
   { kind: 'generic', title: 'Local News', section: 'LOCAL' },
   { kind: 'generic', title: 'DC Insider', section: 'DC INSIDER' },
@@ -227,8 +235,22 @@ export function templateId(kind: string): TemplateId | null {
 
 /** Template-mode kinds the "+ Add Page" menu offers (besides a blank page). */
 export const ADDABLE_TEMPLATE_KINDS: ReadonlyArray<{ kind: NpKind; label: string }> = [
+  { kind: 'oped_page', label: 'Op-Ed Page' },
   { kind: 'sports_cover', label: 'Sports Cover' },
   { kind: 'full_page_ad', label: 'Full Page Ad' },
+];
+
+/** Kinds an editor can convert an existing page to (the per-row "Page type"
+ *  selector on the board). Excludes the one-off covers (front/sports_cover)
+ *  which are seeded, not assigned. */
+export const ASSIGNABLE_KINDS: ReadonlyArray<{ kind: NpKind; label: string }> = [
+  { kind: 'generic', label: 'Blank (free layout)' },
+  { kind: 'oped_page', label: 'Op-Ed Page' },
+  { kind: 'page2', label: 'Op-Ed (Page 2 style)' },
+  { kind: 'full_page_ad', label: 'Full Page Ad' },
+  { kind: 'legals', label: 'Legals' },
+  { kind: 'classifieds', label: 'Classifieds' },
+  { kind: 'sports', label: 'Sports' },
 ];
 
 export const AD_SIZES = [

@@ -8,10 +8,12 @@ import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 import { getAds } from '@/lib/queries/ads';
 import { normalizeCover } from '@/lib/newspaper/section-cover';
 import { normalizeOpEd } from '@/lib/newspaper/oped';
+import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { PageEditor } from './page-editor';
 import { CoverEditor } from './cover-editor';
 import { OpEdEditor } from './oped-editor';
+import { PageFourEditor } from './page-four-editor';
 import { FullAdEditor } from './full-ad-editor';
 
 export const metadata: Metadata = {
@@ -74,6 +76,31 @@ export default async function NewspaperPageEditorPage({
             pageNumber={ordinal}
             dateLabel={issueDate}
             initialData={normalizeOpEd(page.template_data)}
+            stories={stories}
+            ads={ads}
+          />
+        </PortalShell>
+      );
+    }
+
+    if (tid === 'page_four') {
+      const [stories, ads, issueDate] = await Promise.all([
+        getAllStoriesForEditor(),
+        getAds(),
+        getIssueDate(),
+      ]);
+      return (
+        <PortalShell
+          user={user}
+          activeTab="all"
+          title={`Edit — ${displayTitle}`}
+          backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+        >
+          <PageFourEditor
+            pageId={page.id}
+            pageNumber={ordinal}
+            dateLabel={issueDate}
+            initialData={normalizePageFour(page.template_data)}
             stories={stories}
             ads={ads}
           />

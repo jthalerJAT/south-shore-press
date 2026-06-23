@@ -543,7 +543,14 @@ export async function requestImageUploadUrl(
  *  fields — the board-side story list omits the body for payload size. */
 export async function fetchStoryDetail(
   id: string
-): Promise<{ headline: string; byline: string; body: string; hero_photo_url: string } | null> {
+): Promise<{
+  headline: string;
+  byline: string;
+  body: string;
+  hero_photo_url: string;
+  photo_caption: string;
+  photo_credit: string;
+} | null> {
   await requireRole([...EDITOR_ROLES], BASE);
   const s = await getStoryForEdit(id);
   if (!s) return null;
@@ -552,6 +559,8 @@ export async function fetchStoryDetail(
     byline: s.byline ?? '',
     body: s.body ?? '',
     hero_photo_url: s.hero_photo_url ?? '',
+    photo_caption: s.photo_caption ?? '',
+    photo_credit: s.photo_credit ?? '',
   };
 }
 

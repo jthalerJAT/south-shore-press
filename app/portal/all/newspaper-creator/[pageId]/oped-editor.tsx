@@ -107,12 +107,12 @@ export function OpEdEditor({
   async function fillMainFromStory(id: string) {
     const d = await fetchStoryDetail(id);
     if (!d) return;
-    setMain({ title: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url });
+    setMain({ title: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url, photo_caption: d.photo_caption, photo_credit: d.photo_credit });
   }
   async function fillSecondFromStory(id: string) {
     const d = await fetchStoryDetail(id);
     if (!d) return;
-    setSecond({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url });
+    setSecond({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url, photo_caption: d.photo_caption, photo_credit: d.photo_credit });
   }
   function insertAd(id: string) {
     const a = ads.find((x) => x.id === id);

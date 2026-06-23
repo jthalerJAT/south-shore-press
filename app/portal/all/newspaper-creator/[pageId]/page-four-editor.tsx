@@ -117,12 +117,12 @@ export function PageFourEditor({
   async function fillTopFromStory(id: string) {
     const d = await fetchStoryDetail(id);
     if (!d) return;
-    setTop({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url });
+    setTop({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url, photo_caption: d.photo_caption, photo_credit: d.photo_credit });
   }
   async function fillBottomFromStory(id: string) {
     const d = await fetchStoryDetail(id);
     if (!d) return;
-    setBottom({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url });
+    setBottom({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url, photo_caption: d.photo_caption, photo_credit: d.photo_credit });
   }
 
   function insertAd(id: string) {

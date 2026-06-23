@@ -77,6 +77,8 @@ type StorySource = {
   byline?: string | null;
   body?: string | null;
   hero_photo_url?: string | null;
+  photo_caption?: string | null;
+  photo_credit?: string | null;
 };
 
 /** Fill the Main OpEd if empty, else the Second Story, from a dragged story. */
@@ -85,14 +87,16 @@ export function fillOpEdFromStory(data: OpEdData, story: StorySource): OpEdData 
   const author = (story.byline ?? '').trim() || undefined;
   const text = (story.body ?? '').trim() || undefined;
   const photo_url = (story.hero_photo_url ?? '').trim() || undefined;
+  const photo_caption = (story.photo_caption ?? '').trim() || undefined;
+  const photo_credit = (story.photo_credit ?? '').trim() || undefined;
 
   if (!data.main.title && !data.main.text) {
-    return { ...data, main: { ...data.main, title, author, text, photo_url } };
+    return { ...data, main: { ...data.main, title, author, text, photo_url, photo_caption, photo_credit } };
   }
   if (!data.second.headline && !data.second.text) {
     return {
       ...data,
-      second: { ...data.second, headline: title, author, text, photo_url },
+      second: { ...data.second, headline: title, author, text, photo_url, photo_caption, photo_credit },
     };
   }
   return data;

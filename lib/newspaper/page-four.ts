@@ -88,6 +88,8 @@ type StorySource = {
   byline?: string | null;
   body?: string | null;
   hero_photo_url?: string | null;
+  photo_caption?: string | null;
+  photo_credit?: string | null;
 };
 
 function articleFromStory(article: PageFourArticle, story: StorySource): PageFourArticle {
@@ -97,6 +99,8 @@ function articleFromStory(article: PageFourArticle, story: StorySource): PageFou
     author: (story.byline ?? '').trim() || article.author,
     text: (story.body ?? '').trim() || article.text,
     photo_url: (story.hero_photo_url ?? '').trim() || article.photo_url,
+    photo_caption: (story.photo_caption ?? '').trim() || article.photo_caption,
+    photo_credit: (story.photo_credit ?? '').trim() || article.photo_credit,
   };
 }
 

@@ -1,11 +1,14 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { StoryCard } from '@/components/story/story-card';
-import { getPublishedStoriesBySection } from '@/lib/queries/stories';
+import { getPublishedStoriesBySectionRange } from '@/lib/queries/stories';
 import { SITE, SITE_SECTIONS } from '@/lib/site-config';
+import { SectionGrid } from './section-grid';
 
 // ISR — same 60s revalidate as homepage for now; Phase 4 will tune.
 export const revalidate = 60;
+
+// Stories shown per "page" — initial load + each "Load More" click.
+const PAGE_SIZE = 24;
 
 type Params = { section: string };
 
@@ -47,7 +50,11 @@ export default async function SectionIndexPage({
   const section = SITE_SECTIONS.find((s) => s.slug === params.section);
   if (!section) notFound();
 
-  const stories = await getPublishedStoriesBySection(section.slug, 36);
+  // Fetch the first page (+1 so we know whether a "Load More" button is needed
+  // without a separate count query).
+  const firstBatch = await getPublishedStoriesBySectionRange(section.slug, 0, PAGE_SIZE + 1);
+  const initial = firstBatch.slice(0, PAGE_SIZE);
+  const initialHasMore = firstBatch.length > PAGE_SIZE;
 
   return (
     <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
@@ -60,16 +67,17 @@ export default async function SectionIndexPage({
         </h1>
       </header>
 
-      {stories.length === 0 ? (
+      {initial.length === 0 ? (
         <p className="text-zinc-500">
           No published stories in {section.label} yet. Check back soon.
         </p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-          {stories.map((story) => (
-            <StoryCard key={story.id} story={story} variant="standard" />
-          ))}
-        </div>
+        <SectionGrid
+          section={section.slug}
+          initial={initial}
+          pageSize={PAGE_SIZE}
+          initialHasMore={initialHasMore}
+        />
       )}
     </div>
   );

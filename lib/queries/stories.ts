@@ -134,6 +134,31 @@ export async function getPublishedStoriesBySection(
   return (data ?? []) as StoryListItem[];
 }
 
+/** A page (range) of a section's published stories, newest first. Powers the
+ *  "Load More" pagination on section pages. `offset` is how many to skip. */
+export async function getPublishedStoriesBySectionRange(
+  section: string,
+  offset: number,
+  limit: number
+): Promise<StoryListItem[]> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stories')
+    .select(LIST_COLUMNS)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .contains('categories', [section])
+    .not('categories', 'cs', NOT_PRINT_ONLY)
+    .order('published_at', { ascending: false })
+    .order('id', { ascending: false })
+    .range(offset, offset + limit - 1);
+  if (error) {
+    console.error('[getPublishedStoriesBySectionRange]', error);
+    return [];
+  }
+  return (data ?? []) as StoryListItem[];
+}
+
 /**
  * Fetch a single published story by the 8-char short id (first 8 hex
  * chars of the UUID). UUIDs aren't natively prefix-searchable through

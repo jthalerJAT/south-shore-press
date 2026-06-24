@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, ArrowRight } from 'lucide-react';
 import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
+import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
 
 export const metadata: Metadata = {
   title: 'Editor Portal',
@@ -18,7 +19,11 @@ export const metadata: Metadata = {
  *
  * Each sub-page renders its own back arrow pointing to this landing.
  */
-export default async function EditorPortalLandingPage() {
+export default async function EditorPortalLandingPage({
+  searchParams,
+}: {
+  searchParams: { cc?: string };
+}) {
   const user = await requireRole(
     ['editor', 'admin', 'master admin'],
     '/portal/all'
@@ -26,7 +31,12 @@ export default async function EditorPortalLandingPage() {
 
   // Only admins manage credentials — editors see every other tile but not
   // this one.
-  const showCredentials = canManageCredentials(user);
+  const isAdmin = canManageCredentials(user);
+  const showCredentials = isAdmin;
+
+  // Constant Contact (Email Briefings) connection status — admins only.
+  const ccConfigured = isAdmin && isConstantContactConfigured();
+  const ccConnected = ccConfigured ? await isConstantContactConnected() : false;
 
   const tiles: Array<{
     href: string;
@@ -112,6 +122,35 @@ export default async function EditorPortalLandingPage() {
       title="Editor Portal"
       backLink={{ href: '/', label: 'Homepage' }}
     >
+      {searchParams.cc === 'connected' ? (
+        <div role="status" className="mb-5 text-sm text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-4 py-3">
+          ✓ Constant Contact connected. Email Briefings sign-ups will now flow to your CC list.
+        </div>
+      ) : null}
+      {searchParams.cc === 'error' ? (
+        <div role="alert" className="mb-5 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-4 py-3">
+          Couldn’t connect Constant Contact. Check the app credentials + redirect URI and try again.
+        </div>
+      ) : null}
+      {isAdmin && isConstantContactConfigured() ? (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 text-sm bg-white border border-zinc-200 rounded px-4 py-3">
+          <span className="text-zinc-700">
+            <strong>Email Briefings → Constant Contact:</strong>{' '}
+            {ccConnected ? (
+              <span className="text-emerald-700">Connected.</span>
+            ) : (
+              <span className="text-amber-700">Not connected yet — sign-ups won’t send until you connect.</span>
+            )}
+          </span>
+          <a
+            href="/api/constant-contact/connect"
+            className="inline-flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-white bg-brand-red hover:bg-brand-red-dark rounded transition-colors"
+          >
+            {ccConnected ? 'Reconnect' : 'Connect Constant Contact'}
+          </a>
+        </div>
+      ) : null}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {tiles.map((tile) => (
           <Link

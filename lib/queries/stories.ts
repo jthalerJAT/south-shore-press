@@ -134,6 +134,26 @@ export async function getPublishedStoriesBySection(
   return (data ?? []) as StoryListItem[];
 }
 
+/** Fetch specific published stories by id (any age). Used to resolve editor
+ *  pins that may reference stories older than the recency pools, so a pinned
+ *  slot is honored even when the story has scrolled past the latest-N window. */
+export async function getStoriesByIds(ids: string[]): Promise<StoryListItem[]> {
+  if (ids.length === 0) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stories')
+    .select(LIST_COLUMNS)
+    .in('id', ids)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .not('categories', 'cs', NOT_PRINT_ONLY);
+  if (error) {
+    console.error('[getStoriesByIds]', error);
+    return [];
+  }
+  return (data ?? []) as StoryListItem[];
+}
+
 /** A page (range) of a section's published stories, newest first. Powers the
  *  "Load More" pagination on section pages. `offset` is how many to skip. */
 export async function getPublishedStoriesBySectionRange(

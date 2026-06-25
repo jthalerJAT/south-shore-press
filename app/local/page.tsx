@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import { StoryCard } from '@/components/story/story-card';
 import { TopStoriesRail } from '@/components/story/top-stories-rail';
 import { RecentStoryRow } from '@/components/story/recent-story-row';
-import { getPublishedStoriesBySection } from '@/lib/queries/stories';
-import { getAllPins, resolveSlotStories } from '@/lib/queries/site-layout';
+import { getPublishedStoriesBySection, getStoriesByIds } from '@/lib/queries/stories';
+import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { getSiteOrigin } from '@/lib/site-url';
 import { AlsoSection } from './also-section';
 
@@ -38,22 +38,19 @@ export default async function LocalPage() {
     getPublishedStoriesBySection('local', 120),
   ]);
 
-  // Right-rail Top Stories — reverse-chron or admin pins.
-  const topStories = resolveSlotStories(
-    pins.filter((p) => p.slot_key === 'section.local.recent'),
-    pool,
-    10
+  // Pre-fetch pinned stories by id so pins survive even when older than the pool.
+  const pinnedById = new Map(
+    (await getStoriesByIds([...new Set(pins.map((p) => p.story_id))])).map((s) => [s.id, s])
   );
+
+  // Right-rail Top Stories — reverse-chron or admin pins.
+  const topStories = resolveSlotWithPinned(pins, 'section.local.recent', pinnedById, pool, 10);
 
   // Main 5×3 tiles — drawn from the pool MINUS the rail so the two don't
   // duplicate; reverse-chron or admin pins (section.local.top).
   const railIds = new Set(topStories.map((s) => s.id));
   const tilesPool = pool.filter((s) => !railIds.has(s.id));
-  const mainTiles = resolveSlotStories(
-    pins.filter((p) => p.slot_key === 'section.local.top'),
-    tilesPool,
-    MAIN_TILES
-  );
+  const mainTiles = resolveSlotWithPinned(pins, 'section.local.top', pinnedById, tilesPool, MAIN_TILES);
 
   // Everything else, reverse-chron: first 10 → "Recent Stories", the rest →
   // the "You Might Also" / Show More pool.

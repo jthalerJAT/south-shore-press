@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import { TopStoriesRail } from '@/components/story/top-stories-rail';
 import {
   getPublishedStoriesBySection,
+  getStoriesByIds,
 } from '@/lib/queries/stories';
-import { getAllPins, resolveSlotStories } from '@/lib/queries/site-layout';
+import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
 import { SportsSubsection } from './sports-subsection';
@@ -65,22 +66,25 @@ export default async function SportsPage() {
     ),
   ]);
 
+  // Pre-fetch pinned stories by id so pins survive even when older than the pool.
+  const pinnedById = new Map(
+    (await getStoriesByIds([...new Set(pins.map((p) => p.story_id))])).map((s) => [s.id, s])
+  );
+
   // Right-rail "Top Stories" — reverse-chron, or the admin's manual order from
   // Site Layout (slot section.sports.recent).
-  const topStories = resolveSlotStories(
-    pins.filter((p) => p.slot_key === 'section.sports.recent'),
-    pool,
-    10
-  );
+  const topStories = resolveSlotWithPinned(pins, 'section.sports.recent', pinnedById, pool, 10);
 
   const subSectionsResolved = subStories.map(({ slug, title, stories }) => ({
     slug,
     title,
-    stories: resolveSlotStories(
-      pins.filter((p) => p.slot_key === `section.sports.${slug}`),
+    // Pass the full pool so "View All" can expand; pins still order the first N,
+    // the rest are reverse-chron.
+    stories: resolveSlotWithPinned(
+      pins,
+      `section.sports.${slug}`,
+      pinnedById,
       stories,
-      // Pass the full pool so "View All" can expand; pins still order the
-      // first N, the rest are reverse-chron.
       Math.max(stories.length, TILES_PER_SUBSECTION)
     ),
   }));

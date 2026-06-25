@@ -4,8 +4,9 @@ import { SectionRail } from '@/components/story/section-rail';
 import {
   getLatestPublishedStories,
   getPublishedStoriesBySection,
+  getStoriesByIds,
 } from '@/lib/queries/stories';
-import { getAllPins, resolveSlotStories } from '@/lib/queries/site-layout';
+import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { SITE_SECTIONS } from '@/lib/site-config';
 
 // ISR — Vercel rebuilds the page at most once a minute, then serves
@@ -43,12 +44,15 @@ export default async function HomePage() {
     ),
   ]);
 
-  // Hero: 5 stories, pinned + recency-fill.
-  const heroStories = resolveSlotStories(
-    pins.filter((p) => p.slot_key === 'home.hero'),
-    latest,
-    5
+  // Pre-fetch every pinned story by id so pins are honored even when the pinned
+  // story is older than the recency pools (the cause of a recent article
+  // leaking into a fully-pinned hero).
+  const pinnedById = new Map(
+    (await getStoriesByIds([...new Set(pins.map((p) => p.story_id))])).map((s) => [s.id, s])
   );
+
+  // Hero: 5 stories, pinned + recency-fill.
+  const heroStories = resolveSlotWithPinned(pins, 'home.hero', pinnedById, latest, 5);
 
   // Top Stories rail: 10 stories. PREFER non-hero stories so editors
   // don't see the same headlines twice — but top up with the hero set
@@ -57,8 +61,10 @@ export default async function HomePage() {
   const heroIds = new Set(heroStories.map((s) => s.id));
   const nonHero = latest.filter((s) => !heroIds.has(s.id));
   const heroForBackfill = latest.filter((s) => heroIds.has(s.id));
-  const topStories = resolveSlotStories(
-    pins.filter((p) => p.slot_key === 'home.top-stories'),
+  const topStories = resolveSlotWithPinned(
+    pins,
+    'home.top-stories',
+    pinnedById,
     [...nonHero, ...heroForBackfill],
     10
   );
@@ -67,11 +73,7 @@ export default async function HomePage() {
   const sectionRails = sectionFallbacks.map(({ slug, title, stories }) => ({
     slug,
     title,
-    stories: resolveSlotStories(
-      pins.filter((p) => p.slot_key === `home.${slug}`),
-      stories,
-      4
-    ),
+    stories: resolveSlotWithPinned(pins, `home.${slug}`, pinnedById, stories, 4),
   }));
 
   // Empty-state — keeps the "rebuilding" message visible while the

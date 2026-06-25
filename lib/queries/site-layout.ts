@@ -121,3 +121,30 @@ export async function resolveSlot<T extends StoryListItem>(
   const pins = await getPinsForSlot(slotKey);
   return resolveSlotStories(pins, fallback, count);
 }
+
+/**
+ * Resolve a slot while guaranteeing pinned stories are honored even when they
+ * are OLDER than the recency `pool`. Merges the slot's pinned stories (looked
+ * up in `pinnedById`, fetched separately by id) into the pool before resolving,
+ * so a pin never silently drops once its story scrolls past the latest-N
+ * window. Pass `getAllPins()` as `allPins` and a map of `getStoriesByIds(...)`.
+ */
+export function resolveSlotWithPinned<T extends { id: string }>(
+  allPins: Pin[],
+  slotKey: string,
+  pinnedById: Map<string, T>,
+  pool: T[],
+  count: number
+): T[] {
+  const slotPins = allPins.filter((p) => p.slot_key === slotKey);
+  const have = new Set(pool.map((s) => s.id));
+  const merged = [...pool];
+  for (const p of slotPins) {
+    const s = pinnedById.get(p.story_id);
+    if (s && !have.has(s.id)) {
+      merged.push(s);
+      have.add(s.id);
+    }
+  }
+  return resolveSlotStories(slotPins, merged, count);
+}

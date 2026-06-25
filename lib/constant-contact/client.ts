@@ -140,6 +140,22 @@ async function getAccessToken(): Promise<string> {
   return json.access_token;
 }
 
+export type CcList = { id: string; name: string; count: number | null };
+
+/** List the account's contact lists (id + name + member count). Used by the
+ *  admin /api/constant-contact/lists helper to look up CONSTANT_CONTACT_LIST_ID. */
+export async function ccListContactLists(): Promise<CcList[]> {
+  const token = await getAccessToken();
+  const res = await fetch(`${API_BASE}/contact_lists?include_count=true&limit=1000`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Constant Contact list fetch failed (${res.status}): ${await res.text()}`);
+  }
+  const json = (await res.json()) as { lists?: Array<{ list_id: string; name: string; membership_count?: number }> };
+  return (json.lists ?? []).map((l) => ({ id: l.list_id, name: l.name, count: l.membership_count ?? null }));
+}
+
 export type BriefingContact = {
   email: string;
   firstName?: string;

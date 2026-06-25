@@ -21,18 +21,24 @@ const AUTHZ_BASE = 'https://authz.constantcontact.com/oauth2/default/v1';
 const API_BASE = 'https://api.cc.email/v3';
 export const CC_SCOPE = 'contact_data offline_access';
 
-function appCreds() {
+/** OAuth app credentials — all that's needed to connect + read lists. The list
+ *  id is NOT required here (you look it up only after connecting). */
+function oauthCreds() {
   const clientId = process.env.CONSTANT_CONTACT_CLIENT_ID;
   const clientSecret = process.env.CONSTANT_CONTACT_CLIENT_SECRET;
-  const listId = process.env.CONSTANT_CONTACT_LIST_ID;
-  if (!clientId || !clientSecret || !listId) return null;
-  return { clientId, clientSecret, listId };
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
 }
 
-/** True once the CC app credentials + list id are set in env. (Doesn't check
- *  whether the OAuth connect has been completed — that's a separate state.) */
+/** Target list id — required only when actually pushing a contact. */
+function ccListId(): string | null {
+  return process.env.CONSTANT_CONTACT_LIST_ID || null;
+}
+
+/** True once the CC app credentials (client id + secret) are set. Enough to
+ *  run the OAuth connect + list lookup; the list id is checked at send time. */
 export function isConstantContactConfigured(): boolean {
-  return appCreds() !== null;
+  return oauthCreds() !== null;
 }
 
 function basicAuthHeader(clientId: string, clientSecret: string): string {
@@ -46,7 +52,7 @@ export function ccRedirectUri(origin: string): string {
 
 /** Browser authorize URL to start the one-time connect. */
 export function ccAuthorizeUrl(origin: string, state: string): string {
-  const creds = appCreds();
+  const creds = oauthCreds();
   if (!creds) throw new Error('Constant Contact is not configured.');
   const params = new URLSearchParams({
     client_id: creds.clientId,
@@ -83,7 +89,7 @@ type TokenResponse = { access_token: string; refresh_token: string; expires_in: 
 /** Exchange an authorization code for tokens (used by the OAuth callback) and
  *  persist them. */
 export async function ccExchangeCode(code: string, origin: string): Promise<void> {
-  const creds = appCreds();
+  const creds = oauthCreds();
   if (!creds) throw new Error('Constant Contact is not configured.');
   const body = new URLSearchParams({
     grant_type: 'authorization_code',
@@ -115,7 +121,7 @@ export async function isConstantContactConnected(): Promise<boolean> {
 /** Get a valid access token, refreshing (and persisting the rotated refresh
  *  token) when expired. Throws if not connected. */
 async function getAccessToken(): Promise<string> {
-  const creds = appCreds();
+  const creds = oauthCreds();
   if (!creds) throw new Error('Constant Contact is not configured.');
   const row = await readTokenRow();
   if (!row?.refresh_token) throw new Error('Constant Contact is not connected yet.');
@@ -170,8 +176,10 @@ export type BriefingContact = {
 /** Add (or update) a contact on the Email-Briefings list via the sign-up-form
  *  endpoint (implies opt-in consent, which is correct for a website form). */
 export async function addBriefingContact(c: BriefingContact): Promise<{ ok: boolean; error?: string }> {
-  const creds = appCreds();
+  const creds = oauthCreds();
   if (!creds) return { ok: false, error: 'not_configured' };
+  const list = ccListId();
+  if (!list) return { ok: false, error: 'not_configured' };
 
   let token: string;
   try {
@@ -184,7 +192,7 @@ export async function addBriefingContact(c: BriefingContact): Promise<{ ok: bool
   const hasAddress = c.street || c.city || c.state || c.zip;
   const payload: Record<string, unknown> = {
     email_address: c.email,
-    list_memberships: [creds.listId],
+    list_memberships: [list],
   };
   if (c.firstName) payload.first_name = c.firstName;
   if (c.lastName) payload.last_name = c.lastName;

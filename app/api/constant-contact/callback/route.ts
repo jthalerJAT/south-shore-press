@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const code = url.searchParams.get('code');
   const state = url.searchParams.get('state');
   const cookieState = cookies().get('cc_oauth_state')?.value;
-  const portal = `${getSiteOrigin()}/portal/all`;
+  const portal = `${getSiteOrigin()}/portal/all/email-briefings`;
 
   if (!code || !state || !cookieState || state !== cookieState) {
     return NextResponse.redirect(`${portal}?cc=error`);

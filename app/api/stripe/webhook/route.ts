@@ -3,6 +3,7 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_TIERS, type PlanTier } from '@/lib/stripe/plans';
+import { isSimpleCircConfigured, addPaidSubscriber } from '@/lib/simplecirc/client';
 
 // The webhook needs the raw request body for signature verification and
 // Node crypto — it cannot run on the edge.
@@ -263,6 +264,76 @@ async function handleInvoicePaid(stripe: Stripe, admin: Admin, invoice: Stripe.I
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
   if (userId && customerId) {
     await syncDefaultPaymentMethod(stripe, admin, customerId, userId);
+  }
+
+  // First paid invoice → add them to the paid list in SimpleCirc (print
+  // distribution). Only on the first payment; the order row is stamped so
+  // renewals/redeliveries never double-add.
+  if (markStarted) {
+    await pushToSimpleCirc(admin, subId, invoice);
+  }
+}
+
+/** Push a newly-paid web subscriber onto the SimpleCirc paid list (subscriber
+ *  + paid subscription term), using the delivery address from the order. Best-
+ *  effort + idempotent (skips if already synced); never throws into the
+ *  handler. No-op when SimpleCirc isn't configured. */
+async function pushToSimpleCirc(admin: Admin, subId: string, invoice: Stripe.Invoice) {
+  if (!isSimpleCircConfigured()) return;
+  const { data } = await admin
+    .from('subscription_orders')
+    .select(
+      'delivery_first_name, delivery_last_name, delivery_company, delivery_address_1, delivery_address_2, delivery_city, delivery_state, delivery_zip, delivery_email, delivery_phone, plan_tier, simplecirc_subscriber_id'
+    )
+    .eq('stripe_subscription_id', subId)
+    .maybeSingle();
+  if (!data) return;
+  const o = data as {
+    delivery_first_name: string | null;
+    delivery_last_name: string | null;
+    delivery_company: string | null;
+    delivery_address_1: string | null;
+    delivery_address_2: string | null;
+    delivery_city: string | null;
+    delivery_state: string | null;
+    delivery_zip: string | null;
+    delivery_email: string | null;
+    delivery_phone: string | null;
+    plan_tier: string;
+    simplecirc_subscriber_id: string | null;
+  };
+  if (o.simplecirc_subscriber_id) return; // already synced
+  if (!o.delivery_email) {
+    console.error('[simplecirc] order has no delivery email; skipping', subId);
+    return;
+  }
+
+  // Weekly paper: annual terms ≈ 52 issues, monthly ≈ 4.
+  const issues = o.plan_tier === 'print_monthly' ? 4 : 52;
+  const amountPaid = (invoice.amount_paid ?? 0) / 100;
+
+  const res = await addPaidSubscriber({
+    firstName: o.delivery_first_name,
+    lastName: o.delivery_last_name,
+    company: o.delivery_company,
+    address1: o.delivery_address_1,
+    address2: o.delivery_address_2,
+    city: o.delivery_city,
+    state: o.delivery_state,
+    zip: o.delivery_zip,
+    email: o.delivery_email,
+    phone: o.delivery_phone,
+    issues,
+    amountPaid,
+  });
+
+  if (res.ok && res.subscriberId) {
+    await admin
+      .from('subscription_orders')
+      .update({ simplecirc_subscriber_id: res.subscriberId, simplecirc_synced_at: nowIso() })
+      .eq('stripe_subscription_id', subId);
+  } else {
+    console.error('[simplecirc] push failed for', subId, res.error);
   }
 }
 

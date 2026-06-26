@@ -27,6 +27,7 @@ type StoryDefaults = {
   extra_photo_urls?: string[] | null;
   categories?: string[] | null;
   status?: 'draft' | 'submitted' | 'published' | 'unpublished';
+  published_at?: string | null;
 };
 
 type Props = {
@@ -76,6 +77,11 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
   // case is editing a story you don't own (canEdit is false then; the server
   // also rejects the write).
   const disabled = !canEdit;
+
+  // Backdate control (editor-tier only) — for cherry-picked archive content
+  // that should sort/display with its original date instead of "today".
+  const [showBackdate, setShowBackdate] = useState(false);
+  const existingDate = defaults?.published_at ? defaults.published_at.slice(0, 10) : '';
 
   // Hero media is controlled so the "+ Upload Photo" button can set the URL.
   const [heroUrl, setHeroUrl] = useState(defaults?.hero_photo_url ?? '');
@@ -312,6 +318,49 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
           disabled={disabled}
         />
       </Field>
+
+      {/* Backdate (editor-tier only): publish older archive content with its
+          original date so it sorts + displays correctly. */}
+      {isEditor && !disabled ? (
+        <div className="pt-4 border-t border-zinc-200">
+          {!showBackdate ? (
+            <button
+              type="button"
+              onClick={() => setShowBackdate(true)}
+              className="text-sm font-medium text-brand-red hover:underline"
+            >
+              Backdate article
+            </button>
+          ) : (
+            <div className="rounded border border-amber-200 bg-amber-50/60 p-3">
+              <label htmlFor="published_at_override" className="block text-sm font-medium text-zinc-800">
+                Publish date{' '}
+                <span className="font-normal text-zinc-500">— sets the date this article sorts &amp; displays by</span>
+              </label>
+              <div className="mt-1 flex items-center gap-3">
+                <input
+                  id="published_at_override"
+                  name="published_at_override"
+                  type="date"
+                  defaultValue={existingDate}
+                  max={new Date().toISOString().slice(0, 10)}
+                  className="rounded border border-zinc-300 px-3 py-2 text-base focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowBackdate(false)}
+                  className="text-xs text-zinc-500 hover:text-zinc-800"
+                >
+                  Cancel — use today
+                </button>
+              </div>
+              <p className="mt-1.5 text-xs text-zinc-500">
+                Applied when you Publish (or re-save a published story). Leave the backdate closed to use today.
+              </p>
+            </div>
+          )}
+        </div>
+      ) : null}
 
       {/* Workflow buttons */}
       {!disabled ? (

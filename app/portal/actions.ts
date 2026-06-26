@@ -132,6 +132,20 @@ function resolveNextStatus(
   }
 }
 
+/** Editor "Backdate article" control: a YYYY-MM-DD → an ISO timestamp at noon
+ *  UTC (avoids timezone off-by-one; reads as mid-day in US time zones). Returns
+ *  null when blank, malformed, or in the future. Only honored for editor-tier
+ *  users (the UI hides the control otherwise; this is the server backstop). */
+function parseBackdate(formData: FormData, role: UserRole): string | null {
+  const isEditor = role === 'editor' || role === 'admin' || role === 'master admin';
+  if (!isEditor) return null;
+  const raw = String(formData.get('published_at_override') ?? '').trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const ts = Date.parse(`${raw}T12:00:00Z`);
+  if (Number.isNaN(ts) || ts > Date.now()) return null;
+  return new Date(ts).toISOString();
+}
+
 /**
  * Create a new story. Intent determines the resulting status — most
  * commonly 'save' (draft) for journalists, 'publish' for editors.
@@ -151,14 +165,20 @@ export async function createStoryAction(
   const intent = String(formData.get('intent') ?? 'save');
   const next = resolveNextStatus(null, intent, user.role);
 
+  // A backdate (if provided + publishing) overrides the default "now" stamp.
+  const backdate = parseBackdate(formData, user.role);
+  const publishedAt =
+    next.setPublishedAt === 'now'
+      ? backdate ?? new Date().toISOString()
+      : null;
+
   const supabase = createClient();
   const { data, error } = await supabase
     .from('stories')
     .insert({
       ...parsed,
       status: next.status,
-      published_at:
-        next.setPublishedAt === 'now' ? new Date().toISOString() : null,
+      published_at: publishedAt,
       author_id: user.id,
       // Default byline to the author's display name if they left it blank.
       byline: parsed.byline ?? user.displayName ?? user.email,
@@ -244,10 +264,16 @@ export async function updateStoryAction(
   // Journalists may publish/unpublish/downgrade their OWN stories (the
   // author check above already restricts them to their own work).
 
-  const published_at =
+  // A backdate (editor-tier) overrides published_at whenever the story ends up
+  // published — covers fixing the date on an already-published archive piece.
+  const backdate = parseBackdate(formData, user.role);
+  let published_at =
     next.setPublishedAt === 'now'
       ? new Date().toISOString()
       : existing.published_at;
+  if (backdate && next.status === 'published') {
+    published_at = backdate;
+  }
 
   const { error: updErr } = await supabase
     .from('stories')

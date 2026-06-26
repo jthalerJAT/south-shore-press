@@ -80,6 +80,7 @@ export default async function PortalEditStoryPage({
           extra_photo_urls: story.extra_photo_urls,
           categories: story.categories,
           status: story.status,
+          published_at: story.published_at,
         }}
       />
     </PortalShell>

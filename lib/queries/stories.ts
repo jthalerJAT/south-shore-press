@@ -134,6 +134,33 @@ export async function getPublishedStoriesBySection(
   return (data ?? []) as StoryListItem[];
 }
 
+/** Full-text search over published stories (headline/subline/byline/body) for
+ *  the public /search page. Uses the generated `fts` tsvector + GIN index
+ *  (migration 020) with websearch parsing (multi-word = AND, quotes = phrase).
+ *  Newest matches first. Returns [] on empty query or before the migration. */
+export async function searchPublishedStories(
+  query: string,
+  limit = 50
+): Promise<StoryListItem[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('stories')
+    .select(LIST_COLUMNS)
+    .eq('status', 'published')
+    .not('published_at', 'is', null)
+    .not('categories', 'cs', NOT_PRINT_ONLY)
+    .textSearch('fts', q, { type: 'websearch', config: 'english' })
+    .order('published_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.error('[searchPublishedStories]', error);
+    return [];
+  }
+  return (data ?? []) as StoryListItem[];
+}
+
 /** Fetch specific published stories by id (any age). Used to resolve editor
  *  pins that may reference stories older than the recency pools, so a pinned
  *  slot is honored even when the story has scrolled past the latest-N window. */

@@ -25,6 +25,7 @@ export default async function AdDetailPage({ params }: { params: { id: string } 
       activeTab="all"
       title={ad.business_name}
       backLink={{ href: '/portal/all/ads', label: 'Ad Database' }}
+      hideTabs
     >
       <AdForm mode="edit" ad={ad} />
 

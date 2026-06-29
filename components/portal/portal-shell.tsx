@@ -42,6 +42,7 @@ export function PortalShell({
   children,
   title,
   backLink,
+  hideTabs = false,
 }: {
   user: {
     email: string;
@@ -56,6 +57,11 @@ export function PortalShell({
    *  /portal/all). Omit on root portal pages if you don't want a back
    *  arrow there. */
   backLink?: BackLinkSpec;
+  /** Hide the Story Editor / Editor Portal tab strip (and the "Start New
+   *  Story" CTA). Used by self-contained tools like the Ad Database where
+   *  newsroom-story navigation is out of place; the back-link still gets
+   *  the user back to the Editor Portal. */
+  hideTabs?: boolean;
 }) {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -92,6 +98,7 @@ export function PortalShell({
         </div>
       </div>
 
+      {hideTabs ? null : (
       <nav
         aria-label="Portal sections"
         className="mt-6 flex flex-wrap items-center gap-1 border-b border-zinc-200"
@@ -119,6 +126,7 @@ export function PortalShell({
           </Link>
         </div>
       </nav>
+      )}
 
       <div className="mt-8">{children}</div>
     </div>

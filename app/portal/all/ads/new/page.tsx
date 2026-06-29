@@ -16,6 +16,7 @@ export default async function NewAdPage() {
       activeTab="all"
       title="Upload New Ad"
       backLink={{ href: '/portal/all/ads', label: 'Ad Database' }}
+      hideTabs
     >
       <AdForm mode="create" />
     </PortalShell>

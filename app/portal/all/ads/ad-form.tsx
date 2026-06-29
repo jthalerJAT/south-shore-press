@@ -18,11 +18,15 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
   const [copyPath, setCopyPath] = useState(ad?.copy_storage_path ?? '');
   const [copyName, setCopyName] = useState(ad?.copy_file_name ?? '');
   const [copySize, setCopySize] = useState(ad?.copy_size ?? 'quarter');
+  const [insertPath, setInsertPath] = useState(ad?.insert_order_path ?? '');
+  const [insertName, setInsertName] = useState(ad?.insert_order_file_name ?? '');
   const [uploading, setUploading] = useState(false);
+  const [uploadingInsert, setUploadingInsert] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+  const insertFileRef = useRef<HTMLInputElement | null>(null);
 
   async function handleFile(file: File | null) {
     if (!file) return;
@@ -39,6 +43,21 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
     setSaved(false);
   }
 
+  async function handleInsertFile(file: File | null) {
+    if (!file) return;
+    setError(null);
+    setUploadingInsert(true);
+    const res = await uploadAdFile('insert', file);
+    setUploadingInsert(false);
+    if (!res.ok) {
+      setError(res.error ?? 'Upload failed.');
+      return;
+    }
+    setInsertPath(res.path!);
+    setInsertName(res.fileName!);
+    setSaved(false);
+  }
+
   async function handleSave() {
     setSaving(true);
     setError(null);
@@ -50,6 +69,8 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
       copy_storage_path: copyPath,
       copy_file_name: copyName,
       copy_size: copySize,
+      insert_order_path: insertPath,
+      insert_order_file_name: insertName,
     };
     const res = mode === 'create' ? await createAd(input) : await updateAd(ad!.id, input);
     setSaving(false);
@@ -161,11 +182,72 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
         </div>
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-zinc-700 mb-1">Insert Order</label>
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleInsertFile(e.dataTransfer.files?.[0] ?? null);
+          }}
+          className="rounded-lg border-2 border-dashed border-zinc-300 bg-white px-6 py-6 text-center"
+        >
+          {insertName ? (
+            <p className="text-sm text-zinc-700">
+              <span className="font-medium">{insertName}</span>
+              {insertPath ? (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => window.open(adFilePublicUrl(insertPath), '_blank')}
+                    className="ml-1 text-brand-red hover:underline"
+                  >
+                    view
+                  </button>
+                </>
+              ) : null}{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setInsertPath('');
+                  setInsertName('');
+                }}
+                className="ml-1 text-red-600 hover:underline"
+              >
+                remove
+              </button>
+            </p>
+          ) : (
+            <p className="text-sm text-zinc-500">
+              Drag &amp; drop the insert order (the signed PDF contract) here, or
+            </p>
+          )}
+          <input
+            ref={insertFileRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => handleInsertFile(e.target.files?.[0] ?? null)}
+          />
+          {!insertName ? (
+            <button
+              type="button"
+              onClick={() => insertFileRef.current?.click()}
+              disabled={uploadingInsert}
+              className="mt-3 inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
+            >
+              {uploadingInsert ? 'Uploading…' : '+ Upload Insert Order'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
       <div className="flex items-center gap-3 pt-2">
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving || uploading}
+          disabled={saving || uploading || uploadingInsert}
           className="inline-flex items-center px-5 py-2.5 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-semibold uppercase tracking-wide rounded transition-colors"
         >
           {saving ? 'Saving…' : mode === 'create' ? 'Create Ad' : 'Save Ad'}

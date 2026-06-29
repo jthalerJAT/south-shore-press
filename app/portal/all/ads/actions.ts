@@ -48,6 +48,8 @@ export type AdInput = {
   copy_storage_path?: string;
   copy_file_name?: string;
   copy_size?: string;
+  insert_order_path?: string;
+  insert_order_file_name?: string;
 };
 
 export async function createAd(
@@ -67,6 +69,8 @@ export async function createAd(
       copy_storage_path: input.copy_storage_path || null,
       copy_file_name: input.copy_file_name || null,
       copy_size: input.copy_size || null,
+      insert_order_path: input.insert_order_path || null,
+      insert_order_file_name: input.insert_order_file_name || null,
       created_by: user.id,
     })
     .select('id')
@@ -93,6 +97,8 @@ export async function updateAd(id: string, input: AdInput): Promise<Result> {
       copy_storage_path: input.copy_storage_path || null,
       copy_file_name: input.copy_file_name || null,
       copy_size: input.copy_size || null,
+      insert_order_path: input.insert_order_path || null,
+      insert_order_file_name: input.insert_order_file_name || null,
     })
     .eq('id', id);
   if (error) {
@@ -110,8 +116,13 @@ export async function deleteAd(id: string): Promise<Result> {
 
   // Gather storage paths (ad copy + every run's insert order) to clean up.
   const paths: string[] = [];
-  const { data: ad } = await admin.from('ads').select('copy_storage_path').eq('id', id).maybeSingle();
+  const { data: ad } = await admin
+    .from('ads')
+    .select('copy_storage_path, insert_order_path')
+    .eq('id', id)
+    .maybeSingle();
   if (ad?.copy_storage_path) paths.push(ad.copy_storage_path as string);
+  if (ad?.insert_order_path) paths.push(ad.insert_order_path as string);
   const { data: runs } = await admin.from('ad_runs').select('insert_order_path').eq('ad_id', id);
   for (const r of runs ?? []) {
     const p = (r as { insert_order_path: string | null }).insert_order_path;

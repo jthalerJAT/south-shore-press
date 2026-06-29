@@ -21,6 +21,7 @@ export default async function AdDatabasePage() {
       activeTab="all"
       title="Ad Database"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
+      hideTabs
     >
       <AdList ads={ads} />
     </PortalShell>

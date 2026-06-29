@@ -20,6 +20,9 @@ export type Ad = {
   copy_file_name: string | null;
   /** Size the copy is designed for; drives placement size on a page. */
   copy_size: string | null;
+  /** The signed PDF contract with the advertiser (the actual insert order). */
+  insert_order_path: string | null;
+  insert_order_file_name: string | null;
   created_at: string;
 };
 
@@ -38,7 +41,7 @@ export type AdRun = {
 };
 
 const AD_COLUMNS =
-  'id, business_name, contact_name, contact_phone, contact_email, copy_storage_path, copy_file_name, copy_size, created_at';
+  'id, business_name, contact_name, contact_phone, contact_email, copy_storage_path, copy_file_name, copy_size, insert_order_path, insert_order_file_name, created_at';
 
 /** Every advertiser, newest first. */
 export async function getAds(): Promise<Ad[]> {

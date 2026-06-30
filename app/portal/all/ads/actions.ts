@@ -40,6 +40,27 @@ export async function requestAdFileUploadUrl(
   return { ok: true, path, token: data.token };
 }
 
+/** Confirm an uploaded ad file actually landed in storage. Signed uploads can
+ *  occasionally report success without persisting (flaky connection), which
+ *  would save a path whose file 404s on view. Called right after upload so a
+ *  silent failure surfaces as an error instead of a broken link. */
+export async function verifyAdFileUploaded(path: string): Promise<boolean> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  if (!path) return false;
+  const admin = createAdminClient();
+  const slash = path.lastIndexOf('/');
+  const folder = slash >= 0 ? path.slice(0, slash) : '';
+  const name = slash >= 0 ? path.slice(slash + 1) : path;
+  const { data, error } = await admin.storage
+    .from(AD_FILES_BUCKET)
+    .list(folder, { search: name, limit: 100 });
+  if (error) {
+    console.error('[verifyAdFileUploaded]', error);
+    return false;
+  }
+  return Boolean(data?.some((o) => o.name === name));
+}
+
 export type AdInput = {
   business_name: string;
   contact_name?: string;

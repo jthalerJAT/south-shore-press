@@ -55,6 +55,19 @@ export function LegalsViewer({ legals }: { legals: LegalViewItem[] }) {
 
   return (
     <div className="max-w-5xl">
+      <p className="mb-6 max-w-3xl text-base leading-relaxed text-zinc-700">
+        Digital versions of our legal section can be found below. To receive a copy of your legal,
+        either via email or a physical copy via the US postal service (including a notarized copy, if
+        necessary), please email us at{' '}
+        <a
+          href="mailto:legals@southshorepress.com"
+          className="font-medium text-brand-red hover:underline"
+        >
+          legals@southshorepress.com
+        </a>
+        .
+      </p>
+
       <div className="max-w-md">
         <label
           htmlFor="legal-date"

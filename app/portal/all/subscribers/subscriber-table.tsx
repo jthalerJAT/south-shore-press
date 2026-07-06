@@ -5,29 +5,20 @@ import { ArrowUp, ArrowDown } from 'lucide-react';
 import type { PaidSubscriberRow } from '@/lib/simplecirc/types';
 
 type SortKind = 'text' | 'date' | 'number';
-type ColumnKey =
-  | 'lastName'
-  | 'firstName'
-  | 'street'
-  | 'city'
-  | 'state'
-  | 'email'
-  | 'type'
-  | 'dateSubscribed'
-  | 'lastPaymentDate'
-  | 'lastPaymentAmount';
+type ColumnKey = keyof Omit<PaidSubscriberRow, 'key'>;
 
-const COLUMNS: Array<{ key: ColumnKey; label: string; kind: SortKind }> = [
+const COLUMNS: Array<{ key: ColumnKey; label: string; kind: SortKind; align?: 'right' }> = [
+  { key: 'accountId', label: 'Account ID', kind: 'text' },
   { key: 'lastName', label: 'Last Name', kind: 'text' },
   { key: 'firstName', label: 'First Name', kind: 'text' },
-  { key: 'street', label: 'Street', kind: 'text' },
+  { key: 'address1', label: 'Address 1', kind: 'text' },
   { key: 'city', label: 'City', kind: 'text' },
   { key: 'state', label: 'State', kind: 'text' },
   { key: 'email', label: 'Email', kind: 'text' },
-  { key: 'type', label: 'Type', kind: 'text' },
-  { key: 'dateSubscribed', label: 'Date Subscribed', kind: 'date' },
-  { key: 'lastPaymentDate', label: 'Last Payment', kind: 'date' },
-  { key: 'lastPaymentAmount', label: 'Amount', kind: 'number' },
+  { key: 'typeName', label: 'Type', kind: 'text' },
+  { key: 'amountPaid', label: 'Amount Paid', kind: 'number', align: 'right' },
+  { key: 'startDate', label: 'Start Date', kind: 'date' },
+  { key: 'expireDate', label: 'Expire Date', kind: 'date' },
 ];
 
 function fmtDate(v: string | null): string {
@@ -80,7 +71,7 @@ export function SubscriberTable({ rows }: { rows: PaidSubscriberRow[] }) {
   if (rows.length === 0) {
     return (
       <div className="rounded border border-zinc-200 px-4 py-10 text-center text-sm text-zinc-400">
-        No active paid subscribers found.
+        No paid subscribers found.
       </div>
     );
   }
@@ -98,7 +89,7 @@ export function SubscriberTable({ rows }: { rows: PaidSubscriberRow[] }) {
               return (
                 <th
                   key={col.key}
-                  className="whitespace-nowrap px-3 py-2 text-left"
+                  className={`whitespace-nowrap px-3 py-2 ${col.align === 'right' ? 'text-right' : 'text-left'}`}
                 >
                   <button
                     type="button"
@@ -109,11 +100,7 @@ export function SubscriberTable({ rows }: { rows: PaidSubscriberRow[] }) {
                   >
                     {col.label}
                     {activeSort ? (
-                      asc ? (
-                        <ArrowUp className="w-3 h-3" />
-                      ) : (
-                        <ArrowDown className="w-3 h-3" />
-                      )
+                      asc ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
                     ) : null}
                   </button>
                 </th>
@@ -123,32 +110,27 @@ export function SubscriberTable({ rows }: { rows: PaidSubscriberRow[] }) {
         </thead>
         <tbody className="divide-y divide-zinc-100">
           {sorted.map((r, i) => (
-            <tr key={r.id} className="hover:bg-zinc-50">
+            <tr key={r.key} className="hover:bg-zinc-50">
               <td className="sticky left-0 z-10 bg-white px-3 py-2 text-right text-xs text-zinc-400 tabular-nums">
                 {i + 1}
               </td>
-              <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900">
-                {r.lastName || '—'}
-              </td>
+              <td className="whitespace-nowrap px-3 py-2 text-zinc-500 tabular-nums">{r.accountId || '—'}</td>
+              <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900">{r.lastName || '—'}</td>
               <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.firstName || '—'}</td>
-              <td className="px-3 py-2 text-zinc-700">{r.street || '—'}</td>
+              <td className="px-3 py-2 text-zinc-700">{r.address1 || '—'}</td>
               <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.city || '—'}</td>
               <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.state || '—'}</td>
               <td className="whitespace-nowrap px-3 py-2 text-zinc-600">{r.email || '—'}</td>
               <td className="whitespace-nowrap px-3 py-2">
                 <span className="inline-block rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
-                  {r.type}
+                  {r.typeName || '—'}
                 </span>
               </td>
-              <td className="whitespace-nowrap px-3 py-2 text-zinc-600 tabular-nums">
-                {fmtDate(r.dateSubscribed)}
-              </td>
-              <td className="whitespace-nowrap px-3 py-2 text-zinc-600 tabular-nums">
-                {fmtDate(r.lastPaymentDate)}
-              </td>
               <td className="whitespace-nowrap px-3 py-2 text-right text-zinc-700 tabular-nums">
-                {fmtAmount(r.lastPaymentAmount)}
+                {fmtAmount(r.amountPaid)}
               </td>
+              <td className="whitespace-nowrap px-3 py-2 text-zinc-600 tabular-nums">{fmtDate(r.startDate)}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-zinc-600 tabular-nums">{fmtDate(r.expireDate)}</td>
             </tr>
           ))}
         </tbody>

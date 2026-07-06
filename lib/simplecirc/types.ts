@@ -4,21 +4,29 @@
  * stays server-only in `client.ts`.
  */
 
-/** One active paid subscriber, flattened for the Subscriber View table. */
+/**
+ * One paid subscription row — mirrors the "Paid Subscribers" export template in
+ * SimpleCirc (one record per subscription, most-recent order for the payment
+ * fields, filtered to amount paid ≠ 0).
+ */
 export type PaidSubscriberRow = {
-  id: string;
+  /** Stable unique key for React (account id + subscription id). */
+  key: string;
+  accountId: string;
   firstName: string;
   lastName: string;
-  street: string;
+  address1: string;
   city: string;
   state: string;
   email: string;
-  /** Display label — "All Access" | "Yearly" | "Monthly" | raw term name. */
-  type: string;
-  /** ISO date (or raw string if unparseable), null if unknown. */
-  dateSubscribed: string | null;
-  lastPaymentDate: string | null;
-  lastPaymentAmount: number | null;
+  /** "Subscription Type Name" — New / Renewal / Gift / plan name. */
+  typeName: string;
+  /** Payment Amount Paid (most recent order). */
+  amountPaid: number | null;
+  /** Payment Start Date (most recent order date), ISO or raw string. */
+  startDate: string | null;
+  /** Payment Expire Date (subscription expiration), ISO or raw string. */
+  expireDate: string | null;
 };
 
 export type PaidSubscriberList = {
@@ -26,6 +34,8 @@ export type PaidSubscriberList = {
   /** False when the SimpleCirc env vars are unset (graceful no-op). */
   configured: boolean;
   rows: PaidSubscriberRow[];
+  /** Sum of amountPaid across rows (matches the export's total row). */
+  totalPaid: number;
   error?: string;
   /**
    * First raw subscriber object as SimpleCirc returned it — included ONLY when

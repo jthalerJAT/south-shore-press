@@ -20,13 +20,17 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
   const [copySize, setCopySize] = useState(ad?.copy_size ?? 'quarter');
   const [insertPath, setInsertPath] = useState(ad?.insert_order_path ?? '');
   const [insertName, setInsertName] = useState(ad?.insert_order_file_name ?? '');
+  const [contractPath, setContractPath] = useState(ad?.contract_path ?? '');
+  const [contractName, setContractName] = useState(ad?.contract_file_name ?? '');
   const [uploading, setUploading] = useState(false);
   const [uploadingInsert, setUploadingInsert] = useState(false);
+  const [uploadingContract, setUploadingContract] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
   const insertFileRef = useRef<HTMLInputElement | null>(null);
+  const contractFileRef = useRef<HTMLInputElement | null>(null);
 
   async function handleFile(file: File | null) {
     if (!file) return;
@@ -58,6 +62,21 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
     setSaved(false);
   }
 
+  async function handleContractFile(file: File | null) {
+    if (!file) return;
+    setError(null);
+    setUploadingContract(true);
+    const res = await uploadAdFile('contract', file);
+    setUploadingContract(false);
+    if (!res.ok) {
+      setError(res.error ?? 'Upload failed.');
+      return;
+    }
+    setContractPath(res.path!);
+    setContractName(res.fileName!);
+    setSaved(false);
+  }
+
   async function handleSave() {
     setSaving(true);
     setError(null);
@@ -71,6 +90,8 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
       copy_size: copySize,
       insert_order_path: insertPath,
       insert_order_file_name: insertName,
+      contract_path: contractPath,
+      contract_file_name: contractName,
     };
     const res = mode === 'create' ? await createAd(input) : await updateAd(ad!.id, input);
     setSaving(false);
@@ -238,6 +259,65 @@ export function AdForm({ mode, ad }: { mode: 'create' | 'edit'; ad?: Ad }) {
               className="mt-3 inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
             >
               {uploadingInsert ? 'Uploading…' : '+ Upload Insert Order'}
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-zinc-700 mb-1">Contract</label>
+        <div
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => {
+            e.preventDefault();
+            handleContractFile(e.dataTransfer.files?.[0] ?? null);
+          }}
+          className="rounded-lg border-2 border-dashed border-zinc-300 bg-white px-6 py-6 text-center"
+        >
+          {contractName ? (
+            <p className="text-sm text-zinc-700">
+              <span className="font-medium">{contractName}</span>
+              {contractPath ? (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => window.open(adFilePublicUrl(contractPath), '_blank')}
+                    className="ml-1 text-brand-red hover:underline"
+                  >
+                    view
+                  </button>
+                </>
+              ) : null}{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setContractPath('');
+                  setContractName('');
+                }}
+                className="ml-1 text-red-600 hover:underline"
+              >
+                remove
+              </button>
+            </p>
+          ) : (
+            <p className="text-sm text-zinc-500">Drag &amp; drop the contract (PDF) here, or</p>
+          )}
+          <input
+            ref={contractFileRef}
+            type="file"
+            accept="application/pdf"
+            className="hidden"
+            onChange={(e) => handleContractFile(e.target.files?.[0] ?? null)}
+          />
+          {!contractName ? (
+            <button
+              type="button"
+              onClick={() => contractFileRef.current?.click()}
+              disabled={uploadingContract}
+              className="mt-3 inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
+            >
+              {uploadingContract ? 'Uploading…' : '+ Upload Contract'}
             </button>
           ) : null}
         </div>

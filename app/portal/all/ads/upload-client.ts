@@ -5,7 +5,7 @@ import { requestAdFileUploadUrl, verifyAdFileUploaded } from './actions';
 /** Upload an ad file (copy or insert order) straight to Storage via a
  *  short-lived signed URL minted by the editor-gated server action. */
 export async function uploadAdFile(
-  kind: 'copy' | 'insert',
+  kind: 'copy' | 'insert' | 'contract',
   file: File
 ): Promise<{ ok: boolean; path?: string; fileName?: string; error?: string }> {
   const signed = await requestAdFileUploadUrl(kind, file.name);

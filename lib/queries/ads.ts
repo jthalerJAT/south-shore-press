@@ -23,6 +23,9 @@ export type Ad = {
   /** The signed PDF contract with the advertiser (the actual insert order). */
   insert_order_path: string | null;
   insert_order_file_name: string | null;
+  /** A separate contract PDF for the advertiser. */
+  contract_path: string | null;
+  contract_file_name: string | null;
   created_at: string;
 };
 
@@ -41,7 +44,7 @@ export type AdRun = {
 };
 
 const AD_COLUMNS =
-  'id, business_name, contact_name, contact_phone, contact_email, copy_storage_path, copy_file_name, copy_size, insert_order_path, insert_order_file_name, created_at';
+  'id, business_name, contact_name, contact_phone, contact_email, copy_storage_path, copy_file_name, copy_size, insert_order_path, insert_order_file_name, contract_path, contract_file_name, created_at';
 
 /** Every advertiser, newest first. */
 export async function getAds(): Promise<Ad[]> {

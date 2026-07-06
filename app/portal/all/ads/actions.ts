@@ -20,7 +20,7 @@ function ext(fileName: string): string {
 
 /** Signed upload URL for an ad file (copy or insert order) → newspaper-ads. */
 export async function requestAdFileUploadUrl(
-  kind: 'copy' | 'insert',
+  kind: 'copy' | 'insert' | 'contract',
   fileName: string
 ): Promise<{ ok: boolean; error?: string; path?: string; token?: string }> {
   await requireRole([...EDITOR_ROLES], BASE);
@@ -30,7 +30,7 @@ export async function requestAdFileUploadUrl(
   } catch {
     return { ok: false, error: 'Uploads are not configured on this deployment.' };
   }
-  const folder = kind === 'insert' ? 'insert-orders' : 'copy';
+  const folder = kind === 'insert' ? 'insert-orders' : kind === 'contract' ? 'contracts' : 'copy';
   const path = `${folder}/${randomUUID()}${ext(fileName)}`;
   const { data, error } = await admin.storage.from(AD_FILES_BUCKET).createSignedUploadUrl(path);
   if (error || !data) {
@@ -71,6 +71,8 @@ export type AdInput = {
   copy_size?: string;
   insert_order_path?: string;
   insert_order_file_name?: string;
+  contract_path?: string;
+  contract_file_name?: string;
 };
 
 export async function createAd(
@@ -92,6 +94,8 @@ export async function createAd(
       copy_size: input.copy_size || null,
       insert_order_path: input.insert_order_path || null,
       insert_order_file_name: input.insert_order_file_name || null,
+      contract_path: input.contract_path || null,
+      contract_file_name: input.contract_file_name || null,
       created_by: user.id,
     })
     .select('id')
@@ -120,6 +124,8 @@ export async function updateAd(id: string, input: AdInput): Promise<Result> {
       copy_size: input.copy_size || null,
       insert_order_path: input.insert_order_path || null,
       insert_order_file_name: input.insert_order_file_name || null,
+      contract_path: input.contract_path || null,
+      contract_file_name: input.contract_file_name || null,
     })
     .eq('id', id);
   if (error) {
@@ -139,11 +145,12 @@ export async function deleteAd(id: string): Promise<Result> {
   const paths: string[] = [];
   const { data: ad } = await admin
     .from('ads')
-    .select('copy_storage_path, insert_order_path')
+    .select('copy_storage_path, insert_order_path, contract_path')
     .eq('id', id)
     .maybeSingle();
   if (ad?.copy_storage_path) paths.push(ad.copy_storage_path as string);
   if (ad?.insert_order_path) paths.push(ad.insert_order_path as string);
+  if (ad?.contract_path) paths.push(ad.contract_path as string);
   const { data: runs } = await admin.from('ad_runs').select('insert_order_path').eq('ad_id', id);
   for (const r of runs ?? []) {
     const p = (r as { insert_order_path: string | null }).insert_order_path;

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight } from 'lucide-react';
+import { Users, UserCheck, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight } from 'lucide-react';
 import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
@@ -95,6 +95,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Manage advertisers, ad copy, and scheduled print runs with invoiced / paid tracking.',
       icon: Megaphone,
+    },
+    {
+      href: '/portal/all/subscribers',
+      title: 'Subscriber View',
+      description:
+        'The active paid subscriber list pulled live from SimpleCirc — sortable, with a running total count.',
+      icon: UserCheck,
     },
     {
       href: '/portal/all/owned-images',

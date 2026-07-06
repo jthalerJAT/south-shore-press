@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, UserCheck, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight } from 'lucide-react';
+import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight } from 'lucide-react';
 import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
@@ -103,6 +103,17 @@ export default async function EditorPortalLandingPage() {
         'The active paid subscriber list pulled live from SimpleCirc — sortable, with a running total count.',
       icon: UserCheck,
     },
+    ...(isAdmin
+      ? [
+          {
+            href: '/portal/all/accounts',
+            title: 'Account Database',
+            description:
+              'The internal master list of every subscriber, mailer, and advertiser. Search, sort, edit, delete, import, and export.',
+            icon: Database,
+          },
+        ]
+      : []),
     {
       href: '/portal/all/owned-images',
       title: 'Owned Images',

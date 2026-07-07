@@ -63,16 +63,16 @@ export function parseDateLocal(v: string | null | undefined): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Format a stored date as DD/MM/YY. Empty → ''. Unparseable → the raw value. */
-export function formatDateDMY(v: string | null | undefined): string {
+/** Format a stored date as MM/DD/YY (US). Empty → ''. Unparseable → raw value. */
+export function formatDate(v: string | null | undefined): string {
   const s = (v ?? '').trim();
   if (!s) return '';
   const d = parseDateLocal(s);
   if (!d) return s;
-  const dd = String(d.getDate()).padStart(2, '0');
   const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
   const yy = String(d.getFullYear()).slice(2);
-  return `${dd}/${mm}/${yy}`;
+  return `${mm}/${dd}/${yy}`;
 }
 
 /** Normalize a ZIP: 9 digits → "#####-####", 5 digits → "#####". (The +4 suffix

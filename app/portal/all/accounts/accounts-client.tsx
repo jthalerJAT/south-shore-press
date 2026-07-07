@@ -21,7 +21,7 @@ import {
   type Account,
   type AccountType,
 } from '@/lib/account-types';
-import { formatDateDMY, parseDateLocal } from '@/lib/format';
+import { formatDate, parseDateLocal } from '@/lib/format';
 import { deleteAccounts } from './actions';
 import { ExportDialog } from './export-dialog';
 import { ImportAccountsDialog } from './import-mailers-dialog';
@@ -501,9 +501,9 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-700 tabular-nums">{a.zip || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600">{a.email || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.phone || '—'}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{formatDateDMY(a.subscription_start) || '—'}</td>
-                    <td className={`whitespace-nowrap px-2 py-1.5 tabular-nums ${expiring ? 'font-semibold text-red-700' : 'text-zinc-600'}`}>{formatDateDMY(a.subscription_end) || '—'}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{formatDateDMY(a.last_payment_date) || '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{formatDate(a.subscription_start) || '—'}</td>
+                    <td className={`whitespace-nowrap px-2 py-1.5 tabular-nums ${expiring ? 'font-semibold text-red-700' : 'text-zinc-600'}`}>{formatDate(a.subscription_end) || '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{formatDate(a.last_payment_date) || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right text-zinc-700 tabular-nums">{fmtMoney(a.last_payment_amount)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-500 tabular-nums">{a.acs_keyline || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">

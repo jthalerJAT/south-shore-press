@@ -37,6 +37,9 @@ export type Account = {
   user_id: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
+  has_payment_method: boolean;
+  payment_method_last4: string | null;
+  payment_method_brand: string | null;
   source: string | null;
   created_at: string;
   updated_at: string;
@@ -69,5 +72,6 @@ export function isPaidAccountType(t: AccountType): boolean {
 export const ACCOUNT_COLUMNS =
   'id, account_type, status, first_name, last_name, company, address_1, address_2, ' +
   'city, state, zip, email, phone, subscription_start, subscription_end, acs_keyline, ' +
-  'account_number, user_id, stripe_customer_id, stripe_subscription_id, source, ' +
+  'account_number, user_id, stripe_customer_id, stripe_subscription_id, ' +
+  'has_payment_method, payment_method_last4, payment_method_brand, source, ' +
   'created_at, updated_at';

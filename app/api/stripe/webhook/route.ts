@@ -3,7 +3,13 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_TIERS, type PlanTier } from '@/lib/stripe/plans';
-import { isSimpleCircConfigured, addPaidSubscriber } from '@/lib/simplecirc/client';
+
+/** Map a Stripe plan tier onto the Account Database's account_type. */
+const TIER_TO_ACCOUNT_TYPE: Record<PlanTier, string> = {
+  all_access: 'paid_all_access',
+  print_annual: 'paid_yearly',
+  print_monthly: 'paid_monthly',
+};
 
 // The webhook needs the raw request body for signature verification and
 // Node crypto — it cannot run on the edge.
@@ -176,11 +182,18 @@ function bestTier(tiers: PlanTier[]): PlanTier | null {
 async function recomputeProfileAggregate(admin: Admin, userId: string) {
   const { data: orders } = await admin
     .from('subscription_orders')
-    .select('plan_tier, status')
+    .select('plan_tier, status, started_at, current_period_end, stripe_subscription_id')
     .eq('user_id', userId);
 
-  const rows = (orders ?? []) as Array<{ plan_tier: PlanTier; status: string }>;
-  const activeTiers = rows.filter((o) => o.status === 'active').map((o) => o.plan_tier);
+  const rows = (orders ?? []) as Array<{
+    plan_tier: PlanTier;
+    status: string;
+    started_at: string | null;
+    current_period_end: string | null;
+    stripe_subscription_id: string | null;
+  }>;
+  const activeRows = rows.filter((o) => o.status === 'active');
+  const activeTiers = activeRows.map((o) => o.plan_tier);
 
   let status: string | null;
   let tier: PlanTier | null = null;
@@ -200,6 +213,34 @@ async function recomputeProfileAggregate(admin: Admin, userId: string) {
     .update({ subscription_status: status, subscription_tier: tier })
     .eq('id', userId);
   if (error) console.error('[stripe webhook] profile aggregate failed', error);
+
+  // Sync the master Account Database record. Only touch account_type/status on
+  // a decisive transition so a still-pending checkout (status null) never flips
+  // a fresh digital account to expired.
+  if (status === 'active' && tier) {
+    // Earliest start, latest renewal across active subs; best-tier's Stripe ids.
+    const starts = activeRows.map((o) => o.started_at).filter(Boolean).sort() as string[];
+    const ends = activeRows.map((o) => o.current_period_end).filter(Boolean).sort() as string[];
+    const best = activeRows.find((o) => o.plan_tier === tier);
+    const patch: Record<string, unknown> = {
+      account_type: TIER_TO_ACCOUNT_TYPE[tier],
+      status: 'active',
+      updated_at: nowIso(),
+    };
+    if (starts.length) patch.subscription_start = starts[0].slice(0, 10);
+    if (ends.length) patch.subscription_end = ends[ends.length - 1].slice(0, 10);
+    if (best?.stripe_subscription_id) patch.stripe_subscription_id = best.stripe_subscription_id;
+    const { error: acctErr } = await admin.from('accounts').update(patch).eq('user_id', userId);
+    if (acctErr) console.error('[stripe webhook] account sync failed', acctErr);
+  } else if (status === 'canceled') {
+    // Formerly paid, now fully lapsed → mark the account expired (keep the paid
+    // account_type so it reads as "was a paid subscriber who lapsed").
+    const { error: acctErr } = await admin
+      .from('accounts')
+      .update({ status: 'expired', updated_at: nowIso() })
+      .eq('user_id', userId);
+    if (acctErr) console.error('[stripe webhook] account expire failed', acctErr);
+  }
 }
 
 /** Sync one subscription onto its order row, then recompute the aggregate. */
@@ -259,81 +300,12 @@ async function handleInvoicePaid(stripe: Stripe, admin: Admin, invoice: Stripe.I
 
   await syncSubscription(admin, sub, { markStarted });
 
-  // Snapshot the saved card onto the profile so /account/payment shows it.
+  // Snapshot the saved card onto the profile + master account so
+  // /account/payment and the Account Database both show it.
   const userId = await resolveUserId(admin, sub);
   const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer?.id;
   if (userId && customerId) {
     await syncDefaultPaymentMethod(stripe, admin, customerId, userId);
-  }
-
-  // First paid invoice → add them to the paid list in SimpleCirc (print
-  // distribution). Only on the first payment; the order row is stamped so
-  // renewals/redeliveries never double-add.
-  if (markStarted) {
-    await pushToSimpleCirc(admin, subId, invoice);
-  }
-}
-
-/** Push a newly-paid web subscriber onto the SimpleCirc paid list (subscriber
- *  + paid subscription term), using the delivery address from the order. Best-
- *  effort + idempotent (skips if already synced); never throws into the
- *  handler. No-op when SimpleCirc isn't configured. */
-async function pushToSimpleCirc(admin: Admin, subId: string, invoice: Stripe.Invoice) {
-  if (!isSimpleCircConfigured()) return;
-  const { data } = await admin
-    .from('subscription_orders')
-    .select(
-      'delivery_first_name, delivery_last_name, delivery_company, delivery_address_1, delivery_address_2, delivery_city, delivery_state, delivery_zip, delivery_email, delivery_phone, plan_tier, simplecirc_subscriber_id'
-    )
-    .eq('stripe_subscription_id', subId)
-    .maybeSingle();
-  if (!data) return;
-  const o = data as {
-    delivery_first_name: string | null;
-    delivery_last_name: string | null;
-    delivery_company: string | null;
-    delivery_address_1: string | null;
-    delivery_address_2: string | null;
-    delivery_city: string | null;
-    delivery_state: string | null;
-    delivery_zip: string | null;
-    delivery_email: string | null;
-    delivery_phone: string | null;
-    plan_tier: string;
-    simplecirc_subscriber_id: string | null;
-  };
-  if (o.simplecirc_subscriber_id) return; // already synced
-  if (!o.delivery_email) {
-    console.error('[simplecirc] order has no delivery email; skipping', subId);
-    return;
-  }
-
-  // Weekly paper: annual terms ≈ 52 issues, monthly ≈ 4.
-  const issues = o.plan_tier === 'print_monthly' ? 4 : 52;
-  const amountPaid = (invoice.amount_paid ?? 0) / 100;
-
-  const res = await addPaidSubscriber({
-    firstName: o.delivery_first_name,
-    lastName: o.delivery_last_name,
-    company: o.delivery_company,
-    address1: o.delivery_address_1,
-    address2: o.delivery_address_2,
-    city: o.delivery_city,
-    state: o.delivery_state,
-    zip: o.delivery_zip,
-    email: o.delivery_email,
-    phone: o.delivery_phone,
-    issues,
-    amountPaid,
-  });
-
-  if (res.ok && res.subscriberId) {
-    await admin
-      .from('subscription_orders')
-      .update({ simplecirc_subscriber_id: res.subscriberId, simplecirc_synced_at: nowIso() })
-      .eq('stripe_subscription_id', subId);
-  } else {
-    console.error('[simplecirc] push failed for', subId, res.error);
   }
 }
 
@@ -367,14 +339,27 @@ async function syncDefaultPaymentMethod(
     const pmId = typeof dpm === 'string' ? dpm : dpm?.id ?? null;
     if (!pmId) return;
     const pm = await stripe.paymentMethods.retrieve(pmId);
+    const last4 = pm.card?.last4 ?? null;
+    const brand = pm.card?.brand ?? null;
     await admin
       .from('profiles')
       .update({
         has_payment_method: true,
-        payment_method_last4: pm.card?.last4 ?? null,
-        payment_method_brand: pm.card?.brand ?? null,
+        payment_method_last4: last4,
+        payment_method_brand: brand,
       })
       .eq('id', userId);
+    // Mirror onto the master account record (single source of truth).
+    await admin
+      .from('accounts')
+      .update({
+        stripe_customer_id: customerId,
+        has_payment_method: true,
+        payment_method_last4: last4,
+        payment_method_brand: brand,
+        updated_at: nowIso(),
+      })
+      .eq('user_id', userId);
   } catch (err) {
     console.error('[stripe webhook] card snapshot failed', err);
   }

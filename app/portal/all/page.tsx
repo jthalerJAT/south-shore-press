@@ -100,7 +100,7 @@ export default async function EditorPortalLandingPage() {
       href: '/portal/all/subscribers',
       title: 'Subscriber View',
       description:
-        'The active paid subscriber list pulled live from SimpleCirc — sortable, with a running total count.',
+        'The active paid subscribers from the Account Database — sortable, with a running total count.',
       icon: UserCheck,
     },
     ...(isAdmin

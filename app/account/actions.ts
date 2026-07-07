@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { normalizePhoneForStorage } from '@/lib/phone';
 
 export type ProfileUpdateState = {
@@ -54,6 +55,31 @@ export async function updateProfileAction(
   if (error) {
     console.error('[updateProfileAction]', error);
     return { error: 'Could not update profile. Please try again.', success: false };
+  }
+
+  // Mirror the same edit onto the master Account Database record (the single
+  // source of truth for customer info). Uses the service-role client because
+  // `accounts` is admin-RLS; the user is already authenticated above and we
+  // scope the write to their own row (user_id = user.id) and contact columns
+  // only (never account_type / status / payment).
+  try {
+    const admin = createAdminClient();
+    await admin
+      .from('accounts')
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        phone: phone,
+        address_1: streetAddress || null,
+        city: city || null,
+        state: state || null,
+        zip: zipCode || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id);
+  } catch (e) {
+    // Non-fatal: the profile write already succeeded. Log for follow-up.
+    console.error('[updateProfileAction] account sync', e);
   }
 
   // Revalidate the layout so the header chip + account header reflect

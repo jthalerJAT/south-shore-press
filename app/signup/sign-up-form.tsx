@@ -51,6 +51,14 @@ export function SignUpForm({ next: _next }: { next: string }) {
       <Field label="Email" name="email" type="email" required autoComplete="email" />
       <PhoneField label="Phone" name="phone" />
 
+      <div>
+        <p className="text-sm font-medium text-zinc-700">
+          Mailing address <span className="font-normal text-zinc-400">(optional)</span>
+        </p>
+        <p className="text-xs text-zinc-500">
+          Only needed if you subscribe to the printed paper — you can add it later.
+        </p>
+      </div>
       <Field label="Street address" name="street_address" autoComplete="street-address" />
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Field label="City" name="city" autoComplete="address-level2" />

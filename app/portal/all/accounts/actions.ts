@@ -107,6 +107,39 @@ export async function updateAccount(id: string, input: AccountInput): Promise<Re
     console.error('[updateAccount]', error);
     return { ok: false, error: 'Could not save the account.' };
   }
+
+  // If this account is linked to a login, mirror the name back onto the
+  // profile so the header chip + Credentials tile reflect the edit (accounts
+  // is the master; profiles carries only the auth-required name mirror).
+  try {
+    const { data: linked } = await admin
+      .from('accounts')
+      .select('user_id')
+      .eq('id', id)
+      .maybeSingle();
+    const userId = (linked as { user_id: string | null } | null)?.user_id;
+    if (userId) {
+      const first = input.first_name?.trim() || null;
+      const last = input.last_name?.trim() || null;
+      const display = [first, last].filter(Boolean).join(' ') || null;
+      await admin
+        .from('profiles')
+        .update({
+          first_name: first,
+          last_name: last,
+          phone: input.phone?.trim() || null,
+          street_address: input.address_1?.trim() || null,
+          city: input.city?.trim() || null,
+          state: input.state?.trim() || null,
+          zip_code: input.zip?.trim() || null,
+          ...(display ? { display_name: display } : {}),
+        })
+        .eq('id', userId);
+    }
+  } catch (e) {
+    console.error('[updateAccount] profile sync', e);
+  }
+
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${id}`);
   return { ok: true };

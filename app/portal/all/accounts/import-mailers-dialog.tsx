@@ -3,10 +3,27 @@
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { UploadCloud, FileSpreadsheet } from 'lucide-react';
+import { ACCOUNT_TYPES, type AccountType } from '@/lib/account-types';
 import { Overlay } from './export-dialog';
-import { clearMailers, insertMailerBatch, type MailerImportRow } from './actions';
+import { clearAccountsByType, insertAccountBatch, type ImportAccountRow } from './actions';
 
-type Field = keyof MailerImportRow;
+type Field =
+  | 'first_name'
+  | 'last_name'
+  | 'company'
+  | 'address_1'
+  | 'address_2'
+  | 'city'
+  | 'state'
+  | 'zip'
+  | 'email'
+  | 'phone'
+  | 'acs_keyline'
+  | 'account_number'
+  | 'subscription_start'
+  | 'subscription_end';
+
+type ParsedRow = Partial<Record<Field, string>>;
 
 const FIELD_LABELS: Record<Field, string> = {
   first_name: 'First Name',
@@ -17,8 +34,11 @@ const FIELD_LABELS: Record<Field, string> = {
   city: 'City',
   state: 'State',
   zip: 'ZIP',
+  email: 'Email',
+  phone: 'Phone',
   acs_keyline: 'ACS Keyline',
   account_number: 'Account ID',
+  subscription_start: 'Start Date',
   subscription_end: 'Expiration Date',
 };
 
@@ -32,23 +52,27 @@ function matchField(header: string): Field | null {
   if (/firstname|fname|givenname/.test(h) || h === 'first') return 'first_name';
   if (/lastname|lname|surname|familyname/.test(h) || h === 'last') return 'last_name';
   if (/company|business|organization|organisation/.test(h)) return 'company';
+  if (/emailaddress|email/.test(h)) return 'email';
+  if (/phone|tel|mobile|cell/.test(h)) return 'phone';
   if (/city|town/.test(h)) return 'city';
   if (/state|province|region/.test(h)) return 'state';
   if (/zip|postal/.test(h)) return 'zip';
   if (/acs|keyline/.test(h)) return 'acs_keyline';
   if (/accountid|accountnumber|acct/.test(h) || h === 'account') return 'account_number';
-  if (/expir/.test(h)) return 'subscription_end';
+  if (/paymentstart|startdate|datestarted|substart|subscriptionstart/.test(h)) return 'subscription_start';
+  if (/expir|paymentexpire|enddate|expiredate|subend|subscriptionend/.test(h)) return 'subscription_end';
   return null;
 }
 
 const CHUNK = 1000;
 
-export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
+export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  const [importType, setImportType] = useState<AccountType>('mailer');
   const [fileName, setFileName] = useState('');
-  const [rows, setRows] = useState<MailerImportRow[] | null>(null);
+  const [rows, setRows] = useState<ParsedRow[] | null>(null);
   const [mappedFields, setMappedFields] = useState<Field[]>([]);
   const [mode, setMode] = useState<'replace' | 'append'>('replace');
   const [parsing, setParsing] = useState(false);
@@ -56,6 +80,8 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
   const [progress, setProgress] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+
+  const typeLabel = ACCOUNT_TYPES.find((t) => t.value === importType)?.label ?? importType;
 
   async function handleFile(file: File | null) {
     if (!file) return;
@@ -79,7 +105,6 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
         return;
       }
 
-      // Build header → field map from the first row's keys.
       const headerMap = new Map<string, Field>();
       for (const key of Object.keys(json[0])) {
         const f = matchField(key);
@@ -91,14 +116,13 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
         return;
       }
 
-      const parsed: MailerImportRow[] = [];
+      const parsed: ParsedRow[] = [];
       for (const r of json) {
-        const row: MailerImportRow = {};
+        const row: ParsedRow = {};
         for (const [key, field] of headerMap) {
           const v = r[key];
           row[field] = v == null ? '' : String(v).trim();
         }
-        // Skip blank rows (no name, company, or address).
         if (row.first_name || row.last_name || row.company || row.address_1) parsed.push(row);
       }
 
@@ -119,18 +143,20 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
     setProgress('');
     try {
       if (mode === 'replace') {
-        setProgress('Clearing existing mailers…');
-        const cleared = await clearMailers();
+        setProgress(`Clearing existing ${typeLabel} accounts…`);
+        const cleared = await clearAccountsByType([importType]);
         if (!cleared.ok) {
-          setError(cleared.error ?? 'Could not clear existing mailers.');
+          setError(cleared.error ?? 'Could not clear existing accounts.');
           setBusy(false);
           return;
         }
       }
       let inserted = 0;
       for (let i = 0; i < rows.length; i += CHUNK) {
-        const chunk = rows.slice(i, i + CHUNK);
-        const res = await insertMailerBatch(chunk);
+        const chunk: ImportAccountRow[] = rows
+          .slice(i, i + CHUNK)
+          .map((r) => ({ account_type: importType, ...r }));
+        const res = await insertAccountBatch(chunk);
         if (!res.ok) {
           setError(`${res.error ?? 'Import failed.'} (${inserted.toLocaleString()} imported before the error.)`);
           setBusy(false);
@@ -140,7 +166,7 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
         inserted += res.inserted ?? chunk.length;
         setProgress(`Imported ${inserted.toLocaleString()} of ${rows.length.toLocaleString()}…`);
       }
-      setDone(`Imported ${inserted.toLocaleString()} mailer${inserted === 1 ? '' : 's'}.`);
+      setDone(`Imported ${inserted.toLocaleString()} ${typeLabel} account${inserted === 1 ? '' : 's'}.`);
       setBusy(false);
       router.refresh();
     } catch (e) {
@@ -152,7 +178,7 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <Overlay title="Import Mailer List" onClose={busy ? () => {} : onClose}>
+    <Overlay title="Import Accounts" onClose={busy ? () => {} : onClose}>
       {done ? (
         <div className="space-y-4">
           <div className="rounded-lg border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
@@ -169,11 +195,29 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
       ) : (
         <>
           <p className="text-sm text-zinc-600">
-            Drop an Excel or CSV export of the weekly mailer list. Columns are matched by name
-            (first/last name, company, address 1/2, city, state, zip, ACS keyline, account ID,
-            expiration). Every row is added as a <span className="font-medium">Weekly Mailer</span>{' '}
-            account.
+            Drop an Excel or CSV export (e.g. a SimpleCirc mailer or paid-subscriber list). Columns
+            are matched by name — first/last name, company, address 1/2, city, state, zip, email,
+            phone, ACS keyline, account ID, start/expiration dates.
           </p>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-zinc-700">Import these accounts as</label>
+            <select
+              value={importType}
+              onChange={(e) => setImportType(e.target.value as AccountType)}
+              className="mt-1 block w-full rounded border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            >
+              {ACCOUNT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-zinc-500">
+              Every row in this file is created with this type. Import each cohort separately (e.g.
+              the mailer list as Weekly Mailer, a paid export as a paid type).
+            </p>
+          </div>
 
           <div
             onDragOver={(e) => e.preventDefault()}
@@ -214,7 +258,8 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
             <div className="mt-4 rounded-lg border border-zinc-200 p-3 text-sm">
               <p className="text-zinc-700">
                 <span className="font-semibold text-zinc-900">{rows.length.toLocaleString()}</span>{' '}
-                rows ready to import.
+                rows ready to import as{' '}
+                <span className="font-semibold text-zinc-900">{typeLabel}</span>.
               </p>
               <p className="mt-1 text-xs text-zinc-500">
                 Matched columns: {mappedFields.map((f) => FIELD_LABELS[f]).join(' · ')}
@@ -225,7 +270,7 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
           {rows ? (
             <fieldset className="mt-4 space-y-2">
               <legend className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-                Existing mailers
+                Existing {typeLabel} accounts
               </legend>
               <label className="flex items-start gap-2 text-sm text-zinc-700">
                 <input
@@ -236,8 +281,8 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
                   className="mt-0.5 h-4 w-4 border-zinc-300 text-brand-red focus:ring-brand-red"
                 />
                 <span>
-                  <span className="font-medium">Replace all mailers</span> — delete every existing
-                  Weekly Mailer, then import these. (Paid / free / advertiser accounts are untouched.)
+                  <span className="font-medium">Replace all {typeLabel}</span> — delete every
+                  existing {typeLabel} account, then import these. (Other account types are untouched.)
                 </span>
               </label>
               <label className="flex items-start gap-2 text-sm text-zinc-700">
@@ -250,7 +295,7 @@ export function ImportMailersDialog({ onClose }: { onClose: () => void }) {
                 />
                 <span>
                   <span className="font-medium">Append</span> — add these on top of the existing
-                  mailers.
+                  accounts.
                 </span>
               </label>
             </fieldset>

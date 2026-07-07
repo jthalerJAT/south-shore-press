@@ -22,7 +22,7 @@ import {
 } from '@/lib/account-types';
 import { deleteAccounts } from './actions';
 import { ExportDialog } from './export-dialog';
-import { ImportMailersDialog } from './import-mailers-dialog';
+import { ImportAccountsDialog } from './import-mailers-dialog';
 
 type ColumnKey =
   | 'account_type'
@@ -31,6 +31,7 @@ type ColumnKey =
   | 'first_name'
   | 'company'
   | 'address_1'
+  | 'address_2'
   | 'city'
   | 'state'
   | 'zip'
@@ -46,6 +47,7 @@ const COLUMNS: Array<{ key: ColumnKey; label: string }> = [
   { key: 'first_name', label: 'First Name' },
   { key: 'company', label: 'Company' },
   { key: 'address_1', label: 'Address 1' },
+  { key: 'address_2', label: 'Address 2' },
   { key: 'city', label: 'City' },
   { key: 'state', label: 'State' },
   { key: 'zip', label: 'ZIP' },
@@ -208,7 +210,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
             onClick={() => setShowImport(true)}
             className="inline-flex items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
           >
-            <UploadCloud className="h-4 w-4" /> Import Mailers
+            <UploadCloud className="h-4 w-4" /> Import
           </button>
           <button
             type="button"
@@ -227,7 +229,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
       </div>
 
       {showExport ? <ExportDialog accounts={accounts} onClose={() => setShowExport(false)} /> : null}
-      {showImport ? <ImportMailersDialog onClose={() => setShowImport(false)} /> : null}
+      {showImport ? <ImportAccountsDialog onClose={() => setShowImport(false)} /> : null}
 
       {/* Filters */}
       <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -316,7 +318,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
 
       {/* Table */}
       <div ref={scrollRef} className="mt-2 overflow-x-auto rounded border border-zinc-200">
-        <table className="min-w-full border-collapse text-xs">
+        <table className="w-max min-w-full border-collapse text-xs">
           <thead>
             <tr className="bg-zinc-50 border-b border-zinc-200">
               <th className="sticky left-0 z-10 bg-zinc-50 px-2 py-1.5">
@@ -396,6 +398,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-700">{a.first_name || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-700">{a.company || '—'}</td>
                     <td className="px-2 py-1.5 text-zinc-700">{a.address_1 || '—'}</td>
+                    <td className="px-2 py-1.5 text-zinc-700">{a.address_2 || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-700">{a.city || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-700">{a.state || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-700 tabular-nums">{a.zip || '—'}</td>

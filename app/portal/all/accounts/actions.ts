@@ -139,12 +139,16 @@ export async function deleteAccounts(ids: string[]): Promise<Result & { deleted?
 }
 
 /* ------------------------------------------------------------------ *
- *  Mailer list import (Phase 3). The client parses the Excel/CSV and
- *  posts normalized rows in chunks; the server clears (optional) and
- *  bulk-inserts them as `mailer` accounts.
+ *  Account import (Phase 3). The client parses the Excel/CSV and posts
+ *  normalized rows in chunks; the server clears (optional) and bulk-inserts
+ *  them. Every row carries its own account_type so any cohort — the weekly
+ *  mailer list, existing paid subscribers, free-physical, etc. — can be
+ *  brought in with the correct type.
  * ------------------------------------------------------------------ */
 
-export type MailerImportRow = {
+export type ImportAccountRow = {
+  account_type: AccountType;
+  status?: AccountStatus;
   first_name?: string;
   last_name?: string;
   company?: string;
@@ -153,40 +157,48 @@ export type MailerImportRow = {
   city?: string;
   state?: string;
   zip?: string;
+  email?: string;
+  phone?: string;
   acs_keyline?: string;
   account_number?: string;
+  subscription_start?: string;
   subscription_end?: string;
 };
 
-/** Permanently delete every `mailer`-type account (the "Replace all" import
- *  mode — the weekly list changes wholesale). Other types are untouched. */
-export async function clearMailers(): Promise<Result & { deleted?: number }> {
+/** Permanently delete every account of the given type(s) — the "Replace all"
+ *  import mode (e.g. the weekly mailer list changes wholesale). Other types
+ *  are untouched. */
+export async function clearAccountsByType(
+  types: AccountType[]
+): Promise<Result & { deleted?: number }> {
   await requireRole([...ADMIN_ROLES], BASE);
+  const list = Array.from(new Set(types)).filter(Boolean);
+  if (list.length === 0) return { ok: true, deleted: 0 };
   const admin = createAdminClient();
   const { error, count } = await admin
     .from('accounts')
     .delete({ count: 'exact' })
-    .eq('account_type', 'mailer');
+    .in('account_type', list);
   if (error) {
-    console.error('[clearMailers]', error);
-    return { ok: false, error: 'Could not clear existing mailers.' };
+    console.error('[clearAccountsByType]', error);
+    return { ok: false, error: 'Could not clear existing accounts.' };
   }
   revalidatePath(BASE);
   return { ok: true, deleted: count ?? 0 };
 }
 
-/** Insert one chunk of mailer rows. Called repeatedly by the client so a
+/** Insert one chunk of imported rows. Called repeatedly by the client so a
  *  ~5,000-row import stays under the server-action body limit. */
-export async function insertMailerBatch(
-  rows: MailerImportRow[]
+export async function insertAccountBatch(
+  rows: ImportAccountRow[]
 ): Promise<Result & { inserted?: number }> {
   await requireRole([...ADMIN_ROLES], BASE);
   if (!Array.isArray(rows) || rows.length === 0) return { ok: true, inserted: 0 };
 
   const admin = createAdminClient();
   const payload = rows.map((r) => ({
-    account_type: 'mailer',
-    status: 'active',
+    account_type: r.account_type,
+    status: r.status === 'expired' ? 'expired' : 'active',
     first_name: clean(r.first_name),
     last_name: clean(r.last_name),
     company: clean(r.company),
@@ -195,15 +207,18 @@ export async function insertMailerBatch(
     city: clean(r.city),
     state: clean(r.state),
     zip: clean(r.zip),
+    email: clean(r.email),
+    phone: clean(r.phone),
     acs_keyline: clean(r.acs_keyline),
     account_number: clean(r.account_number),
+    subscription_start: clean(r.subscription_start),
     subscription_end: clean(r.subscription_end),
-    source: 'mailer_import',
+    source: 'import',
   }));
 
   const { error, count } = await admin.from('accounts').insert(payload, { count: 'exact' });
   if (error) {
-    console.error('[insertMailerBatch]', error);
+    console.error('[insertAccountBatch]', error);
     return { ok: false, error: 'Could not import this batch.' };
   }
   revalidatePath(BASE);

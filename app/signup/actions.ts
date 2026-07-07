@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getSiteOrigin } from '@/lib/site-url';
-import { normalizePhoneForStorage } from '@/lib/phone';
+import { titleCase, normalizeState, formatPhone, normalizeZip } from '@/lib/format';
 
 export type SignUpState = {
   error: string | null;
@@ -26,14 +26,15 @@ export async function signUpAction(
   _prev: SignUpState,
   formData: FormData
 ): Promise<SignUpState> {
-  const firstName = String(formData.get('first_name') ?? '').trim();
-  const lastName = String(formData.get('last_name') ?? '').trim();
+  // Normalize to the standard mailing-label format on the way in.
+  const firstName = titleCase(String(formData.get('first_name') ?? ''));
+  const lastName = titleCase(String(formData.get('last_name') ?? ''));
   const email = String(formData.get('email') ?? '').trim().toLowerCase();
-  const phone = normalizePhoneForStorage(String(formData.get('phone') ?? ''));
-  const streetAddress = String(formData.get('street_address') ?? '').trim();
-  const city = String(formData.get('city') ?? '').trim();
-  const state = String(formData.get('state') ?? '').trim();
-  const zipCode = String(formData.get('zip_code') ?? '').trim();
+  const phone = formatPhone(String(formData.get('phone') ?? ''));
+  const streetAddress = titleCase(String(formData.get('street_address') ?? ''));
+  const city = titleCase(String(formData.get('city') ?? ''));
+  const state = normalizeState(String(formData.get('state') ?? ''));
+  const zipCode = normalizeZip(String(formData.get('zip_code') ?? ''));
   const password = String(formData.get('password') ?? '');
   const confirmPassword = String(formData.get('confirm_password') ?? '');
 

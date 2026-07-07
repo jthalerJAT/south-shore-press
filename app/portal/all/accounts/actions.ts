@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { AccountType, AccountStatus } from '@/lib/account-types';
+import { titleCase, normalizeState, formatPhone, normalizeZip } from '@/lib/format';
 
 const ADMIN_ROLES = ['admin', 'master admin'] as const;
 const BASE = '/portal/all/accounts';
@@ -50,16 +51,16 @@ function toRow(input: AccountInput) {
   return {
     account_type: input.account_type,
     status: input.status === 'expired' ? 'expired' : 'active',
-    first_name: clean(input.first_name),
-    last_name: clean(input.last_name),
+    first_name: titleCase(input.first_name) || null,
+    last_name: titleCase(input.last_name) || null,
     company: clean(input.company),
-    address_1: clean(input.address_1),
-    address_2: clean(input.address_2),
-    city: clean(input.city),
-    state: clean(input.state),
-    zip: clean(input.zip),
+    address_1: titleCase(input.address_1) || null,
+    address_2: titleCase(input.address_2) || null,
+    city: titleCase(input.city) || null,
+    state: normalizeState(input.state) || null,
+    zip: normalizeZip(input.zip) || null,
     email: clean(input.email),
-    phone: clean(input.phone),
+    phone: formatPhone(input.phone) || null,
     subscription_start: clean(input.subscription_start),
     subscription_end: clean(input.subscription_end),
     acs_keyline: clean(input.acs_keyline),
@@ -232,16 +233,16 @@ export async function insertAccountBatch(
   const payload = rows.map((r) => ({
     account_type: r.account_type,
     status: r.status === 'expired' ? 'expired' : 'active',
-    first_name: clean(r.first_name),
-    last_name: clean(r.last_name),
+    first_name: titleCase(r.first_name) || null,
+    last_name: titleCase(r.last_name) || null,
     company: clean(r.company),
-    address_1: clean(r.address_1),
-    address_2: clean(r.address_2),
-    city: clean(r.city),
-    state: clean(r.state),
-    zip: clean(r.zip),
+    address_1: titleCase(r.address_1) || null,
+    address_2: titleCase(r.address_2) || null,
+    city: titleCase(r.city) || null,
+    state: normalizeState(r.state) || null,
+    zip: normalizeZip(r.zip) || null,
     email: clean(r.email),
-    phone: clean(r.phone),
+    phone: formatPhone(r.phone) || null,
     acs_keyline: clean(r.acs_keyline),
     account_number: clean(r.account_number),
     subscription_start: clean(r.subscription_start),

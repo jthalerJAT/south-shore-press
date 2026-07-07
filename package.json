@@ -27,7 +27,8 @@
     "resend": "^6.12.4",
     "stripe": "^14.10.0",
     "tailwind-merge": "^2.5.4",
-    "twitter-api-v2": "^1.29.0"
+    "twitter-api-v2": "^1.29.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

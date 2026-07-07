@@ -11,6 +11,8 @@ import {
   Plus,
   Trash2,
   Search,
+  Download,
+  UploadCloud,
 } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
@@ -19,6 +21,8 @@ import {
   type AccountType,
 } from '@/lib/account-types';
 import { deleteAccounts } from './actions';
+import { ExportDialog } from './export-dialog';
+import { ImportMailersDialog } from './import-mailers-dialog';
 
 type ColumnKey =
   | 'account_type'
@@ -85,6 +89,8 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
   const [asc, setAsc] = useState(true);
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
@@ -197,6 +203,20 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
               {pending ? 'Deleting…' : `Delete ${selected.size.toLocaleString()}`}
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => setShowImport(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            <UploadCloud className="h-4 w-4" /> Import Mailers
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowExport(true)}
+            className="inline-flex items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
+          >
+            <Download className="h-4 w-4" /> Export Label File
+          </button>
           <Link
             href="/portal/all/accounts/new"
             className="inline-flex items-center gap-1 rounded bg-brand-red px-3 py-2 text-sm font-semibold text-white hover:bg-brand-red-dark transition-colors"
@@ -205,6 +225,9 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
           </Link>
         </div>
       </div>
+
+      {showExport ? <ExportDialog accounts={accounts} onClose={() => setShowExport(false)} /> : null}
+      {showImport ? <ImportMailersDialog onClose={() => setShowImport(false)} /> : null}
 
       {/* Filters */}
       <div className="mt-4 flex flex-wrap items-center gap-3">

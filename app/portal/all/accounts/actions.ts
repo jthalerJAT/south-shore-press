@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { AccountType, AccountStatus } from '@/lib/account-types';
-import { isPaidAccountType } from '@/lib/account-types';
 
 const ADMIN_ROLES = ['admin', 'master admin'] as const;
 const BASE = '/portal/all/accounts';
@@ -44,10 +43,10 @@ function clean(v: string | undefined): string | null {
   return t === '' ? null : t;
 }
 
-/** Normalize an input into a DB row. Subscription dates are kept only for paid
- *  types (they're meaningless for mailers / free / digital). */
+/** Normalize an input into a DB row. Subscription dates are preserved as passed
+ *  (the form only exposes them for paid types, but imported mailers may carry a
+ *  legacy expiration date we don't want to wipe on a later edit). */
 function toRow(input: AccountInput) {
-  const paid = isPaidAccountType(input.account_type);
   return {
     account_type: input.account_type,
     status: input.status === 'expired' ? 'expired' : 'active',
@@ -61,8 +60,8 @@ function toRow(input: AccountInput) {
     zip: clean(input.zip),
     email: clean(input.email),
     phone: clean(input.phone),
-    subscription_start: paid ? clean(input.subscription_start) : null,
-    subscription_end: paid ? clean(input.subscription_end) : null,
+    subscription_start: clean(input.subscription_start),
+    subscription_end: clean(input.subscription_end),
     acs_keyline: clean(input.acs_keyline),
     updated_at: new Date().toISOString(),
   };
@@ -137,4 +136,76 @@ export async function deleteAccounts(ids: string[]): Promise<Result & { deleted?
   }
   revalidatePath(BASE);
   return { ok: true, deleted };
+}
+
+/* ------------------------------------------------------------------ *
+ *  Mailer list import (Phase 3). The client parses the Excel/CSV and
+ *  posts normalized rows in chunks; the server clears (optional) and
+ *  bulk-inserts them as `mailer` accounts.
+ * ------------------------------------------------------------------ */
+
+export type MailerImportRow = {
+  first_name?: string;
+  last_name?: string;
+  company?: string;
+  address_1?: string;
+  address_2?: string;
+  city?: string;
+  state?: string;
+  zip?: string;
+  acs_keyline?: string;
+  account_number?: string;
+  subscription_end?: string;
+};
+
+/** Permanently delete every `mailer`-type account (the "Replace all" import
+ *  mode — the weekly list changes wholesale). Other types are untouched. */
+export async function clearMailers(): Promise<Result & { deleted?: number }> {
+  await requireRole([...ADMIN_ROLES], BASE);
+  const admin = createAdminClient();
+  const { error, count } = await admin
+    .from('accounts')
+    .delete({ count: 'exact' })
+    .eq('account_type', 'mailer');
+  if (error) {
+    console.error('[clearMailers]', error);
+    return { ok: false, error: 'Could not clear existing mailers.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true, deleted: count ?? 0 };
+}
+
+/** Insert one chunk of mailer rows. Called repeatedly by the client so a
+ *  ~5,000-row import stays under the server-action body limit. */
+export async function insertMailerBatch(
+  rows: MailerImportRow[]
+): Promise<Result & { inserted?: number }> {
+  await requireRole([...ADMIN_ROLES], BASE);
+  if (!Array.isArray(rows) || rows.length === 0) return { ok: true, inserted: 0 };
+
+  const admin = createAdminClient();
+  const payload = rows.map((r) => ({
+    account_type: 'mailer',
+    status: 'active',
+    first_name: clean(r.first_name),
+    last_name: clean(r.last_name),
+    company: clean(r.company),
+    address_1: clean(r.address_1),
+    address_2: clean(r.address_2),
+    city: clean(r.city),
+    state: clean(r.state),
+    zip: clean(r.zip),
+    acs_keyline: clean(r.acs_keyline),
+    account_number: clean(r.account_number),
+    subscription_end: clean(r.subscription_end),
+    source: 'mailer_import',
+  }));
+
+  const { error, count } = await admin.from('accounts').insert(payload, { count: 'exact' });
+  if (error) {
+    console.error('[insertMailerBatch]', error);
+    return { ok: false, error: 'Could not import this batch.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true, inserted: count ?? payload.length };
 }

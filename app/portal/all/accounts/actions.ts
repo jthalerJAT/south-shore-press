@@ -197,7 +197,16 @@ export type ImportAccountRow = {
   account_number?: string;
   subscription_start?: string;
   subscription_end?: string;
+  last_payment_date?: string;
+  last_payment_amount?: string;
 };
+
+function toMoney(v: string | undefined): number | null {
+  const t = (v ?? '').replace(/[^0-9.-]/g, '');
+  if (t === '') return null;
+  const n = Number(t);
+  return Number.isNaN(n) ? null : n;
+}
 
 /** Permanently delete every account of the given type(s) — the "Replace all"
  *  import mode (e.g. the weekly mailer list changes wholesale). Other types
@@ -247,6 +256,10 @@ export async function insertAccountBatch(
     account_number: clean(r.account_number),
     subscription_start: clean(r.subscription_start),
     subscription_end: clean(r.subscription_end),
+    // Last payment: use the explicit column if present, else fall back to the
+    // subscription start (the payment that began the current term).
+    last_payment_date: clean(r.last_payment_date) ?? clean(r.subscription_start),
+    last_payment_amount: toMoney(r.last_payment_amount),
     source: 'import',
   }));
 

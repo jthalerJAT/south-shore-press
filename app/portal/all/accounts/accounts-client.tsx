@@ -42,6 +42,8 @@ type ColumnKey =
   | 'phone'
   | 'subscription_start'
   | 'subscription_end'
+  | 'last_payment_date'
+  | 'last_payment_amount'
   | 'acs_keyline';
 
 const COLUMNS: Array<{ key: ColumnKey; label: string }> = [
@@ -60,11 +62,45 @@ const COLUMNS: Array<{ key: ColumnKey; label: string }> = [
   { key: 'phone', label: 'Phone' },
   { key: 'subscription_start', label: 'Sub Start' },
   { key: 'subscription_end', label: 'Sub End' },
+  { key: 'last_payment_date', label: 'Date' },
+  { key: 'last_payment_amount', label: 'Amount' },
   { key: 'acs_keyline', label: 'ACS Keyline' },
 ];
 
 const PAGE_SIZE = 100;
 const EXPIRING_WINDOW_DAYS = 30;
+
+function fmtMoney(v: number | null): string {
+  if (v == null) return '—';
+  return v.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+}
+
+/** Sortable column header button. */
+function SortHeader({
+  col,
+  sortKey,
+  asc,
+  onSort,
+}: {
+  col: { key: ColumnKey; label: string };
+  sortKey: ColumnKey;
+  asc: boolean;
+  onSort: (key: ColumnKey) => void;
+}) {
+  const active = col.key === sortKey;
+  return (
+    <button
+      type="button"
+      onClick={() => onSort(col.key)}
+      className={`inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider font-bold transition-colors ${
+        active ? 'text-brand-red' : 'text-zinc-500 hover:text-zinc-800'
+      }`}
+    >
+      {col.label}
+      {active ? (asc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : null}
+    </button>
+  );
+}
 
 /** Paid subscriber (active) whose subscription ends within the next 30 days. */
 function isExpiringSoon(a: Account, todayMs: number, cutoffMs: number): boolean {
@@ -359,7 +395,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
         <table className="w-max min-w-full border-collapse text-xs">
           <thead>
             <tr className="bg-zinc-50 border-b border-zinc-200">
-              <th className="sticky left-0 z-10 bg-zinc-50 px-2 py-1.5">
+              <th rowSpan={2} className="sticky left-0 z-10 bg-zinc-50 px-2 py-1.5 align-bottom">
                 <input
                   type="checkbox"
                   aria-label="Select all filtered"
@@ -372,27 +408,42 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                 />
               </th>
               {COLUMNS.map((col) => {
-                const active = col.key === sortKey;
-                return (
-                  <th key={col.key} className="whitespace-nowrap px-2 py-1.5 text-left">
-                    <button
-                      type="button"
-                      onClick={() => toggleSort(col.key)}
-                      className={`inline-flex items-center gap-0.5 text-[10px] uppercase tracking-wider font-bold transition-colors ${
-                        active ? 'text-brand-red' : 'text-zinc-500 hover:text-zinc-800'
-                      }`}
+                // The two payment columns render under a shared "Last Payment"
+                // group heading (first cell spans both; second is skipped here).
+                if (col.key === 'last_payment_amount') return null;
+                if (col.key === 'last_payment_date') {
+                  return (
+                    <th
+                      key="last_payment_group"
+                      colSpan={2}
+                      className="whitespace-nowrap border-b border-zinc-200 px-2 pb-0.5 pt-1.5 text-center text-[10px] uppercase tracking-wider font-bold text-zinc-500"
                     >
-                      {col.label}
-                      {active ? (
-                        asc ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
-                      ) : null}
-                    </button>
+                      Last Payment
+                    </th>
+                  );
+                }
+                return (
+                  <th key={col.key} rowSpan={2} className="whitespace-nowrap px-2 py-1.5 text-left align-bottom">
+                    <SortHeader col={col} sortKey={sortKey} asc={asc} onSort={toggleSort} />
                   </th>
                 );
               })}
-              <th className="whitespace-nowrap px-2 py-1.5 text-right text-[10px] uppercase tracking-wider font-bold text-zinc-500">
+              <th
+                rowSpan={2}
+                className="whitespace-nowrap px-2 py-1.5 text-right align-bottom text-[10px] uppercase tracking-wider font-bold text-zinc-500"
+              >
                 Edit
               </th>
+            </tr>
+            <tr className="bg-zinc-50 border-b border-zinc-200">
+              {(['last_payment_date', 'last_payment_amount'] as ColumnKey[]).map((key) => {
+                const col = COLUMNS.find((c) => c.key === key)!;
+                return (
+                  <th key={col.key} className="whitespace-nowrap px-2 pb-1.5 text-left">
+                    <SortHeader col={col} sortKey={sortKey} asc={asc} onSort={toggleSort} />
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -452,6 +503,8 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.phone || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{formatDateDMY(a.subscription_start) || '—'}</td>
                     <td className={`whitespace-nowrap px-2 py-1.5 tabular-nums ${expiring ? 'font-semibold text-red-700' : 'text-zinc-600'}`}>{formatDateDMY(a.subscription_end) || '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{formatDateDMY(a.last_payment_date) || '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-right text-zinc-700 tabular-nums">{fmtMoney(a.last_payment_amount)}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-500 tabular-nums">{a.acs_keyline || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">
                       <Link href={`/portal/all/accounts/${a.id}`} className="text-brand-red hover:underline">

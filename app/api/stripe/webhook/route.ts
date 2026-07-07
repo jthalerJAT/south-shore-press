@@ -307,6 +307,18 @@ async function handleInvoicePaid(stripe: Stripe, admin: Admin, invoice: Stripe.I
   if (userId && customerId) {
     await syncDefaultPaymentMethod(stripe, admin, customerId, userId);
   }
+
+  // Record the last payment (date + amount) on the master account record.
+  if (userId) {
+    await admin
+      .from('accounts')
+      .update({
+        last_payment_date: nowIso().slice(0, 10),
+        last_payment_amount: (invoice.amount_paid ?? 0) / 100,
+        updated_at: nowIso(),
+      })
+      .eq('user_id', userId);
+  }
 }
 
 async function handleInvoiceFailed(admin: Admin, invoice: Stripe.Invoice) {

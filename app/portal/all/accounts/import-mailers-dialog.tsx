@@ -26,7 +26,8 @@ type Field =
   | 'acs_keyline'
   | 'account_number'
   | 'subscription_start'
-  | 'subscription_end';
+  | 'subscription_end'
+  | 'last_payment_amount';
 
 type ParsedRow = Partial<Record<Field, string>>;
 
@@ -45,6 +46,7 @@ const FIELD_LABELS: Record<Field, string> = {
   account_number: 'Account ID',
   subscription_start: 'Start Date',
   subscription_end: 'Expiration Date',
+  last_payment_amount: 'Amount Paid',
 };
 
 /** Map a spreadsheet header to one of our fields (order matters — address 2
@@ -64,6 +66,7 @@ function matchField(header: string): Field | null {
   if (/zip|postal/.test(h)) return 'zip';
   if (/acs|keyline/.test(h)) return 'acs_keyline';
   if (/accountid|accountnumber|acct/.test(h) || h === 'account') return 'account_number';
+  if (/amountpaid|paymentamount|amount/.test(h)) return 'last_payment_amount';
   if (/paymentstart|startdate|datestarted|substart|subscriptionstart/.test(h)) return 'subscription_start';
   if (/expir|paymentexpire|enddate|expiredate|subend|subscriptionend/.test(h)) return 'subscription_end';
   return null;

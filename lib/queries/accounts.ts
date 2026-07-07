@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
-import { ACCOUNT_COLUMNS, type Account } from '@/lib/account-types';
+import { createAdminClient } from '@/lib/supabase/admin';
+import { ACCOUNT_COLUMNS, PAID_ACCOUNT_TYPES, type Account } from '@/lib/account-types';
 
 /**
  * Server-side Account Database queries (migration 023). Types + constants live
@@ -35,6 +36,32 @@ export async function getAccounts(): Promise<Account[]> {
     if (batch.length < PAGE) break;
   }
   return all;
+}
+
+/**
+ * Active paid subscribers (the three paid tiers), for the Subscriber View tile.
+ * Uses the service-role client so editor-tier viewers (not just admins) can see
+ * the list — the page still gates access with requireRole. Ordered by name.
+ */
+export async function getPaidSubscribers(): Promise<Account[]> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return [];
+  }
+  const { data, error } = await admin
+    .from('accounts')
+    .select(ACCOUNT_COLUMNS)
+    .in('account_type', PAID_ACCOUNT_TYPES)
+    .eq('status', 'active')
+    .order('last_name', { ascending: true, nullsFirst: false })
+    .order('first_name', { ascending: true, nullsFirst: false });
+  if (error) {
+    console.error('[getPaidSubscribers]', error);
+    return [];
+  }
+  return (data ?? []) as unknown as Account[];
 }
 
 /** A single account by id. */

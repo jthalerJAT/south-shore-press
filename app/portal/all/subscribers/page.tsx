@@ -1,27 +1,27 @@
 import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { isSimpleCircConfigured } from '@/lib/simplecirc/client';
-import { SubscriberView } from './subscriber-view';
+import { getPaidSubscribers } from '@/lib/queries/accounts';
+import { SubscriberTable } from './subscriber-table';
 
 export const metadata: Metadata = {
   title: 'Subscriber View',
   robots: { index: false, follow: false },
 };
 
+export const dynamic = 'force-dynamic';
+
 /**
- * Subscriber View — reproduces SimpleCirc's "Paid Subscribers" export template.
- * The editor presses "Run Template" to pull the list live from SimpleCirc into
- * a sortable table with a running paid count (rather than auto-loading
- * thousands of records on every visit).
+ * Subscriber View — the active paid subscribers, read straight from the master
+ * Account Database (the three paid tiers). A focused, sortable read-only view
+ * of the same dataset the Account Database manages.
  */
 export default async function SubscribersPage() {
   const user = await requireRole(
     ['editor', 'admin', 'master admin'],
     '/portal/all/subscribers'
   );
-
-  const configured = isSimpleCircConfigured();
+  const subscribers = await getPaidSubscribers();
 
   return (
     <PortalShell
@@ -31,19 +31,18 @@ export default async function SubscribersPage() {
       title="Subscriber View"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >
-      {!configured ? (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-5 py-4 text-sm text-amber-900">
-          <p className="font-semibold">SimpleCirc isn’t connected yet.</p>
-          <p className="mt-1">
-            Set <code className="font-mono">SIMPLECIRC_API_TOKEN</code>,{' '}
-            <code className="font-mono">SIMPLECIRC_PUBLICATION_ID</code>, and{' '}
-            <code className="font-mono">SIMPLECIRC_POSTAGE_ID</code> in Vercel to load the paid
-            subscriber list.
-          </p>
+      <div>
+        <h2 className="font-headline text-2xl font-bold text-zinc-900">
+          {subscribers.length.toLocaleString()} Total Paid Subscriber
+          {subscribers.length === 1 ? '' : 's'}
+        </h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Active paid subscribers from the Account Database. Click any column heading to sort.
+        </p>
+        <div className="mt-5">
+          <SubscriberTable rows={subscribers} />
         </div>
-      ) : (
-        <SubscriberView />
-      )}
+      </div>
     </PortalShell>
   );
 }

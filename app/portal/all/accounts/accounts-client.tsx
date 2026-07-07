@@ -26,6 +26,7 @@ import { ExportDialog } from './export-dialog';
 import { ImportAccountsDialog } from './import-mailers-dialog';
 
 type ColumnKey =
+  | 'account_number'
   | 'account_type'
   | 'status'
   | 'last_name'
@@ -39,9 +40,11 @@ type ColumnKey =
   | 'email'
   | 'phone'
   | 'subscription_start'
-  | 'subscription_end';
+  | 'subscription_end'
+  | 'acs_keyline';
 
 const COLUMNS: Array<{ key: ColumnKey; label: string }> = [
+  { key: 'account_number', label: 'Account #' },
   { key: 'account_type', label: 'Type' },
   { key: 'status', label: 'Status' },
   { key: 'last_name', label: 'Last Name' },
@@ -56,12 +59,14 @@ const COLUMNS: Array<{ key: ColumnKey; label: string }> = [
   { key: 'phone', label: 'Phone' },
   { key: 'subscription_start', label: 'Sub Start' },
   { key: 'subscription_end', label: 'Sub End' },
+  { key: 'acs_keyline', label: 'ACS Keyline' },
 ];
 
 const PAGE_SIZE = 100;
 
 function searchBlob(a: Account): string {
   return [
+    a.account_number,
     ACCOUNT_TYPE_LABEL[a.account_type],
     a.status,
     a.first_name,
@@ -384,6 +389,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                         className="h-4 w-4 rounded border-zinc-300 text-brand-red focus:ring-brand-red"
                       />
                     </td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-500 tabular-nums">{a.account_number || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5">
                       <span className="inline-block rounded bg-zinc-100 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700">
                         {ACCOUNT_TYPE_LABEL[a.account_type]}
@@ -412,6 +418,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.phone || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.subscription_start || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.subscription_end || '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-500 tabular-nums">{a.acs_keyline || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">
                       <Link href={`/portal/all/accounts/${a.id}`} className="text-brand-red hover:underline">
                         Edit

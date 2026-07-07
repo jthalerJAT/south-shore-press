@@ -5,7 +5,12 @@ import { useRouter } from 'next/navigation';
 import { UploadCloud, FileSpreadsheet } from 'lucide-react';
 import { ACCOUNT_TYPES, type AccountType } from '@/lib/account-types';
 import { Overlay } from './export-dialog';
-import { clearAccountsByType, insertAccountBatch, type ImportAccountRow } from './actions';
+import {
+  clearAccountsByType,
+  insertAccountBatch,
+  assignMissingAccountNumbers,
+  type ImportAccountRow,
+} from './actions';
 
 type Field =
   | 'first_name'
@@ -166,6 +171,8 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
         inserted += res.inserted ?? chunk.length;
         setProgress(`Imported ${inserted.toLocaleString()} of ${rows.length.toLocaleString()}…`);
       }
+      // Number any rows that came in without an account number.
+      await assignMissingAccountNumbers();
       setDone(`Imported ${inserted.toLocaleString()} ${typeLabel} account${inserted === 1 ? '' : 's'}.`);
       setBusy(false);
       router.refresh();

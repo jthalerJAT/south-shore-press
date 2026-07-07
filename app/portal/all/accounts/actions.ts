@@ -258,3 +258,17 @@ export async function insertAccountBatch(
   revalidatePath(BASE);
   return { ok: true, inserted: count ?? payload.length };
 }
+
+/** Assign account numbers to any rows imported without one (called once after
+ *  an import completes). Rows that came in with a number keep it. */
+export async function assignMissingAccountNumbers(): Promise<Result> {
+  await requireRole([...ADMIN_ROLES], BASE);
+  const admin = createAdminClient();
+  const { error } = await admin.rpc('assign_missing_account_numbers');
+  if (error) {
+    console.error('[assignMissingAccountNumbers]', error);
+    return { ok: false, error: 'Could not assign account numbers.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true };
+}

@@ -17,6 +17,7 @@ import {
 import {
   ACCOUNT_TYPES,
   ACCOUNT_TYPE_LABEL,
+  PAID_ACCOUNT_TYPES,
   type Account,
   type AccountType,
 } from '@/lib/account-types';
@@ -85,7 +86,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
   const [pending, startTransition] = useTransition();
 
   const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<AccountType | 'all'>('all');
+  const [typeFilter, setTypeFilter] = useState<AccountType | 'all' | 'all_paid'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'expired'>('all');
   const [sortKey, setSortKey] = useState<ColumnKey>('last_name');
   const [asc, setAsc] = useState(true);
@@ -98,7 +99,11 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     const rows = accounts.filter((a) => {
-      if (typeFilter !== 'all' && a.account_type !== typeFilter) return false;
+      if (typeFilter === 'all_paid') {
+        if (!PAID_ACCOUNT_TYPES.includes(a.account_type)) return false;
+      } else if (typeFilter !== 'all' && a.account_type !== typeFilter) {
+        return false;
+      }
       if (statusFilter !== 'all' && a.status !== statusFilter) return false;
       if (q && !searchBlob(a).includes(q)) return false;
       return true;
@@ -248,12 +253,13 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
         <select
           value={typeFilter}
           onChange={(e) => {
-            setTypeFilter(e.target.value as AccountType | 'all');
+            setTypeFilter(e.target.value as AccountType | 'all' | 'all_paid');
             setPage(0);
           }}
           className="rounded border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
         >
           <option value="all">All types</option>
+          <option value="all_paid">All Paid</option>
           {ACCOUNT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>
               {t.label}

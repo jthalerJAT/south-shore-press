@@ -11,8 +11,9 @@ import { AlsoSection } from './also-section';
 // changes trigger an explicit revalidatePath('/local').
 export const revalidate = 60;
 
-// 5 rows × 3 = 15 main tiles.
-const MAIN_TILES = 15;
+// 3 × 3 grid of main tiles = the latest 9 published stories.
+const MAIN_TILES = 9;
+const RAIL_COUNT = 10;
 
 export const metadata: Metadata = {
   title: 'Local · The South Shore Press',
@@ -23,12 +24,13 @@ export const metadata: Metadata = {
 
 /**
  * /local page — mirrors the /sports layout (minus sub-sections):
- *   LEFT (8/12)  — 5×3 grid of main tiles (reverse-chron, or admin-pinned via
+ *   LEFT (8/12)  — 3×3 grid = the latest 9 published (or admin-pinned via
  *                  Site Layout slot section.local.top).
- *   RIGHT (4/12) — "Top Stories" rail of 10 (reverse-chron or pinned via
- *                  section.local.recent).
+ *   RIGHT (4/12) — "Top Stories" rail of 10, the latest stories; may duplicate
+ *                  the tiles (same as /sports) unless pinned via
+ *                  section.local.recent.
  *   Below        — "Recent Stories": reverse-chron of every other Local story
- *                  not already shown above (10 rows).
+ *                  not in the tiles or the rail (10 rows).
  *   Bottom       — "You Might Also Be Interested In": 4 tiles + "Show More".
  */
 export default async function LocalPage() {
@@ -43,19 +45,21 @@ export default async function LocalPage() {
     (await getStoriesByIds([...new Set(pins.map((p) => p.story_id))])).map((s) => [s.id, s])
   );
 
-  // Right-rail Top Stories — reverse-chron or admin pins.
-  const topStories = resolveSlotWithPinned(pins, 'section.local.recent', pinnedById, pool, 10);
+  // Main 3×3 tiles FIRST — the latest 9 published (or admin pins via
+  // section.local.top), drawn from the full pool so the newest stories are the
+  // visible tiles.
+  const mainTiles = resolveSlotWithPinned(pins, 'section.local.top', pinnedById, pool, MAIN_TILES);
 
-  // Main 5×3 tiles — drawn from the pool MINUS the rail so the two don't
-  // duplicate; reverse-chron or admin pins (section.local.top).
-  const railIds = new Set(topStories.map((s) => s.id));
-  const tilesPool = pool.filter((s) => !railIds.has(s.id));
-  const mainTiles = resolveSlotWithPinned(pins, 'section.local.top', pinnedById, tilesPool, MAIN_TILES);
+  // Right-rail Top Stories — the latest stories from the full pool; duplication
+  // with the tiles is allowed (same behavior as /sports) unless admin-pinned via
+  // section.local.recent.
+  const topStories = resolveSlotWithPinned(pins, 'section.local.recent', pinnedById, pool, RAIL_COUNT);
 
-  // Everything else, reverse-chron: first 10 → "Recent Stories", the rest →
-  // the "You Might Also" / Show More pool.
-  const shownIds = new Set<string>(railIds);
+  // Recent Stories — reverse-chron of everything NOT already shown in the tiles
+  // or the rail. First 10 → "Recent Stories", the rest → "You Might Also".
+  const shownIds = new Set<string>();
   for (const s of mainTiles) shownIds.add(s.id);
+  for (const s of topStories) shownIds.add(s.id);
   const remaining = pool.filter((s) => !shownIds.has(s.id));
   const recentStories = remaining.slice(0, 10);
   const alsoPool = remaining.slice(10);

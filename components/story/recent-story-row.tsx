@@ -16,6 +16,17 @@ export function RecentStoryRow({ story }: { story: StoryListItem }) {
     categories: story.categories,
   });
 
+  const formattedDate = story.published_at
+    ? new Date(story.published_at).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : null;
+  const meta = [story.byline ? `By ${story.byline}` : null, formattedDate]
+    .filter(Boolean)
+    .join(' · ');
+
   return (
     <Link href={href} className="group flex gap-4 sm:gap-5 py-4 border-b border-zinc-200 last:border-b-0">
       <div className="w-32 sm:w-52 shrink-0">
@@ -35,8 +46,8 @@ export function RecentStoryRow({ story }: { story: StoryListItem }) {
             {story.subline}
           </p>
         ) : null}
-        {story.byline ? (
-          <div className="mt-2 text-[11px] text-zinc-500 font-medium">By {story.byline}</div>
+        {meta ? (
+          <div className="mt-2 text-[11px] text-zinc-500 font-medium">{meta}</div>
         ) : null}
       </div>
     </Link>

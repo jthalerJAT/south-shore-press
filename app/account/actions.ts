@@ -83,8 +83,11 @@ export async function updateProfileAction(
   }
 
   // Revalidate the layout so the header chip + account header reflect
-  // the new name on the next render.
+  // the new name on the next render, plus the admin surfaces that render the
+  // same master record so a self-edit shows up there immediately.
   revalidatePath('/', 'layout');
   revalidatePath('/account');
+  revalidatePath('/portal/all/accounts');
+  revalidatePath('/portal/all/subscribers');
   return { error: null, success: true };
 }

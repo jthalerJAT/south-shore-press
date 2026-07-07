@@ -21,6 +21,7 @@ import {
   type Account,
   type AccountType,
 } from '@/lib/account-types';
+import { formatDateDMY, parseDateLocal } from '@/lib/format';
 import { deleteAccounts } from './actions';
 import { ExportDialog } from './export-dialog';
 import { ImportAccountsDialog } from './import-mailers-dialog';
@@ -63,6 +64,17 @@ const COLUMNS: Array<{ key: ColumnKey; label: string }> = [
 ];
 
 const PAGE_SIZE = 100;
+const EXPIRING_WINDOW_DAYS = 30;
+
+/** Paid subscriber (active) whose subscription ends within the next 30 days. */
+function isExpiringSoon(a: Account, todayMs: number, cutoffMs: number): boolean {
+  if (!PAID_ACCOUNT_TYPES.includes(a.account_type)) return false;
+  if (a.status !== 'active') return false;
+  const end = parseDateLocal(a.subscription_end);
+  if (!end) return false;
+  const ms = end.getTime();
+  return ms >= todayMs && ms <= cutoffMs;
+}
 
 function searchBlob(a: Account): string {
   return [
@@ -100,6 +112,15 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Today / +30-days window for the "expiring soon" highlight (computed once).
+  const { todayMs, cutoffMs } = useMemo(() => {
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    const c = new Date(t);
+    c.setDate(c.getDate() + EXPIRING_WINDOW_DAYS);
+    return { todayMs: t.getTime(), cutoffMs: c.getTime() };
+  }, []);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -201,6 +222,12 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
             {filtered.length === accounts.length
               ? 'Search, sort, or filter any column. Select rows to permanently delete.'
               : `Showing ${filtered.length.toLocaleString()} of ${accounts.length.toLocaleString()} (filtered).`}
+          </p>
+          <p className="mt-1 flex items-center gap-1.5 text-xs text-zinc-500">
+            <span className="inline-block h-3 w-4 rounded-sm border border-red-200 bg-red-50" />
+            Rows in red are paid subscriptions expiring within 30 days. Lapsed paid subscriptions
+            auto-switch to <span className="font-medium">expired</span> and drop from the “active
+            accounts only” export.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -378,9 +405,16 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
             ) : (
               pageRows.map((a) => {
                 const isSel = selected.has(a.id);
+                const expiring = isExpiringSoon(a, todayMs, cutoffMs);
+                const rowClass = isSel
+                  ? 'bg-brand-red/5'
+                  : expiring
+                    ? 'bg-red-50'
+                    : 'hover:bg-zinc-50';
+                const stickyBg = isSel ? 'bg-[#fdf2f4]' : expiring ? 'bg-red-50' : 'bg-white';
                 return (
-                  <tr key={a.id} className={isSel ? 'bg-brand-red/5' : 'hover:bg-zinc-50'}>
-                    <td className={`sticky left-0 z-10 px-2 py-1.5 ${isSel ? 'bg-[#fdf2f4]' : 'bg-white'}`}>
+                  <tr key={a.id} className={rowClass}>
+                    <td className={`sticky left-0 z-10 px-2 py-1.5 ${stickyBg}`}>
                       <input
                         type="checkbox"
                         aria-label="Select account"
@@ -416,8 +450,8 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-700 tabular-nums">{a.zip || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600">{a.email || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.phone || '—'}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.subscription_start || '—'}</td>
-                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{a.subscription_end || '—'}</td>
+                    <td className="whitespace-nowrap px-2 py-1.5 text-zinc-600 tabular-nums">{formatDateDMY(a.subscription_start) || '—'}</td>
+                    <td className={`whitespace-nowrap px-2 py-1.5 tabular-nums ${expiring ? 'font-semibold text-red-700' : 'text-zinc-600'}`}>{formatDateDMY(a.subscription_end) || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-zinc-500 tabular-nums">{a.acs_keyline || '—'}</td>
                     <td className="whitespace-nowrap px-2 py-1.5 text-right">
                       <Link href={`/portal/all/accounts/${a.id}`} className="text-brand-red hover:underline">

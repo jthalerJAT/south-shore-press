@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { ArrowUp, ArrowDown } from 'lucide-react';
 import { ACCOUNT_TYPE_LABEL, type Account } from '@/lib/account-types';
+import { formatDateDMY } from '@/lib/format';
 
 type SortKind = 'text' | 'date';
 type ColumnKey =
@@ -29,10 +30,7 @@ const COLUMNS: Array<{ key: ColumnKey; label: string; kind: SortKind }> = [
 ];
 
 function fmtDate(v: string | null): string {
-  if (!v) return '—';
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return v;
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  return formatDateDMY(v) || '—';
 }
 
 export function SubscriberTable({ rows }: { rows: Account[] }) {

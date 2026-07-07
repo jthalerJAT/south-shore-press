@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { getAccounts } from '@/lib/queries/accounts';
+import { getAccounts, expireLapsedSubscriptions } from '@/lib/queries/accounts';
 import { AccountsClient } from './accounts-client';
 
 export const metadata: Metadata = {
@@ -19,6 +19,7 @@ export const dynamic = 'force-dynamic';
  */
 export default async function AccountsPage() {
   const user = await requireRole(['admin', 'master admin'], '/portal/all/accounts');
+  await expireLapsedSubscriptions();
   const accounts = await getAccounts();
 
   return (

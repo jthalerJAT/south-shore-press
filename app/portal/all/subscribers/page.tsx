@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { getPaidSubscribers } from '@/lib/queries/accounts';
+import { getPaidSubscribers, expireLapsedSubscriptions } from '@/lib/queries/accounts';
 import { SubscriberTable } from './subscriber-table';
 
 export const metadata: Metadata = {
@@ -21,6 +21,7 @@ export default async function SubscribersPage() {
     ['editor', 'admin', 'master admin'],
     '/portal/all/subscribers'
   );
+  await expireLapsedSubscriptions();
   const subscribers = await getPaidSubscribers();
 
   return (

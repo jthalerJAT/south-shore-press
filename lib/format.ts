@@ -52,6 +52,29 @@ export function formatPhone(input: string | null | undefined): string {
   return raw;
 }
 
+/** Parse a stored date ('YYYY-MM-DD' or ISO) into a local-midnight Date, so
+ *  date-only values don't shift a day across time zones. Null if unparseable. */
+export function parseDateLocal(v: string | null | undefined): Date | null {
+  const s = (v ?? '').trim();
+  if (!s) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+/** Format a stored date as DD/MM/YY. Empty → ''. Unparseable → the raw value. */
+export function formatDateDMY(v: string | null | undefined): string {
+  const s = (v ?? '').trim();
+  if (!s) return '';
+  const d = parseDateLocal(s);
+  if (!d) return s;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const yy = String(d.getFullYear()).slice(2);
+  return `${dd}/${mm}/${yy}`;
+}
+
 /** Normalize a ZIP: 9 digits → "#####-####", 5 digits → "#####". (The +4 suffix
  *  itself will be filled by the USPS lookup later; this just standardizes what's
  *  already there.) */

@@ -64,6 +64,20 @@ export async function getPaidSubscribers(): Promise<Account[]> {
   return (data ?? []) as unknown as Account[];
 }
 
+/** Flip any paid account whose subscription end date has passed to `expired`
+ *  (so it drops from the active mailing list). Best-effort; call before reading
+ *  the account list so the view + export reflect current status. */
+export async function expireLapsedSubscriptions(): Promise<void> {
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return;
+  }
+  const { error } = await admin.rpc('expire_lapsed_subscriptions');
+  if (error) console.error('[expireLapsedSubscriptions]', error);
+}
+
 /** A single account by id. */
 export async function getAccount(id: string): Promise<Account | null> {
   const supabase = createClient();

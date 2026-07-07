@@ -58,6 +58,7 @@ export default async function NewspaperViewFile() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="View File"
       backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
     >

@@ -20,6 +20,7 @@ export default async function SocialMediaPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Social Media"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

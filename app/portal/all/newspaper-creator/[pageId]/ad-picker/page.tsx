@@ -30,6 +30,7 @@ export default async function AdPickerPage({ params }: { params: { pageId: strin
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Choose an Ad"
       backLink={{
         href: `/portal/all/newspaper-creator/${params.pageId}`,

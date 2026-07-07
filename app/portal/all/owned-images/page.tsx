@@ -19,6 +19,7 @@ export default async function OwnedImagesPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Owned Images"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

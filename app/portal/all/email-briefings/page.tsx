@@ -24,6 +24,7 @@ export default async function EmailBriefingsAdminPage({
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Email Briefings"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

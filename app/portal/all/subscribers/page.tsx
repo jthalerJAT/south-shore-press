@@ -27,6 +27,7 @@ export default async function SubscribersPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Subscriber View"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

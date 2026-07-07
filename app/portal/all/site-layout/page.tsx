@@ -43,6 +43,7 @@ export default async function SiteLayoutPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Site Layout"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

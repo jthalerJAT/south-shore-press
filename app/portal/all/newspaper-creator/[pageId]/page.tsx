@@ -53,6 +53,7 @@ export default async function NewspaperPageEditorPage({
         <PortalShell
           user={user}
           activeTab="all"
+          hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
@@ -71,6 +72,7 @@ export default async function NewspaperPageEditorPage({
         <PortalShell
           user={user}
           activeTab="all"
+          hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
@@ -96,6 +98,7 @@ export default async function NewspaperPageEditorPage({
         <PortalShell
           user={user}
           activeTab="all"
+          hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
@@ -123,6 +126,7 @@ export default async function NewspaperPageEditorPage({
         <PortalShell
           user={user}
           activeTab="all"
+          hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
@@ -141,6 +145,7 @@ export default async function NewspaperPageEditorPage({
       <PortalShell
         user={user}
         activeTab="all"
+        hideTabs
         title={`Edit — ${displayTitle}`}
         backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
       >
@@ -165,6 +170,7 @@ export default async function NewspaperPageEditorPage({
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title={`Edit — ${displayTitle}`}
       backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
     >

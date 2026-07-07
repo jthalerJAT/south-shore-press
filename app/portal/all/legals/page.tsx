@@ -30,6 +30,7 @@ export default async function PortalLegalsPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Legals Upload"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

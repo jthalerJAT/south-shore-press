@@ -65,6 +65,7 @@ export default async function NewspaperCreatorPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Newspaper Creator"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

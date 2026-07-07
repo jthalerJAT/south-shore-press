@@ -43,6 +43,7 @@ export default async function NewspaperLayoutPage({
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title={`Layout — ${displayTitle}`}
       backLink={{ href: `/portal/all/newspaper-creator/${page.id}`, label: 'Page content' }}
     >

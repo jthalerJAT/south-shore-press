@@ -25,6 +25,7 @@ export default async function AccountsPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Account Database"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

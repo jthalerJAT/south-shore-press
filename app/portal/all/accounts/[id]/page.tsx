@@ -22,6 +22,7 @@ export default async function EditAccountPage({ params }: { params: { id: string
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Edit Account"
       backLink={{ href: '/portal/all/accounts', label: 'Account Database' }}
     >

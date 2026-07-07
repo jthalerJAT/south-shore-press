@@ -27,6 +27,7 @@ export default async function PortalEditStoriesPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Edit Stories"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

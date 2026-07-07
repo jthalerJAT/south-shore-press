@@ -32,6 +32,7 @@ export default async function CredentialsPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Credentials"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

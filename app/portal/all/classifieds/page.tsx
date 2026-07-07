@@ -30,6 +30,7 @@ export default async function PortalClassifiedsPage() {
     <PortalShell
       user={user}
       activeTab="all"
+      hideTabs
       title="Classified Upload"
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
     >

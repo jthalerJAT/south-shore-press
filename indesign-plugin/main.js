@@ -88,7 +88,7 @@ async function build() {
 }
 
 window.addEventListener('load', () => {
-  $('base').value = getStore('ssp_base', 'https://south-shore-press.vercel.app');
+  $('base').value = getStore('ssp_base', 'https://www.southshorepress.com');
   $('token').value = getStore('ssp_token', '');
   $('base').addEventListener('change', () => setStore('ssp_base', $('base').value));
   $('token').addEventListener('change', () => setStore('ssp_token', $('token').value));

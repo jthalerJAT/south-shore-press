@@ -293,7 +293,13 @@ type ProfileRow = {
   zip_code: string | null;
 };
 
-type AccountLinkRow = { id: string; user_id: string | null; email: string | null; source: string | null };
+type AccountLinkRow = {
+  id: string;
+  user_id: string | null;
+  email: string | null;
+  source: string | null;
+  account_type: string;
+};
 
 async function fetchAllRows<T>(
   admin: ReturnType<typeof createAdminClient>,
@@ -325,7 +331,7 @@ export async function reconcileAccounts(): Promise<
         'profiles',
         'id, email, first_name, last_name, phone, street_address, city, state, zip_code'
       ),
-      fetchAllRows<AccountLinkRow>(admin, 'accounts', 'id, user_id, email, source'),
+      fetchAllRows<AccountLinkRow>(admin, 'accounts', 'id, user_id, email, source, account_type'),
     ]);
 
     const linkedUserIds = new Set(accounts.filter((a) => a.user_id).map((a) => a.user_id));
@@ -382,10 +388,17 @@ export async function reconcileAccounts(): Promise<
       created += count ?? chunk.length;
     }
 
-    // Remove signup-created orphans that didn't re-link (their login was
-    // permanently deleted). Imported / manual / mailer rows are preserved.
+    // Remove signup-created digital-only orphans that didn't re-link (their
+    // login was permanently deleted). Paid / imported / manual / mailer rows
+    // are always preserved — a paid subscriber's mailing record must survive
+    // even if their login is removed.
     const removeIds = orphans
-      .filter((o) => o.source === 'signup' && !relinkOwners.has(o.id))
+      .filter(
+        (o) =>
+          o.source === 'signup' &&
+          o.account_type === 'digital_only' &&
+          !relinkOwners.has(o.id)
+      )
       .map((o) => o.id);
     let removed = 0;
     for (let i = 0; i < removeIds.length; i += 500) {

@@ -13,7 +13,6 @@ import {
   Search,
   Download,
   UploadCloud,
-  RefreshCw,
 } from 'lucide-react';
 import {
   ACCOUNT_TYPES,
@@ -23,7 +22,7 @@ import {
   type AccountType,
 } from '@/lib/account-types';
 import { formatDate, parseDateLocal } from '@/lib/format';
-import { deleteAccounts, reconcileAccounts } from './actions';
+import { deleteAccounts } from './actions';
 import { ExportDialog } from './export-dialog';
 import { ImportAccountsDialog } from './import-mailers-dialog';
 
@@ -148,24 +147,7 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
-  const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
-  const [reconciling, setReconciling] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  async function handleReconcile() {
-    setReconciling(true);
-    setReconcileMsg(null);
-    const res = await reconcileAccounts();
-    setReconciling(false);
-    if (!res.ok) {
-      setReconcileMsg(res.error ?? 'Reconcile failed.');
-      return;
-    }
-    setReconcileMsg(
-      `Reconciled with logins: ${res.created ?? 0} created, ${res.relinked ?? 0} re-linked, ${res.removed ?? 0} orphan${(res.removed ?? 0) === 1 ? '' : 's'} removed.`
-    );
-    router.refresh();
-  }
 
   // Today / +30-days window for the "expiring soon" highlight (computed once).
   const { todayMs, cutoffMs } = useMemo(() => {
@@ -298,16 +280,6 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
           ) : null}
           <button
             type="button"
-            onClick={handleReconcile}
-            disabled={reconciling}
-            className="inline-flex items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
-            title="Sync this table with the site's actual logins: create missing rows, re-link orphans, remove leftovers from deleted users."
-          >
-            <RefreshCw className={`h-4 w-4 ${reconciling ? 'animate-spin' : ''}`} />
-            {reconciling ? 'Reconciling…' : 'Reconcile Logins'}
-          </button>
-          <button
-            type="button"
             onClick={() => setShowImport(true)}
             className="inline-flex items-center gap-1.5 rounded border border-zinc-300 bg-white px-3 py-2 text-sm font-semibold text-zinc-700 hover:bg-zinc-50"
           >
@@ -328,12 +300,6 @@ export function AccountsClient({ accounts }: { accounts: Account[] }) {
           </Link>
         </div>
       </div>
-
-      {reconcileMsg ? (
-        <div className="mt-3 rounded border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm text-emerald-800">
-          {reconcileMsg}
-        </div>
-      ) : null}
 
       {showExport ? <ExportDialog accounts={accounts} onClose={() => setShowExport(false)} /> : null}
       {showImport ? <ImportAccountsDialog onClose={() => setShowImport(false)} /> : null}

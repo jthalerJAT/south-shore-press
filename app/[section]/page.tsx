@@ -16,9 +16,10 @@ type Params = { section: string };
 // don't accept arbitrary user-supplied sections (would let SEO spam slip
 // in via random URLs).
 export function generateStaticParams(): Params[] {
-  // `legals` has its own literal route (app/legals) which takes precedence;
-  // exclude it here so we don't try to statically render the same path twice.
-  return SITE_SECTIONS.filter((s) => s.slug !== 'legals').map((s) => ({
+  // Sections with their own literal routes (which take precedence) are
+  // excluded so we don't statically render the same path twice.
+  const LITERAL_ROUTES = new Set(['legals', 'opinion']);
+  return SITE_SECTIONS.filter((s) => !LITERAL_ROUTES.has(s.slug)).map((s) => ({
     section: s.slug,
   }));
 }

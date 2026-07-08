@@ -105,7 +105,17 @@ const LOCAL_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   },
 ];
 
-const CUSTOM_LAYOUT_SLUGS = new Set(['sports', 'local']);
+// /opinion keeps the generic grid but adds a pinnable Top Stories rail.
+const OPINION_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
+  {
+    key: 'section.opinion.recent',
+    title: 'Opinion Page — Top Stories Rail',
+    description: '10 headlines in the right-side rail on /opinion',
+    count: 10,
+  },
+];
+
+const CUSTOM_LAYOUT_SLUGS = new Set(['sports', 'local', 'opinion']);
 
 const SECTION_GROUPS: ReadonlyArray<SlotGroup> = [
   ...SITE_SECTIONS.filter((s) => !CUSTOM_LAYOUT_SLUGS.has(s.slug)).map((s) => ({
@@ -116,6 +126,7 @@ const SECTION_GROUPS: ReadonlyArray<SlotGroup> = [
   })),
   ...LOCAL_PAGE_GROUPS,
   ...SPORTS_PAGE_GROUPS,
+  ...OPINION_PAGE_GROUPS,
 ];
 
 export function SiteLayoutBoard({

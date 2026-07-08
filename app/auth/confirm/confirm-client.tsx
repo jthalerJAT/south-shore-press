@@ -21,16 +21,24 @@ export function ConfirmClient({ tokenHash, type }: { tokenHash: string; type: st
   const otpType: EmailOtpType = (VALID_TYPES as string[]).includes(type)
     ? (type as EmailOtpType)
     : 'signup';
+  // Supabase's token_hash verification expects 'email' for signup
+  // confirmations (its own docs use type=email); 'signup' is rejected as
+  // invalid on some GoTrue versions. Try 'email' first, fall back to the
+  // URL's type. A failed attempt does not consume the token.
+  const attemptTypes: EmailOtpType[] =
+    otpType === 'signup' || otpType === 'email' ? ['email', 'signup'] : [otpType];
 
   async function confirm() {
     setState('verifying');
     const supabase = createClient();
-    const { error: err } = await supabase.auth.verifyOtp({
-      type: otpType,
-      token_hash: tokenHash,
-    });
+    let err: { message: string } | null = null;
+    for (const t of attemptTypes) {
+      const res = await supabase.auth.verifyOtp({ type: t, token_hash: tokenHash });
+      err = res.error;
+      if (!err) break;
+      console.error(`[auth/confirm] verifyOtp type=${t}`, res.error);
+    }
     if (err) {
-      console.error('[auth/confirm]', err);
       setError(
         err.message.toLowerCase().includes('expired')
           ? 'This confirmation link has expired. Please sign up again or request a new link.'

@@ -8,7 +8,8 @@ import {
 import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { SITE } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
-import { AlsoSection } from '../local/also-section';
+import { AlsoSection } from '@/components/story/also-section';
+import { getAlsoPool } from '@/lib/queries/trending';
 import { MoreStories } from './more-stories';
 
 // ISR — same 60s window as the other sections. Pin changes trigger an explicit
@@ -75,8 +76,12 @@ export default async function BusinessPage() {
   for (const s of mainTiles) shownIds.add(s.id);
   for (const s of topStories) shownIds.add(s.id);
   const remaining = pool.filter((s) => !shownIds.has(s.id));
-  const alsoTiles = remaining.slice(MORE_ROWS, MORE_ROWS + ALSO_TILES);
+  const carved = remaining.slice(MORE_ROWS, MORE_ROWS + ALSO_TILES);
   const moreRows = [...remaining.slice(0, MORE_ROWS), ...remaining.slice(MORE_ROWS + ALSO_TILES)];
+  // Thin-section fallback: top up the Also tiles with trending / newest
+  // site-wide stories when business alone can't fill them.
+  const allShown = new Set<string>([...shownIds, ...moreRows.map((s) => s.id)]);
+  const alsoTiles = (await getAlsoPool(carved, allShown, ALSO_TILES, ALSO_TILES)).slice(0, ALSO_TILES);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

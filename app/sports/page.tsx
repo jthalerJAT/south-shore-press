@@ -9,6 +9,8 @@ import { SPORTS_SUBCATEGORIES } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
 import { SportsSubsection } from './sports-subsection';
 import { RecentStoryRow } from '@/components/story/recent-story-row';
+import { AlsoSection } from '@/components/story/also-section';
+import { getAlsoPool } from '@/lib/queries/trending';
 
 // Default tiles shown per sub-section (3 across × 2 high) before "View All".
 const TILES_PER_SUBSECTION = 6;
@@ -98,6 +100,11 @@ export default async function SportsPage() {
   }
   const recentStories = pool.filter((s) => !shownIds.has(s.id));
 
+  // "You Might Also" — sports shows all its leftovers in Recent Stories, so
+  // this strip is filled with trending / newest site-wide stories.
+  const allShown = new Set<string>([...shownIds, ...recentStories.map((s) => s.id)]);
+  const alsoPool = await getAlsoPool([], allShown);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="pb-4 mb-6 border-b border-zinc-200">
@@ -143,6 +150,9 @@ export default async function SportsPage() {
           </div>
         </section>
       ) : null}
+
+      {/* You Might Also Be Interested In — 4 tiles + Show More. */}
+      <AlsoSection stories={alsoPool} initialCount={4} step={10} />
     </div>
   );
 }

@@ -5,7 +5,8 @@ import { RecentStoryRow } from '@/components/story/recent-story-row';
 import { getPublishedStoriesBySection, getStoriesByIds } from '@/lib/queries/stories';
 import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { getSiteOrigin } from '@/lib/site-url';
-import { AlsoSection } from './also-section';
+import { AlsoSection } from '@/components/story/also-section';
+import { getAlsoPool } from '@/lib/queries/trending';
 
 // ISR — same 60s window as the homepage / other sections. Publishing or pin
 // changes trigger an explicit revalidatePath('/local').
@@ -62,7 +63,9 @@ export default async function LocalPage() {
   for (const s of topStories) shownIds.add(s.id);
   const remaining = pool.filter((s) => !shownIds.has(s.id));
   const recentStories = remaining.slice(0, 10);
-  const alsoPool = remaining.slice(10);
+  // Thin-section fallback: top up with trending / newest site-wide stories.
+  const allShown = new Set<string>([...shownIds, ...recentStories.map((s) => s.id)]);
+  const alsoPool = await getAlsoPool(remaining.slice(10), allShown);
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">

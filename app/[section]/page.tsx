@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getPublishedStoriesBySectionRange } from '@/lib/queries/stories';
 import { SITE, SITE_SECTIONS } from '@/lib/site-config';
+import { AlsoSection } from '@/components/story/also-section';
+import { getAlsoPool } from '@/lib/queries/trending';
 import { SectionGrid } from './section-grid';
 
 // ISR — same 60s revalidate as homepage for now; Phase 4 will tune.
@@ -57,6 +59,10 @@ export default async function SectionIndexPage({
   const initial = firstBatch.slice(0, PAGE_SIZE);
   const initialHasMore = firstBatch.length > PAGE_SIZE;
 
+  // "You Might Also" — thin sections are topped up with the most-viewed
+  // (then newest) stories site-wide, excluding what's already on the page.
+  const alsoPool = await getAlsoPool([], new Set(initial.map((s) => s.id)));
+
   return (
     <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
       <header className="border-b-2 border-brand-red pb-3 mb-8">
@@ -80,6 +86,9 @@ export default async function SectionIndexPage({
           initialHasMore={initialHasMore}
         />
       )}
+
+      {/* You Might Also Be Interested In — 4 tiles + Show More. */}
+      <AlsoSection stories={alsoPool} initialCount={4} step={10} />
     </div>
   );
 }

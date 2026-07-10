@@ -8,6 +8,8 @@ import {
 import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { SITE } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
+import { AlsoSection } from '@/components/story/also-section';
+import { getAlsoPool } from '@/lib/queries/trending';
 import { SectionGrid } from '../[section]/section-grid';
 
 // ISR — same 60s window as the other sections. Pin changes trigger an explicit
@@ -61,6 +63,14 @@ export default async function OpinionPage() {
     RAIL_COUNT
   );
 
+  // "You Might Also" — opinion leftovers beyond the visible grid + rail,
+  // topped up with trending / newest site-wide stories when thin.
+  const shownIds = new Set<string>([...initial.map((s) => s.id), ...topStories.map((s) => s.id)]);
+  const alsoPool = await getAlsoPool(
+    railPool.filter((s) => !shownIds.has(s.id)),
+    shownIds
+  );
+
   return (
     <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10">
       <header className="border-b-2 border-brand-red pb-3 mb-8">
@@ -89,6 +99,9 @@ export default async function OpinionPage() {
           </aside>
         </div>
       )}
+
+      {/* You Might Also Be Interested In — 4 tiles + Show More. */}
+      <AlsoSection stories={alsoPool} initialCount={4} step={10} />
     </div>
   );
 }

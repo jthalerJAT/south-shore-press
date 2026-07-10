@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { HeroMedia } from '@/components/story/hero-media';
 import { StoryCard } from '@/components/story/story-card';
 import { ArticleShare } from '@/components/site/article-share';
+import { ViewTracker } from '@/components/story/view-tracker';
 import {
   getPublishedStoryByShortId,
   getPublishedStoriesBySection,
@@ -199,6 +200,7 @@ export default async function StoryPage({ params }: { params: Params }) {
 
   return (
     <article className="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+      <ViewTracker id={story.id} />
       {/* JSON-LD: inline, not in <Head>, per Next.js App Router pattern */}
       <script
         type="application/ld+json"

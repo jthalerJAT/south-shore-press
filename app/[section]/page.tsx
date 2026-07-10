@@ -18,7 +18,7 @@ type Params = { section: string };
 export function generateStaticParams(): Params[] {
   // Sections with their own literal routes (which take precedence) are
   // excluded so we don't statically render the same path twice.
-  const LITERAL_ROUTES = new Set(['legals', 'opinion']);
+  const LITERAL_ROUTES = new Set(['legals', 'opinion', 'business']);
   return SITE_SECTIONS.filter((s) => !LITERAL_ROUTES.has(s.slug)).map((s) => ({
     section: s.slug,
   }));

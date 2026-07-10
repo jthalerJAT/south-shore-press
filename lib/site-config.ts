@@ -41,6 +41,7 @@ export const SPORTS_SUBCATEGORIES: ReadonlyArray<SiteSection> = [
   { slug: 'local-sports', label: 'Local Sports' },
   { slug: 'pro-sports', label: 'Pro Sports' },
   { slug: 'fantasy-sports', label: 'Fantasy Sports' },
+  { slug: 'betting', label: 'Betting' },
 ] as const;
 
 /**

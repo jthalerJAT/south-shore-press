@@ -228,14 +228,14 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         label="Sports sub-category"
         hint="Picking any of these automatically tags the story as Sports too."
       >
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {SPORTS_SUBCATEGORIES.map((sub) => {
             const checked = defaults?.categories?.includes(sub.slug) ?? false;
             return (
               <label
                 key={sub.slug}
                 className={cn(
-                  'flex items-center gap-2 px-3 py-2 border rounded cursor-pointer text-sm',
+                  'flex items-center gap-1.5 px-2.5 py-1.5 border rounded cursor-pointer text-sm',
                   checked
                     ? 'border-brand-red bg-red-50 text-brand-red font-medium'
                     : 'border-zinc-300 text-zinc-700 hover:bg-zinc-50',

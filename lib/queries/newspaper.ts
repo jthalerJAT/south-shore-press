@@ -24,7 +24,7 @@ export type NpPage = {
    *  Empty object `{}` for flow pages / before Phase 6. */
   template_data: Record<string, unknown>;
   /** Whether this page is part of the printed issue (drives View File + the
-   *  whole-issue InDesign build). Defaults true. */
+   *  whole-issue press-PDF export). Defaults true. */
   include_in_paper: boolean;
   created_at: string;
   updated_at: string;

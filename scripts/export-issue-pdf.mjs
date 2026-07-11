@@ -5,10 +5,11 @@
  *   2. Ghostscript converts -> PDF/X-1a:2001 (CMYK, flattened, 1.3).
  *
  * Usage (from the repo root):
- *   INDESIGN_API_TOKEN=<token> node scripts/export-issue-pdf.mjs
+ *   PRINT_API_TOKEN=<token> node scripts/export-issue-pdf.mjs
  *
  * Env:
- *   INDESIGN_API_TOKEN  (required) same token as the print API.
+ *   PRINT_API_TOKEN     (required) same token that guards /print/issue.
+ *                       (Legacy INDESIGN_API_TOKEN is still accepted.)
  *   PRINT_BASE          default https://south-shore-press.vercel.app
  *   PAGES               default "1,2" (page numbers; omit/"" for all included)
  *   CMYK_ICC            path to a CMYK ICC profile (the printer's, ideally).
@@ -27,12 +28,13 @@ const repoRoot = join(__dir, '..');
 const outDir = join(repoRoot, 'out');
 mkdirSync(outDir, { recursive: true });
 
-// Zero-config locally: fall back to INDESIGN_API_TOKEN in .env.local so
+// Zero-config locally: fall back to the token in .env.local so
 // `npm run export:issue` needs no inline env. (.env.local is gitignored.)
+// Accepts PRINT_API_TOKEN or the legacy INDESIGN_API_TOKEN name.
 function envLocalToken() {
   try {
     const txt = readFileSync(join(repoRoot, '.env.local'), 'utf8');
-    const m = txt.match(/^\s*INDESIGN_API_TOKEN\s*=\s*["']?([^"'\r\n]+)/m);
+    const m = txt.match(/^\s*(?:PRINT_API_TOKEN|INDESIGN_API_TOKEN)\s*=\s*["']?([^"'\r\n]+)/m);
     return m ? m[1].trim() : null;
   } catch {
     return null;
@@ -40,12 +42,12 @@ function envLocalToken() {
 }
 
 const BASE = (process.env.PRINT_BASE || 'https://south-shore-press.vercel.app').replace(/\/$/, '');
-const TOKEN = process.env.INDESIGN_API_TOKEN || envLocalToken();
+const TOKEN = process.env.PRINT_API_TOKEN || process.env.INDESIGN_API_TOKEN || envLocalToken();
 // Default to the WHOLE issue (all included pages); set PAGES=1,2 to limit.
 const PAGES = process.env.PAGES ?? '';
 const OPEN_WHEN_DONE = process.env.OPEN !== '0';
 if (!TOKEN) {
-  console.error('ERROR: set INDESIGN_API_TOKEN (env or .env.local) — same token as the print API.');
+  console.error('ERROR: set PRINT_API_TOKEN (env or .env.local) — same token that guards /print/issue.');
   process.exit(1);
 }
 

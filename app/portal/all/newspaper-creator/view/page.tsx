@@ -63,8 +63,8 @@ export default async function NewspaperViewFile() {
       backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
     >
       <p className="text-sm text-zinc-600 mb-6">
-        The full issue, page by page. (A future phase renders this in InDesign; for now it uses the
-        same page proofs as the individual editors.)
+        The full issue, page by page. Uses the same page proofs as the individual editors — the
+        exact layout the press-PDF export renders.
       </p>
 
       <div className="flex flex-col items-center gap-8 bg-zinc-200/60 rounded p-6">

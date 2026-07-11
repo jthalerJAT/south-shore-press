@@ -267,7 +267,7 @@ export function NewspaperBoard({
   function handleReseed() {
     if (
       !confirm(
-        'Rebuild the entire page list to the standard 32-page issue? This DELETES every current page and its content and re-creates the default skeleton. This cannot be undone.'
+        'Rebuild the entire page list to the standard 40-page issue? This DELETES every current page and its content and re-creates the default skeleton. This cannot be undone.'
       )
     )
       return;
@@ -423,7 +423,7 @@ export function NewspaperBoard({
                 type="button"
                 onClick={handleReseed}
                 disabled={isPending}
-                title="Delete all pages and rebuild the standard 32-page issue skeleton"
+                title="Delete all pages and rebuild the standard 40-page issue skeleton"
                 className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 rounded transition-colors"
               >
                 Rebuild Pages

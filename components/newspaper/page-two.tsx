@@ -87,7 +87,7 @@ export function PageTwo({
   pageNumber: number;
   dateLabel?: string;
   /** Editor preview shows the empty-ad placeholder; the final proof/View File
-   *  / InDesign output show only a placed ad (no label, no box). */
+   *  show only a placed ad (no label, no box). */
   editing?: boolean;
 }) {
   // The second story's byline leads column 1 (top-aligned with the photo + the

@@ -68,7 +68,7 @@ export async function seedDefaultPages(): Promise<Result> {
 }
 
 /** Rebuild the entire page list from DEFAULT_PAGES — DESTRUCTIVE: deletes every
- *  page and its content, then re-seeds the standard 32-page issue skeleton.
+ *  page and its content, then re-seeds the standard 40-page issue skeleton.
  *  For applying a new default structure to the current working issue. */
 export async function reseedPages(): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);

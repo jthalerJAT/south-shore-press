@@ -5,6 +5,18 @@ the ones blocking domain cutover from v1.
 
 ---
 
+## Newspaper print PDF — deferred items
+
+- [ ] **Printer CMYK color profile (revisit down the road).** The press-PDF
+  export (`scripts/export-issue-pdf.mjs`) converts to PDF/X-1a CMYK. Right now
+  it uses the default/bundled CMYK profile (Ghostscript `default_cmyk.icc` or
+  Adobe's US Newsprint SNAP 2007 if installed) — the printer has **not** given
+  us a profile yet, and may not have one. When/if he provides an `.icc`, drop it
+  in `scripts/pdfx/` and point `CMYK_ICC` at it for accurate newsprint color.
+  Until then, default settings are intentional and fine. (Decided 2026-07-11.)
+
+---
+
 ## Reader auth — recently shipped on `feat/reader-auth` (2026-05-26)
 
 - [x] Migration `003_reader_profiles.sql` — adds first/last/phone/address +

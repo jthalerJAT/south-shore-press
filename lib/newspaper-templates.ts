@@ -25,6 +25,10 @@ export type NpKind =
   | 'legals'
   | 'classifieds'
   | 'fun_times'
+  | 'fun_box_office'
+  | 'fun_puzzles'
+  | 'fun_comics'
+  | 'fun_history'
   | 'fantasy_baseball'
   | 'betting_barton'
   | 'sports'
@@ -134,6 +138,14 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     mode: 'flow',
     master: true,
   },
+  // "Fun Stuff" — four dedicated full-page sections, each fed from its own
+  // standalone app (ssp-box-office / ssp-puzzles / ssp-funny-pages / ssp-history)
+  // via a per-page "Pull from app" button (integration is a follow-up phase).
+  // Flow-mode for now so they render + edit safely as section pages in the shell.
+  fun_box_office: { label: 'Box Office', slots: 'open', mode: 'flow', master: true },
+  fun_puzzles: { label: 'Puzzles', slots: 'open', mode: 'flow', master: true },
+  fun_comics: { label: 'Funny Pages', slots: 'open', mode: 'flow', master: true },
+  fun_history: { label: 'This Week in History', slots: 'open', mode: 'flow', master: true },
   fantasy_baseball: { label: 'Fantasy Baseball', slots: 'open', mode: 'flow', master: true },
   betting_barton: { label: 'Betting With Barton', slots: 'open', mode: 'flow', master: true },
   sports: { label: 'Sports', slots: 'open', mode: 'flow', master: true },
@@ -150,50 +162,79 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
   },
 };
 
-/** The pages seeded for a fresh issue, in order — mirroring the real 32-page
- *  South Shore Press (2026-06-17 reference issue). Interior content pages are
- *  `generic` flow pages; `section` seeds the section-flag (Section Name). Each
- *  page's bespoke nuance (article counts, page-5 info rail, etc.) is refined
- *  one by one. "Add New Page" still inserts a blank generic page. */
+/** The pages seeded for a fresh issue, in order — the standard 40-page South
+ *  Shore Press flow (2026-07-11). This is what "Rebuild Pages" lays down at the
+ *  start of a new week. Structure:
+ *    1        Front Page
+ *    2        Main Op-Ed (Page 2)
+ *    3–6      Local News (4)
+ *    7–8      Nation & World News (2)
+ *    9–10     Business (2)
+ *    11–14    Opinion (4)
+ *    15–18    Legals & Classifieds (2 + 2)
+ *    19–22    Fun Stuff — Box Office / Puzzles / Funny Pages / History (4)
+ *    23–24    Professional Sports (2)
+ *    25–28    Local Sports (4)
+ *    29–40    Ads — fill the remainder (12)
+ *  Interior news/opinion/sports pages are flow pages; `section` seeds the
+ *  section-flag header. Editors can rename headers, insert, reorder, convert,
+ *  and delete pages from here. */
 export const DEFAULT_PAGES: ReadonlyArray<{
   kind: NpKind;
   title: string;
   section?: string;
-  /** Seed the publication-info colophon rail on this page (page 5 in the ref). */
+  /** Seed the publication-info colophon rail on this page (page 5). */
   colophon?: boolean;
 }> = [
   { kind: 'front', title: 'Front Page' },
   { kind: 'page2', title: 'Newsroom / Op-Ed' },
-  { kind: 'full_page_ad', title: 'Welcome Ad' },
-  { kind: 'oped_page', title: 'Op-Ed' },
-  { kind: 'generic', title: 'Local News', section: 'LOCAL', colophon: true },
-  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
-  { kind: 'generic', title: 'DC Insider', section: 'DC INSIDER' },
-  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
-  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'generic', title: 'History Lessons', section: 'HISTORY LESSONS' },
-  { kind: 'generic', title: 'Suffolk Closeup', section: 'SUFFOLK CLOSEUP' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'generic', title: 'Ask Nancy', section: 'ASK NANCY' },
-  { kind: 'generic', title: 'Local News', section: 'LOCAL' },
-  { kind: 'full_page_ad', title: 'Ad' },
+  // Local News (4)
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS', colophon: true },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  // Nation & World News (2)
+  { kind: 'generic', title: 'Nation & World News', section: 'NATION & WORLD NEWS' },
+  { kind: 'generic', title: 'Nation & World News', section: 'NATION & WORLD NEWS' },
+  // Business (2)
+  { kind: 'generic', title: 'Business', section: 'BUSINESS' },
+  { kind: 'generic', title: 'Business', section: 'BUSINESS' },
+  // Opinion (4)
+  { kind: 'generic', title: 'Opinion', section: 'OPINION' },
+  { kind: 'generic', title: 'Opinion', section: 'OPINION' },
+  { kind: 'generic', title: 'Opinion', section: 'OPINION' },
+  { kind: 'generic', title: 'Opinion', section: 'OPINION' },
+  // Legals & Classifieds (4)
   { kind: 'legals', title: 'Legal Notices' },
-  { kind: 'legals', title: 'Legals / Classifieds' },
+  { kind: 'legals', title: 'Legal Notices' },
   { kind: 'classifieds', title: 'Classifieds' },
-  { kind: 'generic', title: 'Living on Long Island', section: 'LIVING ON LONG ISLAND' },
+  { kind: 'classifieds', title: 'Classifieds' },
+  // Fun Stuff (4) — each pulls from its own app in a later phase
+  { kind: 'fun_box_office', title: 'Box Office', section: 'BOX OFFICE' },
+  { kind: 'fun_puzzles', title: 'Puzzles', section: 'PUZZLES' },
+  { kind: 'fun_comics', title: 'Funny Pages', section: 'FUNNY PAGES' },
+  { kind: 'fun_history', title: 'This Week in History', section: 'THIS WEEK IN HISTORY' },
+  // Professional Sports (2)
+  { kind: 'sports', title: 'Professional Sports', section: 'PROFESSIONAL SPORTS' },
+  { kind: 'sports', title: 'Professional Sports', section: 'PROFESSIONAL SPORTS' },
+  // Local Sports (4)
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  // Ads — fill the remainder to 40 (12)
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'fantasy_baseball', title: 'Fantasy Baseball' },
-  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
-  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
-  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
-  { kind: 'sports', title: 'Sports', section: 'SPORTS' },
-  { kind: 'sports_cover', title: 'Sports Back Cover' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
 ];
 
 export function templateFor(kind: string): NpTemplate {

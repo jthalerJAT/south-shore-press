@@ -6,7 +6,8 @@ name: Export Press PDF
 # to PDF/X-1a CMYK with Ghostscript. The result is uploaded as a downloadable
 # artifact (issue-x1a.pdf). No local tools needed.
 #
-# Requires one repo secret:  INDESIGN_API_TOKEN  (same value as the Vercel env).
+# Requires one repo secret:  PRINT_API_TOKEN  (same value as the Vercel env).
+# The legacy INDESIGN_API_TOKEN secret is still accepted as a fallback.
 # Settings → Secrets and variables → Actions → New repository secret.
 
 on:
@@ -37,6 +38,7 @@ jobs:
 
       - name: Export PDF/X-1a
         env:
+          PRINT_API_TOKEN: ${{ secrets.PRINT_API_TOKEN }}
           INDESIGN_API_TOKEN: ${{ secrets.INDESIGN_API_TOKEN }}
           PAGES: ${{ github.event.inputs.pages }}
           OPEN: '0' # never try to open a viewer in CI

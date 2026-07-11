@@ -23,15 +23,15 @@ export const dynamic = 'force-dynamic';
 /**
  * Bare, chrome-free print view of the issue at the exact 11×15 trim size, for
  * the headless-Chromium → PDF → PDF/X-1a export pipeline (scripts/export-issue-
- * pdf.mjs). Token-guarded via ?token so the renderer can reach it without a
- * login. ?pages=1,2 limits to specific page numbers.
+ * pdf.mjs). Token-guarded via ?token (PRINT_API_TOKEN) so the renderer can reach
+ * it without a login. ?pages=1,2 limits to specific page numbers.
  */
 export default async function PrintIssue({
   searchParams,
 }: {
   searchParams: { token?: string; pages?: string };
 }) {
-  const expected = process.env.INDESIGN_API_TOKEN;
+  const expected = process.env.PRINT_API_TOKEN ?? process.env.INDESIGN_API_TOKEN;
   if (!expected || searchParams.token !== expected) notFound();
 
   const admin = createAdminClient();

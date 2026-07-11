@@ -44,7 +44,7 @@ Email briefings (Constant Contact): `CONSTANT_CONTACT_CLIENT_ID` / `_SECRET` /
 Print distribution (SimpleCirc): `SIMPLECIRC_API_TOKEN` / `_PUBLICATION_ID` /
 `_POSTAGE_ID` — test passed.
 Legals email (Resend): `RESEND_API_KEY`, `LEGALS_FROM_EMAIL`, `LEGALS_NOTIFY_EMAIL`.
-Optional: `INDESIGN_API_TOKEN` (newspaper export), `TWITTER_*` (social publishing).
+Optional: `PRINT_API_TOKEN` (press-PDF export; guards `/print/issue`), `TWITTER_*` (social publishing).
 
 ### A4. Content ready
 - Homepage hero pinned (5) in Site Layout; sections populated.

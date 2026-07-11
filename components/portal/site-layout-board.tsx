@@ -125,7 +125,40 @@ const BUSINESS_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   },
 ];
 
-const CUSTOM_LAYOUT_SLUGS = new Set(['sports', 'local', 'opinion', 'business']);
+// /state, /national and /world reuse the shared /local layout (Top Stories rail
+// + 3×3 main tile grid), so each gets a pinnable rail + tiles group instead of
+// the generic "Top 3 stories" group.
+const STATE_NATION_WORLD = [
+  { slug: 'state', label: 'State' },
+  { slug: 'national', label: 'Nation' },
+  { slug: 'world', label: 'World' },
+] as const;
+const STATE_NATION_WORLD_GROUPS: ReadonlyArray<SlotGroup> = STATE_NATION_WORLD.flatMap(
+  ({ slug, label }) => [
+    {
+      key: `section.${slug}.recent`,
+      title: `${label} Page — Top Stories Rail`,
+      description: `10 headlines in the right-side rail on /${slug}`,
+      count: 10,
+    },
+    {
+      key: `section.${slug}.top`,
+      title: `${label} Page — Main Tiles`,
+      description: `9 stories shown 3×3 in the main grid on /${slug}`,
+      count: 9,
+    },
+  ]
+);
+
+const CUSTOM_LAYOUT_SLUGS = new Set([
+  'sports',
+  'local',
+  'opinion',
+  'business',
+  'state',
+  'national',
+  'world',
+]);
 
 const SECTION_GROUPS: ReadonlyArray<SlotGroup> = [
   ...SITE_SECTIONS.filter((s) => !CUSTOM_LAYOUT_SLUGS.has(s.slug)).map((s) => ({
@@ -138,6 +171,7 @@ const SECTION_GROUPS: ReadonlyArray<SlotGroup> = [
   ...SPORTS_PAGE_GROUPS,
   ...OPINION_PAGE_GROUPS,
   ...BUSINESS_PAGE_GROUPS,
+  ...STATE_NATION_WORLD_GROUPS,
 ];
 
 export function SiteLayoutBoard({

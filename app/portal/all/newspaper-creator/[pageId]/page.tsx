@@ -11,6 +11,7 @@ import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
+import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
 import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
 import { CoverEditor } from './cover-editor';
@@ -18,6 +19,7 @@ import { OpEdEditor } from './oped-editor';
 import { PageFourEditor } from './page-four-editor';
 import { ClassifiedEditor } from './classified-editor';
 import { FullAdEditor } from './full-ad-editor';
+import { FunEditor } from './fun-editor';
 
 export const metadata: Metadata = {
   title: 'Edit Page · Newspaper Creator',
@@ -110,6 +112,22 @@ export default async function NewspaperPageEditorPage({
             stories={stories}
             ads={ads}
           />
+        </PortalShell>
+      );
+    }
+
+    if (tid === 'fun') {
+      const source = getFunSource(page.kind);
+      if (!source) notFound();
+      return (
+        <PortalShell
+          user={user}
+          activeTab="all"
+          hideTabs
+          title={`Edit — ${displayTitle}`}
+          backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+        >
+          <FunEditor pageId={page.id} source={source} initialData={normalizeFunPage(page.template_data)} />
         </PortalShell>
       );
     }

@@ -9,11 +9,13 @@ import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
+import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
 import { ClassifiedPage } from '@/components/newspaper/classified-page';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
+import { FunPage } from '@/components/newspaper/fun-page';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { SectionFlag } from '@/components/newspaper/section-flag';
 import { ColophonRail, COLOPHON_RAIL_W, COLOPHON_GAP } from '@/components/newspaper/colophon-rail';
@@ -103,6 +105,11 @@ export default async function PagePrintProof({
           <PageFour data={normalizePageFour(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'classified' ? (
           <ClassifiedPage data={normalizeClassifiedPage(page.template_data)} />
+        ) : isTemplate && tid === 'fun' ? (
+          <FunPage
+            data={normalizeFunPage(page.template_data)}
+            sectionLabel={page.section_name ?? getFunSource(page.kind)?.label ?? ''}
+          />
         ) : isTemplate ? (
           <SectionCover
             data={normalizeCover(page.template_data, page.kind)}

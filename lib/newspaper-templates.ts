@@ -51,7 +51,7 @@ export type CoverConfig = {
 };
 
 /** Which bespoke template editor/renderer a template-mode page uses. */
-export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified';
+export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified' | 'fun';
 
 export type NpTemplate = {
   label: string;
@@ -138,14 +138,14 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     mode: 'flow',
     master: true,
   },
-  // "Fun Stuff" — four dedicated full-page sections, each fed from its own
+  // "Fun Stuff" — four dedicated full-page sections, each pulled from its own
   // standalone app (ssp-box-office / ssp-puzzles / ssp-funny-pages / ssp-history)
-  // via a per-page "Pull from app" button (integration is a follow-up phase).
-  // Flow-mode for now so they render + edit safely as section pages in the shell.
-  fun_box_office: { label: 'Box Office', slots: 'open', mode: 'flow', master: true },
-  fun_puzzles: { label: 'Puzzles', slots: 'open', mode: 'flow', master: true },
-  fun_comics: { label: 'Funny Pages', slots: 'open', mode: 'flow', master: true },
-  fun_history: { label: 'This Week in History', slots: 'open', mode: 'flow', master: true },
+  // via the per-page "Pull from app" button in FunEditor. Template-mode: the
+  // pulled page HTML/CSS lives in np_pages.template_data (see lib/newspaper/fun-page).
+  fun_box_office: { label: 'Box Office', slots: 'open', mode: 'template', master: true, template: 'fun' },
+  fun_puzzles: { label: 'Puzzles', slots: 'open', mode: 'template', master: true, template: 'fun' },
+  fun_comics: { label: 'Funny Pages', slots: 'open', mode: 'template', master: true, template: 'fun' },
+  fun_history: { label: 'This Week in History', slots: 'open', mode: 'template', master: true, template: 'fun' },
   fantasy_baseball: { label: 'Fantasy Baseball', slots: 'open', mode: 'flow', master: true },
   betting_barton: { label: 'Betting With Barton', slots: 'open', mode: 'flow', master: true },
   sports: { label: 'Sports', slots: 'open', mode: 'flow', master: true },

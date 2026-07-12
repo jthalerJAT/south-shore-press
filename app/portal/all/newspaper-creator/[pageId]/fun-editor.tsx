@@ -14,22 +14,34 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
+import { createClient } from '@/lib/supabase/client';
 import { FunPage } from '@/components/newspaper/fun-page';
 import { isFunPullMessage, type FunPageData, type FunSource } from '@/lib/newspaper/fun-page';
-import { saveFunPage } from '../actions';
+import { saveFunPage, requestAdUploadUrl } from '../actions';
 
 const PREVIEW_SCALE = 0.4;
+const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
 // Funny Pages can take several minutes (per-panel image generation); be generous.
 const PULL_TIMEOUT_MS = 12 * 60 * 1000;
+
+type AdLite = {
+  id: string;
+  business_name: string;
+  copy_file_name: string | null;
+  copy_storage_path: string | null;
+};
 
 export function FunEditor({
   pageId,
   source,
   initialData,
+  ads,
 }: {
   pageId: string;
   source: FunSource;
   initialData: FunPageData;
+  /** Ad Database entries (for the bottom-third ad picker). */
+  ads: AdLite[];
 }) {
   const router = useRouter();
   const [data, setData] = useState<FunPageData>(initialData);
@@ -39,6 +51,8 @@ export function FunEditor({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingAd, setUploadingAd] = useState(false);
+  const adFileRef = useRef<HTMLInputElement | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -65,13 +79,15 @@ export function FunEditor({
     function onMessage(e: MessageEvent) {
       if (e.origin !== appOrigin) return;
       if (!isFunPullMessage(e.data)) return;
-      setData({
+      // Merge so a re-pull keeps the placed bottom-third ad.
+      setData((d) => ({
+        ...d,
         v: 1,
         html: e.data.html,
         css: e.data.css,
         pulled_at: new Date().toISOString(),
         source_label: source.label,
-      });
+      }));
       setSaved(false);
       setError(null);
       stopPull();
@@ -98,6 +114,52 @@ export function FunEditor({
       );
       stopPull();
     }, PULL_TIMEOUT_MS);
+  }
+
+  function pickAd(adId: string) {
+    const ad = ads.find((a) => a.id === adId);
+    if (!ad || !ad.copy_storage_path) {
+      setError('That ad has no uploaded copy yet.');
+      return;
+    }
+    setData((d) => ({
+      ...d,
+      ad_storage_path: ad.copy_storage_path ?? undefined,
+      ad_file_name: ad.copy_file_name ?? ad.business_name,
+    }));
+    setSaved(false);
+  }
+
+  async function uploadAd(file: File | null) {
+    if (!file) return;
+    setError(null);
+    setUploadingAd(true);
+    try {
+      const signed = await requestAdUploadUrl(file.name);
+      if (!signed.ok || !signed.path || !signed.token) {
+        setError(signed.error ?? 'Ad upload failed.');
+        return;
+      }
+      const supabase = createClient();
+      const { error: upErr } = await supabase.storage
+        .from(NEWSPAPER_ADS_BUCKET)
+        .uploadToSignedUrl(signed.path, signed.token, file, { contentType: file.type });
+      if (upErr) {
+        setError(`Ad upload failed: ${upErr.message}`);
+        return;
+      }
+      setData((d) => ({ ...d, ad_storage_path: signed.path, ad_file_name: file.name }));
+      setSaved(false);
+    } catch {
+      setError('Something went wrong uploading the ad.');
+    } finally {
+      setUploadingAd(false);
+    }
+  }
+
+  function removeAd() {
+    setData((d) => ({ ...d, ad_storage_path: undefined, ad_file_name: undefined }));
+    setSaved(false);
   }
 
   async function handleSave() {
@@ -171,6 +233,59 @@ export function FunEditor({
           </p>
         ) : null}
 
+        {/* ── Bottom-third ad ────────────────────────────────── */}
+        <div className="pt-3 border-t border-zinc-200">
+          <div className="text-sm font-medium text-zinc-700">Ad — bottom third</div>
+          {data.ad_file_name ? (
+            <p className="mt-1 text-sm text-zinc-700">
+              <span className="font-medium">{data.ad_file_name}</span>{' '}
+              <button type="button" onClick={removeAd} className="ml-1 text-red-600 hover:underline">
+                remove
+              </button>
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-zinc-500">
+              The pulled page fills the top two-thirds; place an ad in the bottom third.
+            </p>
+          )}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) pickAd(e.target.value);
+                e.target.value = '';
+              }}
+              className="rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
+            >
+              <option value="">Choose from Ad Database…</option>
+              {ads
+                .filter((a) => a.copy_storage_path)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.business_name}
+                    {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
+                  </option>
+                ))}
+            </select>
+            <span className="text-xs text-zinc-400">or</span>
+            <input
+              ref={adFileRef}
+              type="file"
+              accept="image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => uploadAd(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              onClick={() => adFileRef.current?.click()}
+              disabled={uploadingAd}
+              className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
+            >
+              {uploadingAd ? 'Uploading…' : '+ Upload Ad'}
+            </button>
+          </div>
+        </div>
+
         <div className="flex items-center gap-3 pt-2 border-t border-zinc-200">
           <button
             type="button"
@@ -200,7 +315,7 @@ export function FunEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            <FunPage data={data} sectionLabel={source.label} editing />
+            <FunPage data={data} editing />
           </div>
         </div>
       </div>

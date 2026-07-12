@@ -119,6 +119,7 @@ export default async function NewspaperPageEditorPage({
     if (tid === 'fun') {
       const source = getFunSource(page.kind);
       if (!source) notFound();
+      const ads = await getAds();
       return (
         <PortalShell
           user={user}
@@ -127,7 +128,12 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <FunEditor pageId={page.id} source={source} initialData={normalizeFunPage(page.template_data)} />
+          <FunEditor
+            pageId={page.id}
+            source={source}
+            initialData={normalizeFunPage(page.template_data)}
+            ads={ads}
+          />
         </PortalShell>
       );
     }

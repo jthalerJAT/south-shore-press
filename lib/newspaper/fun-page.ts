@@ -55,6 +55,10 @@ export function getFunSource(kind: string): FunSource | null {
   return FUN_SOURCES[kind] ?? null;
 }
 
+/** The printed section header shown on every Fun Stuff page (all four pull
+ *  pages share one masthead in the paper, regardless of which app fed them). */
+export const FUN_SECTION_HEADER = 'Fun Stuff';
+
 /** The self-contained page snapshot pulled from a Fun Stuff app. */
 export type FunPageData = {
   v: 1;
@@ -66,6 +70,10 @@ export type FunPageData = {
   pulled_at?: string;
   /** Which app it came from, for display ("Box Office"). */
   source_label?: string;
+  /** Ad placed in the bottom third of the page (an Ad Database creative in the
+   *  newspaper-ads bucket). The pulled content fills the top two-thirds. */
+  ad_storage_path?: string;
+  ad_file_name?: string;
 };
 
 export function normalizeFunPage(raw: unknown): FunPageData {
@@ -77,6 +85,8 @@ export function normalizeFunPage(raw: unknown): FunPageData {
     css: typeof r.css === 'string' ? r.css : undefined,
     pulled_at: typeof r.pulled_at === 'string' ? r.pulled_at : undefined,
     source_label: typeof r.source_label === 'string' ? r.source_label : undefined,
+    ad_storage_path: typeof r.ad_storage_path === 'string' ? r.ad_storage_path : undefined,
+    ad_file_name: typeof r.ad_file_name === 'string' ? r.ad_file_name : undefined,
   };
 }
 

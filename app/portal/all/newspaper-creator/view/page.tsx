@@ -9,7 +9,7 @@ import { normalizeOpEd } from '@/lib/newspaper/oped';
 import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
-import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
+import { normalizeFunPage } from '@/lib/newspaper/fun-page';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
@@ -98,10 +98,7 @@ export default async function NewspaperViewFile() {
                     ) : r.kind === 'template' && templateId(page.kind) === 'classified' ? (
                       <ClassifiedPage data={normalizeClassifiedPage(page.template_data)} />
                     ) : r.kind === 'template' && templateId(page.kind) === 'fun' ? (
-                      <FunPage
-                        data={normalizeFunPage(page.template_data)}
-                        sectionLabel={page.section_name ?? getFunSource(page.kind)?.label ?? ''}
-                      />
+                      <FunPage data={normalizeFunPage(page.template_data)} />
                     ) : r.kind === 'template' ? (
                       <SectionCover
                         data={normalizeCover(page.template_data, page.kind)}

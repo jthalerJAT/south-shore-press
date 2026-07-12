@@ -2,34 +2,35 @@
 
 /**
  * FunPage — renders a "Fun Stuff" page (Box Office / Puzzles / Funny Pages /
- * History): our section header on top, then the self-contained page pulled from
- * the source app scaled to fit the rest of the 11×15 content area. The pulled
- * markup is rendered inside a same-origin srcdoc iframe so the app's CSS is fully
- * isolated (can't leak into the portal/print styles). Used by the editor preview,
- * the per-page proof, View File, and the press print route — so screen == print.
- *
- * The apps render `#newspaperPage` at a fixed 780px width; we measure the pulled
- * content height on load and pick a uniform "contain" scale so the whole page
- * shows without cropping or distortion.
+ * History). Layout at 11×15:
+ *   - our "Fun Stuff" section header on top,
+ *   - the page pulled from the source app in the TOP TWO-THIRDS (isolated in a
+ *     srcdoc iframe so the app CSS can't leak; the app's own reserved ad box is
+ *     hidden so we control the ad),
+ *   - an ad slot in the BOTTOM THIRD, filled from the Ad Database.
+ * Used by the editor preview, the per-page proof, View File, and the press print
+ * route — so screen == print.
  */
 import { useLayoutEffect, useRef, useState } from 'react';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
+import { adFilePublicUrl } from '@/lib/ad-files';
 import { SectionFlag } from './section-flag';
-import type { FunPageData } from '@/lib/newspaper/fun-page';
+import { FUN_SECTION_HEADER, type FunPageData } from '@/lib/newspaper/fun-page';
 
 /** Native width of every Fun Stuff app's `#newspaperPage` node. */
 const APP_PAGE_W = 780;
 /** Fallback aspect (h/w) before the real content height is measured. */
-const FALLBACK_RATIO = 1.47;
+const FALLBACK_RATIO = 1.2;
 
 export function FunPage({
   data,
-  sectionLabel,
+  sectionLabel = FUN_SECTION_HEADER,
   editing = false,
 }: {
   data: FunPageData;
-  sectionLabel: string;
-  /** When true (editor/proof preview) show a placeholder if nothing is pulled. */
+  /** Section header; defaults to the shared "Fun Stuff" masthead. */
+  sectionLabel?: string;
+  /** When true (editor/proof preview) show placeholders for empty regions. */
   editing?: boolean;
 }) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -39,11 +40,17 @@ export function FunPage({
 
   const html = data.html ?? '';
   const css = data.css ?? '';
+  // App CSS first, then our overrides last so they reliably win: hide the app's
+  // own reserved ad box (we place our own ad in the bottom third).
   const srcDoc = html
-    ? `<!doctype html><html><head><meta charset="utf-8">` +
-      `<base target="_blank"><style>html,body{margin:0;padding:0;background:#fff}</style>` +
-      `<style>${css}</style></head><body>${html}</body></html>`
+    ? `<!doctype html><html><head><meta charset="utf-8"><base target="_blank">` +
+      `<style>html,body{margin:0;padding:0;background:#fff}</style>` +
+      `<style>${css}</style>` +
+      `<style>.ad-section,.ad-slot,.advertisement{display:none!important}</style>` +
+      `</head><body>${html}</body></html>`
     : '';
+
+  const adSrc = data.ad_storage_path ? adFilePublicUrl(data.ad_storage_path) : null;
 
   useLayoutEffect(() => {
     if (!html) return;
@@ -71,7 +78,6 @@ export function FunPage({
     }
 
     frame.addEventListener('load', fit);
-    // Also try after a beat in case load already fired / content settles late.
     const t1 = setTimeout(fit, 150);
     const t2 = setTimeout(fit, 800);
     return () => {
@@ -93,36 +99,71 @@ export function FunPage({
       }}
     >
       <SectionFlag label={sectionLabel} />
-      <div ref={areaRef} style={{ position: 'relative', flex: 1, overflow: 'hidden' }}>
-        {html ? (
-          <div
-            style={{
-              position: 'absolute',
-              top: 0,
-              left: '50%',
-              transform: `translateX(-50%) scale(${scale ?? CONTENT_W_PX / APP_PAGE_W})`,
-              transformOrigin: 'top center',
-              width: APP_PAGE_W,
-              height: contentH,
-              visibility: scale === null ? 'hidden' : 'visible',
-            }}
-          >
-            <iframe
-              ref={frameRef}
-              srcDoc={srcDoc}
-              title={sectionLabel}
-              scrolling="no"
-              style={{ width: APP_PAGE_W, height: contentH, border: 0, display: 'block' }}
+
+      {/* Body below the header: top two-thirds content + bottom-third ad. */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        {/* Top two-thirds — the pulled page. */}
+        <div ref={areaRef} style={{ flex: 2, position: 'relative', overflow: 'hidden', minHeight: 0 }}>
+          {html ? (
+            <div
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                transform: `translateX(-50%) scale(${scale ?? CONTENT_W_PX / APP_PAGE_W})`,
+                transformOrigin: 'top center',
+                width: APP_PAGE_W,
+                height: contentH,
+                visibility: scale === null ? 'hidden' : 'visible',
+              }}
+            >
+              <iframe
+                ref={frameRef}
+                srcDoc={srcDoc}
+                title={sectionLabel}
+                scrolling="no"
+                style={{ width: APP_PAGE_W, height: contentH, border: 0, display: 'block' }}
+              />
+            </div>
+          ) : editing ? (
+            <div
+              className="border-2 border-dashed border-zinc-300 text-zinc-400 text-sm flex items-center justify-center text-center px-6"
+              style={{ width: '100%', height: '100%' }}
+            >
+              Nothing pulled yet — click “Pull from …” to generate this page.
+            </div>
+          ) : null}
+        </div>
+
+        {/* Bottom third — ad from the Ad Database. */}
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            borderTop: '1px solid #d4d4d8',
+            background: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+          }}
+        >
+          {adSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={adSrc}
+              alt={data.ad_file_name ?? 'Advertisement'}
+              style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
             />
-          </div>
-        ) : editing ? (
-          <div
-            className="border-2 border-dashed border-zinc-300 text-zinc-400 text-sm flex items-center justify-center text-center px-6"
-            style={{ width: '100%', height: '100%' }}
-          >
-            Nothing pulled yet — click “Pull from {sectionLabel}” to generate this page.
-          </div>
-        ) : null}
+          ) : editing ? (
+            <div
+              className="m-3 border-2 border-dashed border-zinc-300 text-zinc-400 text-xs uppercase tracking-widest flex items-center justify-center text-center"
+              style={{ width: '100%', height: '100%' }}
+            >
+              Advertisement — add one from the Ad Database
+            </div>
+          ) : null}
+        </div>
       </div>
     </div>
   );

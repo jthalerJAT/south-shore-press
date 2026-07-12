@@ -8,6 +8,7 @@ import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
 import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/newspaper/layout-engine';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import { SectionFlag } from '@/components/newspaper/section-flag';
+import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import { ProofBands, type ProofItem } from './print/proof-bands';
 import { PhotoUrlField } from '../photo-url-field';
 import { HeadlineField } from '../headline-field';
@@ -521,21 +522,9 @@ function StoryCard({
       <div className="flex flex-col gap-4">
         <div>
           <label className="block text-xs font-medium text-zinc-500 mb-1">Fill this slot from a website story</label>
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) onFill(item.localId, e.target.value);
-              e.target.value = '';
-            }}
-            className="block w-full max-w-md rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
-          >
-            <option value="">Fill from story…</option>
-            {editorStories.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.headline.length > 70 ? s.headline.slice(0, 67) + '…' : s.headline}
-              </option>
-            ))}
-          </select>
+          <div className="max-w-md">
+            <StoryFillPicker stories={editorStories} onPick={(id) => onFill(item.localId, id)} />
+          </div>
         </div>
         <HeadlineField label="Headline" value={d.headline ?? ''} onChange={(v) => onPatch(item.localId, { headline: v })} />
         <Field label="Deck / Subline" value={d.subline ?? ''} onChange={(v) => onPatch(item.localId, { subline: v })} />

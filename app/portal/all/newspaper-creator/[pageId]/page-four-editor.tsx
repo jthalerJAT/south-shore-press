@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/newspaper/layout-engine';
 import { PageFour } from '@/components/newspaper/page-four';
+import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import {
   PAGE_FLAG_OPTIONS,
   PAGE_FOUR_TOP_COLUMNS,
@@ -526,21 +527,5 @@ function PhotoField({
 }
 
 function StoryPicker({ stories, onPick }: { stories: EditorStoryRow[]; onPick: (id: string) => void }) {
-  return (
-    <select
-      value=""
-      onChange={(e) => {
-        if (e.target.value) onPick(e.target.value);
-        e.target.value = '';
-      }}
-      className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 focus:border-brand-red focus:outline-none"
-    >
-      <option value="">Fill from story…</option>
-      {stories.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.headline.length > 60 ? s.headline.slice(0, 57) + '…' : s.headline}
-        </option>
-      ))}
-    </select>
-  );
+  return <StoryFillPicker stories={stories} onPick={onPick} />;
 }

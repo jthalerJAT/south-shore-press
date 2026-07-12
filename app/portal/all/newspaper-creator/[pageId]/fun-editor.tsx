@@ -18,6 +18,7 @@ import Link from 'next/link';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { createClient } from '@/lib/supabase/client';
 import { FunPage } from '@/components/newspaper/fun-page';
+import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import {
   isFunPullMessage,
   type FunPageData,
@@ -36,7 +37,7 @@ type AdLite = {
   copy_file_name: string | null;
   copy_storage_path: string | null;
 };
-type StoryLite = { id: string; headline: string };
+type StoryLite = { id: string; headline: string; categories?: string[] | null };
 
 let blockCounter = 0;
 function newBlockId() {
@@ -477,21 +478,9 @@ function BlockCard({
         </div>
       ) : (
         <div className="flex flex-col gap-2">
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) onFillStory(e.target.value);
-              e.target.value = '';
-            }}
-            className="block w-full max-w-md rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
-          >
-            <option value="">Fill from a website story…</option>
-            {stories.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.headline.length > 70 ? s.headline.slice(0, 67) + '…' : s.headline}
-              </option>
-            ))}
-          </select>
+          <div className="max-w-md">
+            <StoryFillPicker stories={stories} onPick={onFillStory} />
+          </div>
           <input
             value={block.headline ?? ''}
             onChange={(e) => onPatch({ headline: e.target.value })}

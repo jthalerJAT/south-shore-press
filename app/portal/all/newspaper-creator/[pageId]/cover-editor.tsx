@@ -13,6 +13,7 @@ import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import type { SectionCoverData, CoverTile, CoverHero } from '@/lib/newspaper/section-cover';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
+import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import { PhotoUrlField } from '../photo-url-field';
 import { HeadlineField } from '../headline-field';
 import { saveCover } from '../actions';
@@ -277,21 +278,5 @@ function StoryPicker({
   onPick: (storyId: string) => void;
   compact?: boolean;
 }) {
-  return (
-    <select
-      value=""
-      onChange={(e) => {
-        if (e.target.value) onPick(e.target.value);
-        e.target.value = '';
-      }}
-      className={`rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 focus:border-brand-red focus:outline-none ${compact ? '' : 'mb-1'}`}
-    >
-      <option value="">Fill from story…</option>
-      {stories.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.headline.length > 60 ? s.headline.slice(0, 57) + '…' : s.headline}
-        </option>
-      ))}
-    </select>
-  );
+  return <StoryFillPicker stories={stories} onPick={onPick} compact={compact} />;
 }

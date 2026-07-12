@@ -7,6 +7,7 @@ import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/news
 import { PageTwo } from '@/components/newspaper/page-two';
 import { OPED_MAIN_COLUMNS, OPED_SECOND_COLUMNS, type OpEdData, type OpEdMain, type OpEdSecond } from '@/lib/newspaper/oped';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
+import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import type { Ad } from '@/lib/queries/ads';
 import { saveOpEd, fetchStoryDetail } from '../actions';
 import { uploadImage } from '../image-upload-client';
@@ -452,21 +453,5 @@ function PhotoField({
 }
 
 function StoryPicker({ stories, onPick }: { stories: EditorStoryRow[]; onPick: (id: string) => void }) {
-  return (
-    <select
-      value=""
-      onChange={(e) => {
-        if (e.target.value) onPick(e.target.value);
-        e.target.value = '';
-      }}
-      className="rounded border border-zinc-300 px-2 py-1 text-xs text-zinc-600 focus:border-brand-red focus:outline-none"
-    >
-      <option value="">Fill from story…</option>
-      {stories.map((s) => (
-        <option key={s.id} value={s.id}>
-          {s.headline.length > 60 ? s.headline.slice(0, 57) + '…' : s.headline}
-        </option>
-      ))}
-    </select>
-  );
+  return <StoryFillPicker stories={stories} onPick={onPick} />;
 }

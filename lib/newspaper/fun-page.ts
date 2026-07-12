@@ -59,7 +59,36 @@ export function getFunSource(kind: string): FunSource | null {
  *  pages share one masthead in the paper, regardless of which app fed them). */
 export const FUN_SECTION_HEADER = 'Fun Stuff';
 
-/** The self-contained page snapshot pulled from a Fun Stuff app. */
+/** A block placed in the bottom band below the pulled content. */
+export type FunSlot = 'left' | 'right' | 'full';
+export type FunAdSize = 'quarter' | 'third';
+
+export type FunBlock = {
+  id: string;
+  kind: 'ad' | 'article';
+  /** Position in the bottom band: left half, right half, or the full width. */
+  slot: FunSlot;
+  // ── ad ──
+  /** 'quarter' (1/4 page → a left/right half) or 'third' (1/3 page → full width). */
+  ad_size?: FunAdSize;
+  ad_storage_path?: string;
+  ad_file_name?: string;
+  // ── article ──
+  source_story_id?: string | null;
+  headline?: string;
+  byline?: string;
+  body?: string;
+  photo_url?: string;
+};
+
+/** True when a block occupies the full width (third-page ad / full article). */
+export function funBlockIsFull(b: FunBlock): boolean {
+  if (b.kind === 'ad') return b.ad_size !== 'quarter';
+  return b.slot === 'full';
+}
+
+/** The self-contained page snapshot pulled from a Fun Stuff app, plus the
+ *  editor-added bottom-band blocks (articles + ads). */
 export type FunPageData = {
   v: 1;
   /** `#newspaperPage` outerHTML from the source app (images inline as data URIs). */
@@ -70,23 +99,56 @@ export type FunPageData = {
   pulled_at?: string;
   /** Which app it came from, for display ("Box Office"). */
   source_label?: string;
-  /** Ad placed in the bottom third of the page (an Ad Database creative in the
-   *  newspaper-ads bucket). The pulled content fills the top two-thirds. */
-  ad_storage_path?: string;
-  ad_file_name?: string;
+  /** Articles + ads placed in the bottom band. Pulled content fills the top. */
+  blocks: FunBlock[];
 };
 
+function normalizeBlock(b: unknown, i: number): FunBlock | null {
+  if (!b || typeof b !== 'object') return null;
+  const r = b as Record<string, unknown>;
+  const kind = r.kind === 'article' ? 'article' : 'ad';
+  const slot: FunSlot = r.slot === 'left' || r.slot === 'right' ? r.slot : 'full';
+  const ad_size: FunAdSize | undefined =
+    r.ad_size === 'quarter' ? 'quarter' : r.ad_size === 'third' ? 'third' : kind === 'ad' ? 'third' : undefined;
+  return {
+    id: typeof r.id === 'string' && r.id ? r.id : `b-${i}`,
+    kind,
+    slot,
+    ad_size,
+    ad_storage_path: typeof r.ad_storage_path === 'string' ? r.ad_storage_path : undefined,
+    ad_file_name: typeof r.ad_file_name === 'string' ? r.ad_file_name : undefined,
+    source_story_id: typeof r.source_story_id === 'string' ? r.source_story_id : null,
+    headline: typeof r.headline === 'string' ? r.headline : undefined,
+    byline: typeof r.byline === 'string' ? r.byline : undefined,
+    body: typeof r.body === 'string' ? r.body : undefined,
+    photo_url: typeof r.photo_url === 'string' ? r.photo_url : undefined,
+  };
+}
+
 export function normalizeFunPage(raw: unknown): FunPageData {
-  if (!raw || typeof raw !== 'object') return { v: 1 };
-  const r = raw as Partial<FunPageData>;
+  if (!raw || typeof raw !== 'object') return { v: 1, blocks: [] };
+  const r = raw as Record<string, unknown>;
+  const blocks = Array.isArray(r.blocks)
+    ? (r.blocks as unknown[]).map((b, i) => normalizeBlock(b, i)).filter((b): b is FunBlock => b !== null)
+    : [];
+  // Back-compat: an earlier single bottom-third ad → a full third-ad block.
+  if (blocks.length === 0 && typeof r.ad_storage_path === 'string' && r.ad_storage_path) {
+    blocks.push({
+      id: 'b-legacy-ad',
+      kind: 'ad',
+      slot: 'full',
+      ad_size: 'third',
+      ad_storage_path: r.ad_storage_path,
+      ad_file_name: typeof r.ad_file_name === 'string' ? r.ad_file_name : undefined,
+    });
+  }
   return {
     v: 1,
     html: typeof r.html === 'string' ? r.html : undefined,
     css: typeof r.css === 'string' ? r.css : undefined,
     pulled_at: typeof r.pulled_at === 'string' ? r.pulled_at : undefined,
     source_label: typeof r.source_label === 'string' ? r.source_label : undefined,
-    ad_storage_path: typeof r.ad_storage_path === 'string' ? r.ad_storage_path : undefined,
-    ad_file_name: typeof r.ad_file_name === 'string' ? r.ad_file_name : undefined,
+    blocks,
   };
 }
 

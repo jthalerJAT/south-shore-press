@@ -2,13 +2,15 @@
 
 /**
  * FunEditor — editor for a "Fun Stuff" page (Box Office / Puzzles / Funny Pages /
- * History). The "Pull from <app>" button loads the standalone app off-screen with
- * `?ssp_embed=1`; the app runs its normal generation and postMessages its finished
- * page (HTML + CSS) back. We snapshot that into template_data and preview it at
- * 11×15 via <FunPage>. Save persists + locks the page.
- *
- * Nothing here changes the standalone app: the `?ssp_embed=1` flag is the only
- * thing that activates the app's (additive, gated) export hook.
+ * History).
+ *  - "Pull from <app>" loads the standalone app off-screen with `?ssp_embed=1`,
+ *    the app runs its normal generation and postMessages its finished page back;
+ *    we snapshot it into template_data and preview it at 11×15 via <FunPage>.
+ *  - "Add Article" / "Add Advertisement" add blocks to the bottom band. Ads pick
+ *    a size (1/4 or 1/3 page) + location (bottom-left/right; 1/3 spans the full
+ *    width); articles are typed or filled from a website story.
+ * Nothing here changes the standalone apps — the `?ssp_embed=1` flag is the only
+ * thing that activates their (additive, gated) export hook.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -16,12 +18,16 @@ import Link from 'next/link';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { createClient } from '@/lib/supabase/client';
 import { FunPage } from '@/components/newspaper/fun-page';
-import { isFunPullMessage, type FunPageData, type FunSource } from '@/lib/newspaper/fun-page';
-import { saveFunPage, requestAdUploadUrl } from '../actions';
+import {
+  isFunPullMessage,
+  type FunPageData,
+  type FunBlock,
+  type FunSource,
+} from '@/lib/newspaper/fun-page';
+import { saveFunPage, requestAdUploadUrl, fetchStoryDetail } from '../actions';
 
 const PREVIEW_SCALE = 0.4;
 const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
-// Funny Pages can take several minutes (per-panel image generation); be generous.
 const PULL_TIMEOUT_MS = 12 * 60 * 1000;
 
 type AdLite = {
@@ -30,18 +36,26 @@ type AdLite = {
   copy_file_name: string | null;
   copy_storage_path: string | null;
 };
+type StoryLite = { id: string; headline: string };
+
+let blockCounter = 0;
+function newBlockId() {
+  blockCounter += 1;
+  return `b-${blockCounter}-${Math.random().toString(36).slice(2, 7)}`;
+}
 
 export function FunEditor({
   pageId,
   source,
   initialData,
   ads,
+  stories,
 }: {
   pageId: string;
   source: FunSource;
   initialData: FunPageData;
-  /** Ad Database entries (for the bottom-third ad picker). */
   ads: AdLite[];
+  stories: StoryLite[];
 }) {
   const router = useRouter();
   const [data, setData] = useState<FunPageData>(initialData);
@@ -51,8 +65,7 @@ export function FunEditor({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadingAd, setUploadingAd] = useState(false);
-  const adFileRef = useRef<HTMLInputElement | null>(null);
+  const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -79,7 +92,7 @@ export function FunEditor({
     function onMessage(e: MessageEvent) {
       if (e.origin !== appOrigin) return;
       if (!isFunPullMessage(e.data)) return;
-      // Merge so a re-pull keeps the placed bottom-third ad.
+      // Merge so a re-pull keeps the placed bottom-band blocks.
       setData((d) => ({
         ...d,
         v: 1,
@@ -96,7 +109,6 @@ export function FunEditor({
     return () => window.removeEventListener('message', onMessage);
   }, [pulling, appOrigin, source.label, stopPull]);
 
-  // Clean up timers if the component unmounts mid-pull.
   useEffect(() => () => stopPull(), [stopPull]);
 
   function startPull() {
@@ -104,36 +116,48 @@ export function FunEditor({
     setSaved(false);
     setElapsed(0);
     setPulling(true);
-    // Cache-bust so each pull forces a fresh generation in the app.
     const nonce = `${Date.now()}`;
     setEmbedSrc(`${source.appUrl}/?ssp_embed=1&_pull=${nonce}`);
     tickRef.current = setInterval(() => setElapsed((s) => s + 1), 1000);
     timeoutRef.current = setTimeout(() => {
-      setError(
-        `Timed out waiting for ${source.label}. Check the app URL and that it has the embed hook, then try again.`
-      );
+      setError(`Timed out waiting for ${source.label}. Check the app URL and that it has the embed hook, then try again.`);
       stopPull();
     }, PULL_TIMEOUT_MS);
   }
 
-  function pickAd(adId: string) {
+  // ── Block helpers ──────────────────────────────────────────────
+  function patchBlock(id: string, patch: Partial<FunBlock>) {
+    setData((d) => ({ ...d, blocks: d.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) }));
+    setSaved(false);
+  }
+  function removeBlock(id: string) {
+    setData((d) => ({ ...d, blocks: d.blocks.filter((b) => b.id !== id) }));
+    setSaved(false);
+  }
+  function addArticle() {
+    setData((d) => ({ ...d, blocks: [...d.blocks, { id: newBlockId(), kind: 'article', slot: 'full' }] }));
+    setSaved(false);
+  }
+  function addAd() {
+    setData((d) => ({ ...d, blocks: [...d.blocks, { id: newBlockId(), kind: 'ad', slot: 'full', ad_size: 'third' }] }));
+    setSaved(false);
+  }
+  function setAdSize(id: string, size: 'quarter' | 'third') {
+    // A third-page ad always spans the full width; a quarter defaults to the left.
+    patchBlock(id, { ad_size: size, slot: size === 'third' ? 'full' : 'left' });
+  }
+  function pickAdCopy(id: string, adId: string) {
     const ad = ads.find((a) => a.id === adId);
     if (!ad || !ad.copy_storage_path) {
       setError('That ad has no uploaded copy yet.');
       return;
     }
-    setData((d) => ({
-      ...d,
-      ad_storage_path: ad.copy_storage_path ?? undefined,
-      ad_file_name: ad.copy_file_name ?? ad.business_name,
-    }));
-    setSaved(false);
+    patchBlock(id, { ad_storage_path: ad.copy_storage_path ?? undefined, ad_file_name: ad.copy_file_name ?? ad.business_name });
   }
-
-  async function uploadAd(file: File | null) {
+  async function uploadAdCopy(id: string, file: File | null) {
     if (!file) return;
     setError(null);
-    setUploadingAd(true);
+    setUploadingId(id);
     try {
       const signed = await requestAdUploadUrl(file.name);
       if (!signed.ok || !signed.path || !signed.token) {
@@ -148,18 +172,23 @@ export function FunEditor({
         setError(`Ad upload failed: ${upErr.message}`);
         return;
       }
-      setData((d) => ({ ...d, ad_storage_path: signed.path, ad_file_name: file.name }));
-      setSaved(false);
+      patchBlock(id, { ad_storage_path: signed.path, ad_file_name: file.name });
     } catch {
       setError('Something went wrong uploading the ad.');
     } finally {
-      setUploadingAd(false);
+      setUploadingId(null);
     }
   }
-
-  function removeAd() {
-    setData((d) => ({ ...d, ad_storage_path: undefined, ad_file_name: undefined }));
-    setSaved(false);
+  async function fillArticleFromStory(id: string, storyId: string) {
+    const d = await fetchStoryDetail(storyId);
+    if (!d) return;
+    patchBlock(id, {
+      source_story_id: storyId,
+      headline: d.headline,
+      byline: d.byline,
+      body: d.body,
+      photo_url: d.hero_photo_url ?? undefined,
+    });
   }
 
   async function handleSave() {
@@ -184,8 +213,8 @@ export function FunEditor({
       <div className="max-w-xl space-y-5">
         <p className="text-sm text-zinc-600">
           This page is generated by the <span className="font-medium">{source.label}</span> app.
-          Click <strong>Pull from {source.label}</strong> to generate a fresh page and bring it in —
-          it renders at 11×15 with the section header. Then <strong>Save Page</strong>.
+          Click <strong>Pull from {source.label}</strong> for a fresh page, then add articles/ads to
+          the bottom band and <strong>Save Page</strong>.
         </p>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -209,12 +238,7 @@ export function FunEditor({
               Cancel
             </button>
           ) : null}
-          <a
-            href={source.appUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="text-sm font-medium text-brand-red hover:underline"
-          >
+          <a href={source.appUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-red hover:underline">
             Open {source.label} app ↗
           </a>
         </div>
@@ -233,64 +257,58 @@ export function FunEditor({
           </p>
         ) : null}
 
-        {/* ── Bottom-third ad ────────────────────────────────── */}
+        {/* ── Bottom-band blocks ─────────────────────────────── */}
         <div className="pt-3 border-t border-zinc-200">
-          <div className="text-sm font-medium text-zinc-700">Ad — bottom third</div>
-          {data.ad_file_name ? (
-            <p className="mt-1 text-sm text-zinc-700">
-              <span className="font-medium">{data.ad_file_name}</span>{' '}
-              <button type="button" onClick={removeAd} className="ml-1 text-red-600 hover:underline">
-                remove
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-medium text-zinc-700">Bottom band — articles &amp; ads</div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={addArticle}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-brand-red border border-brand-red/40 hover:bg-red-50 rounded transition-colors"
+              >
+                + Add Article
               </button>
+              <button
+                type="button"
+                onClick={addAd}
+                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-brand-red border border-brand-red/40 hover:bg-red-50 rounded transition-colors"
+              >
+                + Add Advertisement
+              </button>
+            </div>
+          </div>
+
+          {data.blocks.length === 0 ? (
+            <p className="mt-2 text-xs text-zinc-500">
+              The pulled page fills the top of the page. Add an article or ad to place it in the bottom band.
             </p>
           ) : (
-            <p className="mt-1 text-xs text-zinc-500">
-              The pulled page fills the top two-thirds; place an ad in the bottom third.
-            </p>
+            <div className="mt-3 space-y-3">
+              {data.blocks.map((b) => (
+                <BlockCard
+                  key={b.id}
+                  block={b}
+                  ads={ads}
+                  stories={stories}
+                  uploading={uploadingId === b.id}
+                  onPatch={(patch) => patchBlock(b.id, patch)}
+                  onAdSize={(size) => setAdSize(b.id, size)}
+                  onPickAd={(adId) => pickAdCopy(b.id, adId)}
+                  onUploadAd={(file) => uploadAdCopy(b.id, file)}
+                  onFillStory={(storyId) => fillArticleFromStory(b.id, storyId)}
+                  onRemove={() => removeBlock(b.id)}
+                />
+              ))}
+            </div>
           )}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <select
-              value=""
-              onChange={(e) => {
-                if (e.target.value) pickAd(e.target.value);
-                e.target.value = '';
-              }}
-              className="rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
-            >
-              <option value="">Choose from Ad Database…</option>
-              {ads
-                .filter((a) => a.copy_storage_path)
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.business_name}
-                    {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
-                  </option>
-                ))}
-            </select>
-            <span className="text-xs text-zinc-400">or</span>
-            <input
-              ref={adFileRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={(e) => uploadAd(e.target.files?.[0] ?? null)}
-            />
-            <button
-              type="button"
-              onClick={() => adFileRef.current?.click()}
-              disabled={uploadingAd}
-              className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
-            >
-              {uploadingAd ? 'Uploading…' : '+ Upload Ad'}
-            </button>
-          </div>
         </div>
 
         <div className="flex items-center gap-3 pt-2 border-t border-zinc-200">
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || !data.html}
+            disabled={saving}
             className="inline-flex items-center px-5 py-2.5 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-semibold uppercase tracking-wide rounded transition-colors"
           >
             {saving ? 'Saving…' : 'Save Page'}
@@ -327,18 +345,180 @@ export function FunEditor({
           src={embedSrc}
           aria-hidden="true"
           tabIndex={-1}
-          style={{
-            position: 'fixed',
-            left: -99999,
-            top: 0,
-            width: 820,
-            height: 1240,
-            border: 0,
-            opacity: 0,
-            pointerEvents: 'none',
-          }}
+          style={{ position: 'fixed', left: -99999, top: 0, width: 820, height: 1240, border: 0, opacity: 0, pointerEvents: 'none' }}
         />
       ) : null}
+    </div>
+  );
+}
+
+function BlockCard({
+  block,
+  ads,
+  stories,
+  uploading,
+  onPatch,
+  onAdSize,
+  onPickAd,
+  onUploadAd,
+  onFillStory,
+  onRemove,
+}: {
+  block: FunBlock;
+  ads: AdLite[];
+  stories: StoryLite[];
+  uploading: boolean;
+  onPatch: (patch: Partial<FunBlock>) => void;
+  onAdSize: (size: 'quarter' | 'third') => void;
+  onPickAd: (adId: string) => void;
+  onUploadAd: (file: File | null) => void;
+  onFillStory: (storyId: string) => void;
+  onRemove: () => void;
+}) {
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const isQuarter = block.kind === 'ad' && block.ad_size === 'quarter';
+
+  return (
+    <div className="rounded-lg border border-zinc-200 bg-white p-4">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-zinc-800">
+            {block.kind === 'ad' ? 'Advertisement' : 'Article'}
+          </span>
+          {block.kind === 'ad' ? (
+            <>
+              <select
+                value={block.ad_size ?? 'third'}
+                onChange={(e) => onAdSize(e.target.value as 'quarter' | 'third')}
+                className="rounded border border-zinc-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none"
+              >
+                <option value="quarter">1/4 page</option>
+                <option value="third">1/3 page (full bottom)</option>
+              </select>
+              {isQuarter ? (
+                <select
+                  value={block.slot === 'right' ? 'right' : 'left'}
+                  onChange={(e) => onPatch({ slot: e.target.value as 'left' | 'right' })}
+                  className="rounded border border-zinc-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none"
+                >
+                  <option value="left">Bottom-left</option>
+                  <option value="right">Bottom-right</option>
+                </select>
+              ) : null}
+            </>
+          ) : (
+            <select
+              value={block.slot}
+              onChange={(e) => onPatch({ slot: e.target.value as 'left' | 'right' | 'full' })}
+              className="rounded border border-zinc-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none"
+            >
+              <option value="full">Full width</option>
+              <option value="left">Bottom-left</option>
+              <option value="right">Bottom-right</option>
+            </select>
+          )}
+        </div>
+        <button type="button" onClick={onRemove} className="text-xs font-medium text-red-600 hover:underline">
+          Remove
+        </button>
+      </div>
+
+      {block.kind === 'ad' ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {block.ad_file_name ? (
+            <span className="text-sm text-zinc-700">
+              {block.ad_file_name}{' '}
+              <button
+                type="button"
+                onClick={() => onPatch({ ad_storage_path: undefined, ad_file_name: undefined })}
+                className="ml-1 text-red-600 hover:underline"
+              >
+                remove
+              </button>
+            </span>
+          ) : (
+            <>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) onPickAd(e.target.value);
+                  e.target.value = '';
+                }}
+                className="rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
+              >
+                <option value="">Choose from Ad Database…</option>
+                {ads
+                  .filter((a) => a.copy_storage_path)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.business_name}
+                      {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
+                    </option>
+                  ))}
+              </select>
+              <span className="text-xs text-zinc-400">or</span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*,application/pdf"
+                className="hidden"
+                onChange={(e) => onUploadAd(e.target.files?.[0] ?? null)}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
+              >
+                {uploading ? 'Uploading…' : '+ Upload Ad'}
+              </button>
+            </>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) onFillStory(e.target.value);
+              e.target.value = '';
+            }}
+            className="block w-full max-w-md rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
+          >
+            <option value="">Fill from a website story…</option>
+            {stories.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.headline.length > 70 ? s.headline.slice(0, 67) + '…' : s.headline}
+              </option>
+            ))}
+          </select>
+          <input
+            value={block.headline ?? ''}
+            onChange={(e) => onPatch({ headline: e.target.value })}
+            placeholder="Headline"
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+          />
+          <input
+            value={block.byline ?? ''}
+            onChange={(e) => onPatch({ byline: e.target.value })}
+            placeholder="Byline (optional)"
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+          />
+          <textarea
+            rows={4}
+            value={block.body ?? ''}
+            onChange={(e) => onPatch({ body: e.target.value })}
+            placeholder="Body"
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+          />
+          <input
+            value={block.photo_url ?? ''}
+            onChange={(e) => onPatch({ photo_url: e.target.value })}
+            placeholder="Photo URL (optional)"
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+          />
+        </div>
+      )}
     </div>
   );
 }

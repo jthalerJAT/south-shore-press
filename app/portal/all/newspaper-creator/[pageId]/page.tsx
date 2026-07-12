@@ -119,7 +119,7 @@ export default async function NewspaperPageEditorPage({
     if (tid === 'fun') {
       const source = getFunSource(page.kind);
       if (!source) notFound();
-      const ads = await getAds();
+      const [ads, stories] = await Promise.all([getAds(), getAllStoriesForEditor()]);
       return (
         <PortalShell
           user={user}
@@ -133,6 +133,7 @@ export default async function NewspaperPageEditorPage({
             source={source}
             initialData={normalizeFunPage(page.template_data)}
             ads={ads}
+            stories={stories}
           />
         </PortalShell>
       );

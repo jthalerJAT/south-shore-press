@@ -30,7 +30,9 @@ import { saveFunPage, requestAdUploadUrl, requestImageUploadUrl, fetchStoryDetai
 
 const PREVIEW_SCALE = 0.4;
 const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
-const PULL_TIMEOUT_MS = 12 * 60 * 1000;
+// Generous: Chrome throttles timers in hidden/background tabs, which can
+// stretch a ~9-minute Funny Pages generation well past 20 minutes.
+const PULL_TIMEOUT_MS = 25 * 60 * 1000;
 
 type AdLite = {
   id: string;
@@ -273,7 +275,9 @@ export function FunEditor({
         {pulling ? (
           <div className="text-sm text-zinc-600 bg-zinc-50 border border-zinc-200 rounded px-3 py-2">
             Generating in {source.label}… {mins}:{String(secs).padStart(2, '0')} elapsed. This can take
-            several minutes (especially Funny Pages). Keep this tab open.
+            several minutes (especially Funny Pages).{' '}
+            <strong>Keep this tab open and in front</strong> — Chrome slows hidden tabs, which can
+            more than double the wait.
           </div>
         ) : null}
 

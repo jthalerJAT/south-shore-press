@@ -719,7 +719,9 @@ export async function setPageKind(pageId: string, kind: NpKind): Promise<Result>
   const supabase = createClient();
   const { error } = await supabase
     .from('np_pages')
-    .update({ kind, status: 'tbd', updated_at: new Date().toISOString() })
+    // Retitle to the new kind's label so the board reflects the conversion
+    // (e.g. an "Ad" page converted to the Back Page reads "Back Page").
+    .update({ kind, title: templateFor(kind).label, status: 'tbd', updated_at: new Date().toISOString() })
     .eq('id', pageId);
   if (error) {
     console.error('[setPageKind]', error);

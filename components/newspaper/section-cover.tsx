@@ -144,18 +144,42 @@ export function SectionCover({
       {/* ── Header ───────────────────────────────────────────── */}
       <div style={{ height: headerH }} className="flex flex-col">
         {variant === 'sports' ? (
-          <div className="flex items-center justify-between gap-4 px-1 pt-2">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={logoUrl} alt="" style={{ height: 64, width: 'auto', objectFit: 'contain' }} />
-            <div className="flex-1 flex flex-col items-end justify-center" style={{ background: NAVY, color: '#fff', height: 96, paddingRight: 16 }}>
-              <span className="font-headline" style={{ fontSize: 60, fontWeight: 800, lineHeight: 1 }}>
-                {mastheadWord ?? 'Sports'}
-              </span>
-              <span style={{ fontSize: 11, fontWeight: 700, maxWidth: 320, textAlign: 'right' }}>
-                {data.tagline}
-              </span>
+          // Sports back-cover header (p32 of the 2026-06-17 issue): issue date
+          // top-right, logo left, and a navy masthead block with a slanted left
+          // edge holding the big "Sports" word + the section tagline. No black
+          // rule below — the navy block's bottom edge is the divider.
+          <>
+            <div className="text-right" style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', padding: '2px 2px 4px 0' }}>
+              {data.issue_date || '— DATE —'}
             </div>
-          </div>
+            <div className="flex items-stretch flex-1" style={{ minHeight: 0 }}>
+              <div className="flex items-center" style={{ flex: '0 0 46%', minWidth: 0 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={logoUrl}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left center' }}
+                />
+              </div>
+              <div
+                className="flex-1 flex flex-col justify-center"
+                style={{
+                  background: NAVY,
+                  color: '#fff',
+                  clipPath: 'polygon(44px 0, 100% 0, 100% 100%, 0 100%)',
+                  paddingLeft: 68,
+                  paddingRight: 12,
+                }}
+              >
+                <span className="font-headline" style={{ fontSize: 92, fontWeight: 800, lineHeight: 0.95 }}>
+                  {mastheadWord ?? 'Sports'}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25, maxWidth: 380 }}>
+                  {data.tagline}
+                </span>
+              </div>
+            </div>
+          </>
         ) : (
           <>
             {/* Masthead spans the full header width. The source PNG has ~16%
@@ -175,7 +199,7 @@ export function SectionCover({
             </div>
           </>
         )}
-        <div style={{ borderBottom: '2px solid #000', marginTop: 3 }} />
+        {variant === 'news' ? <div style={{ borderBottom: '2px solid #000', marginTop: 3 }} /> : <div style={{ height: 6 }} />}
       </div>
 
       {/* ── Hero ─────────────────────────────────────────────── */}

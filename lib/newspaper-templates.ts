@@ -149,16 +149,23 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
   fantasy_baseball: { label: 'Fantasy Baseball', slots: 'open', mode: 'flow', master: true },
   betting_barton: { label: 'Betting With Barton', slots: 'open', mode: 'flow', master: true },
   sports: { label: 'Sports', slots: 'open', mode: 'flow', master: true },
+  // The printed back page is the Sports back cover (p32 of the 2026-06-17
+  // issue): sports masthead header, hero photo + stacked headline, 0–3 teaser
+  // tiles with "Story on pg. X" refs, no bottom banner.
   back: {
     label: 'Back Page',
-    slots: [
-      { key: 'main', label: 'Main Story' },
-      { key: 'lower1', label: 'Lower Tile 1' },
-      { key: 'lower2', label: 'Lower Tile 2' },
-      { key: 'lower3', label: 'Lower Tile 3' },
-    ],
-    mode: 'flow',
+    slots: 'open',
+    mode: 'template',
     master: true,
+    template: 'section_cover',
+    cover: {
+      variant: 'sports',
+      showYearIssue: false,
+      mastheadWord: 'Sports',
+      defaultTagline: 'SUFFOLK SPORTS Teams, Scores, Photos, News, Columns and More',
+      defaultTabLabel: 'SPORTS',
+      defaultBanner: '',
+    },
   },
 };
 
@@ -175,7 +182,8 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
  *    19–22    Fun Stuff — Box Office / Puzzles / Funny Pages / History (4)
  *    23–24    Professional Sports (2)
  *    25–28    Local Sports (4)
- *    29–40    Ads — fill the remainder (12)
+ *    29–39    Ads — fill the remainder (11)
+ *    40       Back Page (Sports back cover)
  *  Interior news/opinion/sports pages are flow pages; `section` seeds the
  *  section-flag header. Editors can rename headers, insert, reorder, convert,
  *  and delete pages from here. */
@@ -222,7 +230,7 @@ export const DEFAULT_PAGES: ReadonlyArray<{
   { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
   { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
   { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
-  // Ads — fill the remainder to 40 (12)
+  // Ads — fill the remainder (11)
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
@@ -234,7 +242,8 @@ export const DEFAULT_PAGES: ReadonlyArray<{
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
+  // Page 40 — the Sports back cover
+  { kind: 'back', title: 'Back Page' },
 ];
 
 export function templateFor(kind: string): NpTemplate {
@@ -292,6 +301,7 @@ export const ASSIGNABLE_KINDS: ReadonlyArray<{ kind: NpKind; label: string }> = 
   { kind: 'legals', label: 'Legals' },
   { kind: 'classifieds', label: 'Classifieds' },
   { kind: 'sports', label: 'Sports' },
+  { kind: 'back', label: 'Back Page (Sports cover)' },
 ];
 
 export const AD_SIZES = [

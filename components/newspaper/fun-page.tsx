@@ -70,11 +70,12 @@ export function FunPage({
       } catch {
         /* srcdoc is same-origin; stay defensive */
       }
+      // Fit to WIDTH so the pulled page fills the column edge-to-edge (no side
+      // letterboxing). If it ends up taller than the area it clips at the bottom,
+      // like a real print page.
       const availW = area2.clientWidth || CONTENT_W_PX;
-      const availH = area2.clientHeight || CONTENT_H_PX;
-      const s = Math.min(availW / APP_PAGE_W, availH / h);
       setContentH(h);
-      setScale(s > 0 ? s : availW / APP_PAGE_W);
+      setScale(availW / APP_PAGE_W);
     }
     frame.addEventListener('load', fit);
     const t1 = setTimeout(fit, 150);

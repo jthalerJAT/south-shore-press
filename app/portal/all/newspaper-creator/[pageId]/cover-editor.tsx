@@ -92,7 +92,6 @@ export function CoverEditor({
           </Section>
         ) : (
           <Section title="Header">
-            <TextField label="Tagline" value={data.tagline ?? ''} onChange={(v) => setField('tagline', v)} />
             <TextField label="Issue date" value={data.issue_date ?? ''} onChange={(v) => setField('issue_date', v)} placeholder="JUNE 17, 2026" />
           </Section>
         )}

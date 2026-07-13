@@ -178,8 +178,8 @@ export function SectionCover({
                 }}
               >
                 {/* House newspaper headline face (Montserrat), same as the rest
-                    of the paper — NOT the website's Playfair. lineHeight 1 keeps
-                    the descender clear of the tagline below. */}
+                    of the paper — NOT the website's Playfair. Just the word,
+                    no tagline underneath. */}
                 <span
                   style={{
                     fontFamily: "var(--font-news-headline), 'Helvetica Neue', Arial, sans-serif",
@@ -189,9 +189,6 @@ export function SectionCover({
                   }}
                 >
                   {mastheadWord ?? 'Sports'}
-                </span>
-                <span style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.25, marginTop: 3 }}>
-                  {data.tagline}
                 </span>
               </div>
             </div>

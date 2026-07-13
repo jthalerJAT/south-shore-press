@@ -133,7 +133,9 @@ export function SectionCover({
   mastheadWord?: string;
   logoUrl?: string;
 }) {
-  const headerH = 198;
+  // The sports back-cover header is a single compact band (date + logo/navy
+  // row); the news front's stacked masthead needs more room.
+  const headerH = variant === 'sports' ? 150 : 198;
   const bannerH = data.banner_text ? 36 : 0;
   const tiles = data.tiles.slice(0, data.tile_count);
   const tilesH = tiles.length > 0 ? 220 : 0;
@@ -153,12 +155,16 @@ export function SectionCover({
               {data.issue_date || '— DATE —'}
             </div>
             <div className="flex items-stretch flex-1" style={{ minHeight: 0 }}>
-              <div className="flex items-center" style={{ flex: '0 0 46%', minWidth: 0 }}>
+              {/* The logo PNG carries transparent padding top/bottom, so
+                  object-fit COVER in the wide left box crops it and the artwork
+                  spans the full band height — top of the logo to the bottom of
+                  the Sports word. */}
+              <div style={{ flex: '0 0 58%', minWidth: 0, overflow: 'hidden' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={logoUrl}
                   alt=""
-                  style={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'left center' }}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'left center' }}
                 />
               </div>
               <div
@@ -166,15 +172,25 @@ export function SectionCover({
                 style={{
                   background: NAVY,
                   color: '#fff',
-                  clipPath: 'polygon(44px 0, 100% 0, 100% 100%, 0 100%)',
-                  paddingLeft: 68,
-                  paddingRight: 12,
+                  clipPath: 'polygon(36px 0, 100% 0, 100% 100%, 0 100%)',
+                  paddingLeft: 52,
+                  paddingRight: 10,
                 }}
               >
-                <span className="font-headline" style={{ fontSize: 92, fontWeight: 800, lineHeight: 0.95 }}>
+                {/* House newspaper headline face (Montserrat), same as the rest
+                    of the paper — NOT the website's Playfair. lineHeight 1 keeps
+                    the descender clear of the tagline below. */}
+                <span
+                  style={{
+                    fontFamily: "var(--font-news-headline), 'Helvetica Neue', Arial, sans-serif",
+                    fontSize: 80,
+                    fontWeight: 800,
+                    lineHeight: 1,
+                  }}
+                >
                   {mastheadWord ?? 'Sports'}
                 </span>
-                <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25, maxWidth: 380 }}>
+                <span style={{ fontSize: 12.5, fontWeight: 700, lineHeight: 1.25, marginTop: 3 }}>
                   {data.tagline}
                 </span>
               </div>

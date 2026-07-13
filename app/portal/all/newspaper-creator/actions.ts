@@ -224,6 +224,14 @@ export async function addAdToPage(pageId: string, adId: string): Promise<Result>
     .eq('id', adId)
     .maybeSingle();
   if (!ad) return { ok: false, error: 'Ad not found.' };
+  // Without an uploaded copy file there is nothing to render on the page —
+  // placing it would just look like a silent failure.
+  if (!ad.copy_storage_path) {
+    return {
+      ok: false,
+      error: `"${ad.business_name}" has no copy uploaded yet — add the file on its page in the Ad Database first.`,
+    };
+  }
 
   // The ad's own Copy Size drives how big it lands on the page (default
   // quarter when unset). Editors can still override per-placement.

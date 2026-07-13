@@ -44,6 +44,11 @@ export function AdPicker({
   }
 
   async function pickAd(adId: string) {
+    const ad = ads.find((a) => a.id === adId);
+    if (ad && !ad.copy_storage_path) {
+      setError(`"${ad.business_name}" has no copy uploaded yet — add the file on its page in the Ad Database first.`);
+      return;
+    }
     setBusy(true);
     setError(null);
     const res = await addAdToPage(pageId, adId);
@@ -103,21 +108,28 @@ export function AdPicker({
               No ads yet. Add them in the Ad Database.
             </li>
           ) : (
-            ads.map((a) => (
-              <li
-                key={a.id}
-                draggable
-                onDragStart={(e) => e.dataTransfer.setData(DRAG_KEY, a.id)}
-                onClick={() => !busy && pickAd(a.id)}
-                className="px-3 py-2 cursor-pointer hover:bg-zinc-50 transition-colors"
-                title="Drag to the page, or click to place"
-              >
-                <div className="text-[13px] font-medium text-zinc-900 truncate">{a.business_name}</div>
-                <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-                  {a.copy_file_name || (a.copy_storage_path ? 'Copy on file' : 'No copy')}
-                </div>
-              </li>
-            ))
+            ads.map((a) => {
+              const hasCopy = Boolean(a.copy_storage_path);
+              return (
+                <li
+                  key={a.id}
+                  draggable={hasCopy}
+                  onDragStart={(e) => hasCopy && e.dataTransfer.setData(DRAG_KEY, a.id)}
+                  onClick={() => !busy && pickAd(a.id)}
+                  className={
+                    hasCopy
+                      ? 'px-3 py-2 cursor-pointer hover:bg-zinc-50 transition-colors'
+                      : 'px-3 py-2 cursor-not-allowed opacity-50'
+                  }
+                  title={hasCopy ? 'Drag to the page, or click to place' : 'No copy uploaded — add the file in the Ad Database first'}
+                >
+                  <div className="text-[13px] font-medium text-zinc-900 truncate">{a.business_name}</div>
+                  <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
+                    {a.copy_file_name || (hasCopy ? 'Copy on file' : 'No copy — upload it in the Ad Database')}
+                  </div>
+                </li>
+              );
+            })
           )}
         </ul>
       </div>

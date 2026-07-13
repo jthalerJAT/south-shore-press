@@ -504,14 +504,24 @@ function SortablePageRow({
   const master = isMaster(page.kind);
   const included = page.include_in_paper !== false;
 
-  // Full-ad pages keep their content in template_data, not np_items, so the
-  // item-summary list is always empty for them — show the placed ad instead of
-  // the misleading "No content yet".
-  const td = (page.template_data ?? {}) as { business_name?: string; file_name?: string; storage_path?: string };
+  // Full-ad and Fun Stuff pages keep their content in template_data, not
+  // np_items, so the item-summary list is always empty for them — show what's
+  // actually placed instead of the misleading "No content yet".
+  const td = (page.template_data ?? {}) as {
+    business_name?: string;
+    file_name?: string;
+    storage_path?: string;
+    snapshot_path?: string;
+    html?: string;
+    source_label?: string;
+    pulled_at?: string;
+  };
   const placedAdLabel =
     page.kind === 'full_page_ad' && td.storage_path
       ? `Ad: ${td.business_name || td.file_name || 'placed'}`
-      : null;
+      : page.kind.startsWith('fun_') && (td.snapshot_path || td.html)
+        ? `Pulled from ${td.source_label ?? 'app'}${td.pulled_at ? ` — ${new Date(td.pulled_at).toLocaleDateString()}` : ''}`
+        : null;
 
   return (
     <li

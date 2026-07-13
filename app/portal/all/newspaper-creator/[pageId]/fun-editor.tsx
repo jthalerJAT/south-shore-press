@@ -25,7 +25,8 @@ import {
   type FunBlock,
   type FunSource,
 } from '@/lib/newspaper/fun-page';
-import { saveFunPage, requestAdUploadUrl, fetchStoryDetail } from '../actions';
+import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
+import { saveFunPage, requestAdUploadUrl, requestImageUploadUrl, fetchStoryDetail } from '../actions';
 
 const PREVIEW_SCALE = 0.4;
 const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
@@ -195,14 +196,39 @@ export function FunEditor({
   async function handleSave() {
     setSaving(true);
     setError(null);
-    const res = await saveFunPage(pageId, data as unknown as Record<string, unknown>);
-    setSaving(false);
-    if (!res.ok) {
-      setError(res.error ?? 'Could not save.');
-      return;
+    try {
+      let payload: FunPageData = data;
+      // A freshly pulled snapshot carries every panel image inline — far too
+      // large for a server-action body (1MB cap) or a np_pages row. Upload it
+      // to Storage and save only the reference.
+      if (data.html) {
+        const signed = await requestImageUploadUrl(`fun-snapshot-${source.key}.json`);
+        if (!signed.ok || !signed.path || !signed.token) {
+          throw new Error(signed.error ?? 'Could not start the snapshot upload.');
+        }
+        const supabase = createClient();
+        const blob = new Blob([JSON.stringify({ html: data.html, css: data.css ?? '' })], {
+          type: 'application/json',
+        });
+        const { error: upErr } = await supabase.storage
+          .from(NEWSPAPER_IMAGES_BUCKET)
+          .uploadToSignedUrl(signed.path, signed.token, blob, { contentType: 'application/json' });
+        if (upErr) throw new Error(`Snapshot upload failed: ${upErr.message}`);
+        payload = { ...data, snapshot_path: signed.path, html: undefined, css: undefined };
+      }
+      const res = await saveFunPage(pageId, payload as unknown as Record<string, unknown>);
+      if (!res.ok) throw new Error(res.error ?? 'Could not save.');
+      // Keep the inline html for the live preview, but remember the stored path.
+      if (payload.snapshot_path) {
+        setData((d) => ({ ...d, snapshot_path: payload.snapshot_path }));
+      }
+      setSaved(true);
+      router.refresh();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Something went wrong saving the page.');
+    } finally {
+      setSaving(false);
     }
-    setSaved(true);
-    router.refresh();
   }
 
   const mins = Math.floor(elapsed / 60);

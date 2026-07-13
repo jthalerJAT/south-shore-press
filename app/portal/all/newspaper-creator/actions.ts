@@ -659,7 +659,10 @@ export async function saveClassifiedPage(pageId: string, data: Record<string, un
 export async function saveFunPage(pageId: string, data: Record<string, unknown>): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
-  const hasContent = typeof data.html === 'string' && (data.html as string).length > 0;
+  // Pulled content is either inline html (legacy) or a Storage snapshot ref.
+  const hasContent =
+    (typeof data.html === 'string' && (data.html as string).length > 0) ||
+    (typeof data.snapshot_path === 'string' && (data.snapshot_path as string).length > 0);
   const { error } = await supabase
     .from('np_pages')
     .update({ template_data: data, status: hasContent ? 'locked' : 'tbd', updated_at: new Date().toISOString() })

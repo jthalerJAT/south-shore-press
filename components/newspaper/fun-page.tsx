@@ -12,8 +12,9 @@
  * Used by the editor preview, the per-page proof, View File, and the press print
  * route — so screen == print.
  */
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
+import { imagePublicUrl } from '@/lib/newspaper-images';
 import { adFilePublicUrl } from '@/lib/ad-files';
 import { AdCopyView } from './ad-copy';
 import { SectionFlag } from './section-flag';
@@ -44,9 +45,28 @@ export function FunPage({
   const [scale, setScale] = useState<number | null>(null);
   const [frameW, setFrameW] = useState(APP_PAGE_W);
   const [contentH, setContentH] = useState(APP_PAGE_W * FALLBACK_RATIO);
+  // Saved pages hold the pulled snapshot in Storage (it's far too large for a
+  // row); fetch it when no inline html was provided.
+  const [fetchedSnap, setFetchedSnap] = useState<{ html: string; css: string } | null>(null);
 
-  const html = data.html ?? '';
-  const css = data.css ?? '';
+  useEffect(() => {
+    if (data.html || !data.snapshot_path) return;
+    let alive = true;
+    fetch(imagePublicUrl(data.snapshot_path))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (alive && j && typeof j.html === 'string') {
+          setFetchedSnap({ html: j.html, css: typeof j.css === 'string' ? j.css : '' });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [data.html, data.snapshot_path]);
+
+  const html = data.html ?? fetchedSnap?.html ?? '';
+  const css = data.css ?? fetchedSnap?.css ?? '';
   const blocks = data.blocks ?? [];
 
   // App CSS first, then our overrides last so they reliably win: hide the app's
@@ -169,7 +189,9 @@ export function FunPage({
             className="border-2 border-dashed border-zinc-300 text-zinc-400 text-sm flex items-center justify-center text-center px-6"
             style={{ width: '100%', height: '100%' }}
           >
-            Nothing pulled yet — click “Pull from …” to generate this page.
+            {data.snapshot_path
+              ? 'Loading the saved page…'
+              : 'Nothing pulled yet — click “Pull from …” to generate this page.'}
           </div>
         ) : null}
       </div>

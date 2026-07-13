@@ -91,10 +91,16 @@ export function funBlockIsFull(b: FunBlock): boolean {
  *  editor-added bottom-band blocks (articles + ads). */
 export type FunPageData = {
   v: 1;
-  /** `#newspaperPage` outerHTML from the source app (images inline as data URIs). */
+  /** `#newspaperPage` outerHTML from the source app (images inline as data URIs).
+   *  Only held in editor state during a pull — on save the snapshot moves to
+   *  Storage (snapshot_path) because inline panel art makes it far too large
+   *  for a server-action payload / a np_pages row. */
   html?: string;
   /** The source app's combined `<style>` CSS. */
   css?: string;
+  /** Path of the saved `{html, css}` JSON snapshot in the newspaper-images
+   *  bucket. Renderers fetch it when `html` isn't inline. */
+  snapshot_path?: string;
   /** ISO timestamp of the last successful pull. */
   pulled_at?: string;
   /** Which app it came from, for display ("Box Office"). */
@@ -146,6 +152,7 @@ export function normalizeFunPage(raw: unknown): FunPageData {
     v: 1,
     html: typeof r.html === 'string' ? r.html : undefined,
     css: typeof r.css === 'string' ? r.css : undefined,
+    snapshot_path: typeof r.snapshot_path === 'string' ? r.snapshot_path : undefined,
     pulled_at: typeof r.pulled_at === 'string' ? r.pulled_at : undefined,
     source_label: typeof r.source_label === 'string' ? r.source_label : undefined,
     blocks,
@@ -153,7 +160,7 @@ export function normalizeFunPage(raw: unknown): FunPageData {
 }
 
 export function funPageHasContent(data: FunPageData): boolean {
-  return Boolean(data.html && data.html.length > 0);
+  return Boolean((data.html && data.html.length > 0) || data.snapshot_path);
 }
 
 /** The message a Fun Stuff app posts back when loaded with `?ssp_embed=1`. */

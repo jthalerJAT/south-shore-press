@@ -23,6 +23,7 @@ import { normalizeOpEd, fillOpEdFromStory, fillOpEdAd } from '@/lib/newspaper/op
 import { normalizePageFour, fillPageFourFromStory, fillPageFourAd } from '@/lib/newspaper/page-four';
 import { fillFullAdFromAd, normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage, fillClassifiedFromRecord } from '@/lib/newspaper/classified';
+import { legalNoticeLabel } from '@/lib/newspaper/legal-page';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 // Journalists can upload photos for stories they're working on (but not manage
@@ -724,6 +725,45 @@ export async function savePageFour(pageId: string, data: Record<string, unknown>
     .eq('id', pageId);
   if (error) {
     console.error('[savePageFour]', error);
+    return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Save typed legal-notice copy into the Legal Notices database (reusable —
+ *  publication notices run multiple consecutive weeks). */
+export async function createLegalNotice(
+  body: string
+): Promise<{ ok: boolean; error?: string; id?: string }> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const trimmed = (body ?? '').trim();
+  if (!trimmed) return { ok: false, error: 'The notice copy is empty.' };
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('legal_notices')
+    .insert({ label: legalNoticeLabel(trimmed), body: trimmed })
+    .select('id')
+    .single();
+  if (error || !data) {
+    console.error('[createLegalNotice]', error);
+    return { ok: false, error: 'Could not save the notice. Is migration 034 applied?' };
+  }
+  revalidatePath(BASE);
+  return { ok: true, id: (data as { id: string }).id };
+}
+
+/** Persist a Legal Notices template page's placed notices and lock it. */
+export async function saveLegalPage(pageId: string, data: Record<string, unknown>): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[saveLegalPage]', error);
     return { ok: false, error: 'Could not save the page.' };
   }
   revalidatePath(BASE);

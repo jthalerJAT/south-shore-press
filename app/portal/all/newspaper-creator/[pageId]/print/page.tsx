@@ -10,6 +10,8 @@ import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFunPage } from '@/lib/newspaper/fun-page';
+import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
+import { LegalPage } from '@/components/newspaper/legal-page';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
@@ -107,6 +109,8 @@ export default async function PagePrintProof({
           <ClassifiedPage data={normalizeClassifiedPage(page.template_data)} />
         ) : isTemplate && tid === 'fun' ? (
           <FunPage data={normalizeFunPage(page.template_data)} />
+        ) : isTemplate && tid === 'legal' ? (
+          <LegalPage data={normalizeLegalPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate ? (
           <SectionCover
             data={normalizeCover(page.template_data, page.kind)}

@@ -12,6 +12,8 @@ import { normalizePageFour } from '@/lib/newspaper/page-four';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
+import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
+import { getLegalNotices } from '@/lib/queries/legal-notices';
 import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
 import { CoverEditor } from './cover-editor';
@@ -20,6 +22,7 @@ import { PageFourEditor } from './page-four-editor';
 import { ClassifiedEditor } from './classified-editor';
 import { FullAdEditor } from './full-ad-editor';
 import { FunEditor } from './fun-editor';
+import { LegalEditor } from './legal-editor';
 
 export const metadata: Metadata = {
   title: 'Edit Page · Newspaper Creator',
@@ -134,6 +137,27 @@ export default async function NewspaperPageEditorPage({
             initialData={normalizeFunPage(page.template_data)}
             ads={ads}
             stories={stories}
+          />
+        </PortalShell>
+      );
+    }
+
+    if (tid === 'legal') {
+      const [savedNotices, issueDate] = await Promise.all([getLegalNotices(), getIssueDate()]);
+      return (
+        <PortalShell
+          user={user}
+          activeTab="all"
+          hideTabs
+          title={`Edit — ${displayTitle}`}
+          backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+        >
+          <LegalEditor
+            pageId={page.id}
+            pageNumber={ordinal}
+            dateLabel={issueDate}
+            initialData={normalizeLegalPage(page.template_data)}
+            savedNotices={savedNotices}
           />
         </PortalShell>
       );

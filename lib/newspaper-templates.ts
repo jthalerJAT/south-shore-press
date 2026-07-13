@@ -51,7 +51,7 @@ export type CoverConfig = {
 };
 
 /** Which bespoke template editor/renderer a template-mode page uses. */
-export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified' | 'fun';
+export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified' | 'fun' | 'legal';
 
 export type NpTemplate = {
   label: string;
@@ -125,7 +125,9 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     template: 'full_ad',
   },
   generic: { label: 'Page', slots: 'open', mode: 'flow', master: false },
-  legals: { label: 'Legals', slots: 'open', mode: 'flow', master: true },
+  // Printed legals layout (p18 of the 2026-06-17 issue): LEGAL NOTICES banner,
+  // dense multi-column typed notice copy, EMAIL LEGAL NOTICES footer.
+  legals: { label: 'Legal Notices', slots: 'open', mode: 'template', master: true, template: 'legal' },
   classifieds: { label: 'Classifieds', slots: 'open', mode: 'template', master: true, template: 'classified' },
   fun_times: {
     label: 'Fun Times',

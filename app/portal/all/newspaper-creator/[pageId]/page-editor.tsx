@@ -9,6 +9,8 @@ import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/news
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Ad } from '@/lib/queries/ads';
 import { SectionFlag } from '@/components/newspaper/section-flag';
+import { PageHeader } from '@/components/newspaper/page-header';
+import { ColophonRail, COLOPHON_RAIL_W, COLOPHON_GAP } from '@/components/newspaper/colophon-rail';
 import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import { ProofBands, type ProofItem } from './print/proof-bands';
 import { PhotoUrlField } from '../photo-url-field';
@@ -43,6 +45,8 @@ export function PageEditor({
   initialColumns = null,
   editorStories,
   ads = [],
+  pageNumber = 1,
+  dateLabel,
 }: {
   pageId: string;
   pageTitle: string;
@@ -58,6 +62,10 @@ export function PageEditor({
   editorStories: EditorStoryRow[];
   /** Ad Database rows for the per-ad "Choose from Ad Database" picker. */
   ads?: Ad[];
+  /** Ordinal + issue date for the running PageHeader — the preview must render
+   *  it so the fit measurement matches the real proof. */
+  pageNumber?: number;
+  dateLabel?: string;
 }) {
   const router = useRouter();
   const [sectionName, setSectionName] = useState(initialSectionName);
@@ -343,10 +351,30 @@ export function PageEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
+            {/* MUST mirror the proof/View File/press render exactly (PageHeader +
+                flag + colophon layout) — this box is what the overflow warning
+                and "adjust to fit" measure. Anything the real page adds that the
+                preview doesn't gets silently cut on print. */}
             <div ref={pageRef} style={{ width: CONTENT_W_PX, background: '#fff', color: '#111' }}>
+              <PageHeader pageNumber={pageNumber} dateLabel={dateLabel} />
               <SectionFlag label={sectionName} />
               {proofItems.length > 0 ? (
-                <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} />
+                showColophon ? (
+                  <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
+                    <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
+                      <ProofBands
+                        items={proofItems}
+                        contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP}
+                        photoScale={photoScale}
+                        spaceScale={spaceScale}
+                        columns={columns}
+                      />
+                    </div>
+                    <ColophonRail width={COLOPHON_RAIL_W} />
+                  </div>
+                ) : (
+                  <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} />
+                )
               ) : (
                 <p className="text-sm text-zinc-400 italic">Add a story or ad to see the preview.</p>
               )}

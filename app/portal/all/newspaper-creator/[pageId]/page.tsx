@@ -185,10 +185,11 @@ export default async function NewspaperPageEditorPage({
     );
   }
 
-  const [items, editorStories, ads] = await Promise.all([
+  const [items, editorStories, ads, issueDate] = await Promise.all([
     getPageItems(params.pageId),
     getAllStoriesForEditor(),
     getAds(),
+    getIssueDate(),
   ]);
   const tmpl = templateFor(page.kind);
 
@@ -218,6 +219,8 @@ export default async function NewspaperPageEditorPage({
         initialColumns={(page.template_data as { columns?: number | null })?.columns ?? null}
         editorStories={editorStories}
         ads={ads}
+        pageNumber={ordinal}
+        dateLabel={issueDate}
       />
     </PortalShell>
   );

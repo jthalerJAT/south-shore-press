@@ -19,7 +19,7 @@
  * Output: out/issue-rgb.pdf and out/issue-x1a.pdf
  */
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,6 +73,74 @@ try {
   if (!resp || !resp.ok()) throw new Error(`print page returned HTTP ${resp ? resp.status() : '??'}`);
   await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
   await page.waitForTimeout(2500); // let client measurement + copyfit settle
+
+  // ── 1a. Rasterize PDF frames ────────────────────────────────────────────
+  // On screen, PDFs (classifieds, PDF ad copy) render in the browser's NATIVE
+  // viewer via <iframe> — but headless page.pdf() prints those frames BLANK
+  // (no PDF plugin in the print raster; verified 2026-07-13). Before printing,
+  // swap each PDF iframe for a Ghostscript-rendered PNG of its first page.
+  // Ghostscript also handles the non-embedded fonts that made pdf.js
+  // unusable for legal-notice PDFs.
+  const pdfFrames = await page.evaluate(() => {
+    const list = [];
+    document.querySelectorAll('iframe[src]').forEach((f) => {
+      const raw = f.getAttribute('src') || '';
+      const clean = raw.split('#')[0].split('?')[0];
+      if (clean.toLowerCase().endsWith('.pdf')) {
+        const id = `pdfswap-${list.length}`;
+        f.setAttribute('data-pdfswap', id);
+        list.push({ id, url: new URL(clean, location.href).href });
+      }
+    });
+    return list;
+  });
+  if (pdfFrames.length > 0) {
+    console.log(`Rasterizing ${pdfFrames.length} PDF frame(s) for print…`);
+    const gsRaster = resolveGsBin();
+    for (const fr of pdfFrames) {
+      const tmpPdf = join(outDir, `${fr.id}.pdf`);
+      const tmpPng = join(outDir, `${fr.id}.png`);
+      try {
+        const res = await fetch(fr.url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        writeFileSync(tmpPdf, Buffer.from(await res.arrayBuffer()));
+        execFileSync(
+          gsRaster,
+          ['-dNOPAUSE', '-dBATCH', '-sDEVICE=png16m', '-r200', '-dFirstPage=1', '-dLastPage=1', `-sOutputFile=${tmpPng}`, tmpPdf],
+          { stdio: 'ignore' }
+        );
+        const b64 = readFileSync(tmpPng).toString('base64');
+        await page.evaluate(
+          ([id, data]) => {
+            const f = document.querySelector(`iframe[data-pdfswap="${id}"]`);
+            if (!f) return;
+            const img = document.createElement('img');
+            img.src = `data:image/png;base64,${data}`;
+            const cs = getComputedStyle(f);
+            img.style.width = cs.width;
+            img.style.height = cs.height;
+            img.style.objectFit = 'contain';
+            img.style.display = 'block';
+            f.replaceWith(img);
+          },
+          [fr.id, b64]
+        );
+        console.log(`  ✓ ${fr.url.split('/').pop()}`);
+      } catch (e) {
+        console.warn(`  ! Could not rasterize ${fr.url}: ${e.message} — it will print blank.`);
+      } finally {
+        for (const p of [tmpPdf, tmpPng]) {
+          try {
+            rmSync(p, { force: true });
+          } catch {
+            /* best-effort cleanup */
+          }
+        }
+      }
+    }
+    await page.waitForTimeout(500); // let the swapped images decode
+  }
+
   try {
     await page.pdf({ path: rgb, printBackground: true, preferCSSPageSize: true });
   } catch (e) {

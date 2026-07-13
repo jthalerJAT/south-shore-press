@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
 import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/newspaper/layout-engine';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
+import type { Ad } from '@/lib/queries/ads';
 import { SectionFlag } from '@/components/newspaper/section-flag';
 import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import { ProofBands, type ProofItem } from './print/proof-bands';
@@ -41,6 +42,7 @@ export function PageEditor({
   initialSpaceScale = 1,
   initialColumns = null,
   editorStories,
+  ads = [],
 }: {
   pageId: string;
   pageTitle: string;
@@ -54,6 +56,8 @@ export function PageEditor({
   initialColumns?: number | null;
   /** Website stories for the per-card "Fill from story" picker. */
   editorStories: EditorStoryRow[];
+  /** Ad Database rows for the per-ad "Choose from Ad Database" picker. */
+  ads?: Ad[];
 }) {
   const router = useRouter();
   const [sectionName, setSectionName] = useState(initialSectionName);
@@ -277,6 +281,7 @@ export function PageEditor({
               key={it.localId}
               item={it}
               slots={slots}
+              ads={ads}
               onPatch={patch}
               onSlot={setSlot}
               onRemove={remove}
@@ -614,12 +619,14 @@ function StoryCard({
 function AdCard({
   item,
   slots,
+  ads,
   onPatch,
   onSlot,
   onRemove,
 }: {
   item: EditorItem;
   slots: SlotDef[] | null;
+  ads: Ad[];
   onPatch: (id: string, p: Record<string, any>) => void;
   onSlot: (id: string, v: string) => void;
   onRemove: (id: string) => void;
@@ -677,6 +684,36 @@ function AdCard({
           </select>
         </div>
 
+        {!d.file_name ? (
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-1">Select from the Ad Database</label>
+            <select
+              value=""
+              onChange={(e) => {
+                const ad = ads.find((a) => a.id === e.target.value);
+                if (ad?.copy_storage_path) {
+                  onPatch(item.localId, {
+                    storage_path: ad.copy_storage_path,
+                    file_name: ad.copy_file_name ?? ad.business_name,
+                  });
+                }
+                e.target.value = '';
+              }}
+              className="block w-full rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
+            >
+              <option value="">Choose an ad…</option>
+              {ads
+                .filter((a) => a.copy_storage_path)
+                .map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.business_name}
+                    {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
+                  </option>
+                ))}
+            </select>
+          </div>
+        ) : null}
+
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={(e) => {
@@ -697,7 +734,7 @@ function AdCard({
               </button>
             </p>
           ) : (
-            <p className="text-sm text-zinc-500">Drag &amp; drop the ad here, or</p>
+            <p className="text-sm text-zinc-500">…or drag &amp; drop a new ad here, or</p>
           )}
           <input
             ref={fileRef}

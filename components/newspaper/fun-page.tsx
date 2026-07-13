@@ -18,9 +18,13 @@ import { adFilePublicUrl } from '@/lib/ad-files';
 import { SectionFlag } from './section-flag';
 import { FUN_SECTION_HEADER, funBlockIsFull, type FunPageData, type FunBlock } from '@/lib/newspaper/fun-page';
 
-/** Native width of every Fun Stuff app's `#newspaperPage` node. */
+/** Native width of every Fun Stuff app's `#newspaperPage` node (fallback only —
+ *  the fit routine measures + reflows the real node). */
 const APP_PAGE_W = 780;
 const FALLBACK_RATIO = 1.2;
+/** Bounds for the reflow width search. */
+const REFLOW_MIN_W = 600;
+const REFLOW_MAX_W = 2200;
 /** Block band heights (approx page fractions). */
 const BAND_FULL_H = Math.round(CONTENT_H_PX * 0.3); // ~1/3 page
 const BAND_HALF_H = Math.round(CONTENT_H_PX * 0.24); // ~1/4 page
@@ -37,6 +41,7 @@ export function FunPage({
   const frameRef = useRef<HTMLIFrameElement | null>(null);
   const areaRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState<number | null>(null);
+  const [frameW, setFrameW] = useState(APP_PAGE_W);
   const [contentH, setContentH] = useState(APP_PAGE_W * FALLBACK_RATIO);
 
   const html = data.html ?? '';
@@ -53,6 +58,10 @@ export function FunPage({
       `</head><body>${html}</body></html>`
     : '';
 
+  // How much of the page height the bottom band takes changes the area the
+  // pulled content must fill — refit when the band composition changes.
+  const bandKey = blocks.map((b) => (funBlockIsFull(b) ? 'f' : 'h')).join('');
+
   useLayoutEffect(() => {
     if (!html) return;
     const frame = frameRef.current;
@@ -62,20 +71,51 @@ export function FunPage({
       const area2 = areaRef.current;
       const frame2 = frameRef.current;
       if (!area2 || !frame2) return;
+      const availW = area2.clientWidth || CONTENT_W_PX;
+      const availH = area2.clientHeight || CONTENT_H_PX;
+      let w = APP_PAGE_W;
       let h = APP_PAGE_W * FALLBACK_RATIO;
       try {
         const doc = frame2.contentDocument;
         const node = doc?.getElementById('newspaperPage') ?? doc?.body ?? null;
-        if (node && node.scrollHeight > 0) h = node.scrollHeight;
+        if (node && node.scrollHeight > 0) {
+          // The pulled page has a fixed design width but arbitrary height, so
+          // neither fit-to-width (clips the bottom) nor fit-to-contain
+          // (letterboxes the sides) matches the paper. Instead REFLOW: widen or
+          // narrow the page node until its natural height/width ratio matches
+          // the area's, then scale that reflowed page to fill it exactly.
+          const el = node as HTMLElement;
+          const targetRatio = availH / availW;
+          const measure = (width: number) => {
+            el.style.width = `${width}px`;
+            void el.getBoundingClientRect(); // force layout
+            return el.scrollHeight;
+          };
+          // h(w) is non-increasing in w, so h(w)/w strictly decreases: bisect.
+          let lo = REFLOW_MIN_W;
+          let hi = REFLOW_MAX_W;
+          if (measure(lo) / lo <= targetRatio) {
+            hi = lo; // already shorter than the area at the narrowest width
+          } else if (measure(hi) / hi >= targetRatio) {
+            lo = hi; // taller than the area even at the widest width
+          } else {
+            for (let i = 0; i < 8; i++) {
+              const mid = Math.round((lo + hi) / 2);
+              if (measure(mid) / mid > targetRatio) lo = mid;
+              else hi = mid;
+            }
+          }
+          w = hi;
+          h = measure(w);
+        }
       } catch {
         /* srcdoc is same-origin; stay defensive */
       }
-      // Fit to WIDTH so the pulled page fills the column edge-to-edge (no side
-      // letterboxing). If it ends up taller than the area it clips at the bottom,
-      // like a real print page.
-      const availW = area2.clientWidth || CONTENT_W_PX;
+      setFrameW(w);
       setContentH(h);
-      setScale(availW / APP_PAGE_W);
+      // Fill the width; the reflow made the height come out at (or just under)
+      // the area height, so nothing is clipped and nothing is letterboxed.
+      setScale(Math.min(availW / w, availH / h));
     }
     frame.addEventListener('load', fit);
     const t1 = setTimeout(fit, 150);
@@ -85,7 +125,7 @@ export function FunPage({
       clearTimeout(t1);
       clearTimeout(t2);
     };
-  }, [html, css]);
+  }, [html, css, bandKey]);
 
   return (
     <div
@@ -110,7 +150,7 @@ export function FunPage({
               left: '50%',
               transform: `translateX(-50%) scale(${scale ?? CONTENT_W_PX / APP_PAGE_W})`,
               transformOrigin: 'top center',
-              width: APP_PAGE_W,
+              width: frameW,
               height: contentH,
               visibility: scale === null ? 'hidden' : 'visible',
             }}
@@ -120,7 +160,7 @@ export function FunPage({
               srcDoc={srcDoc}
               title={sectionLabel}
               scrolling="no"
-              style={{ width: APP_PAGE_W, height: contentH, border: 0, display: 'block' }}
+              style={{ width: frameW, height: contentH, border: 0, display: 'block' }}
             />
           </div>
         ) : editing ? (

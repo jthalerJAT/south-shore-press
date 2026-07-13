@@ -504,6 +504,15 @@ function SortablePageRow({
   const master = isMaster(page.kind);
   const included = page.include_in_paper !== false;
 
+  // Full-ad pages keep their content in template_data, not np_items, so the
+  // item-summary list is always empty for them — show the placed ad instead of
+  // the misleading "No content yet".
+  const td = (page.template_data ?? {}) as { business_name?: string; file_name?: string; storage_path?: string };
+  const placedAdLabel =
+    page.kind === 'full_page_ad' && td.storage_path
+      ? `Ad: ${td.business_name || td.file_name || 'placed'}`
+      : null;
+
   return (
     <li
       ref={setNodeRef}
@@ -547,6 +556,8 @@ function SortablePageRow({
               </li>
             ))}
           </ul>
+        ) : placedAdLabel ? (
+          <div className="text-[11px] italic text-zinc-500 truncate">{placedAdLabel}</div>
         ) : (
           <div className="text-[11px] italic text-zinc-400">
             {EMPTY_DESCRIPTOR[page.kind] ?? 'No content yet'}

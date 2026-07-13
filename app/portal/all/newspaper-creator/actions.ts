@@ -370,6 +370,15 @@ export async function addPage(): Promise<Result> {
   return { ok: true };
 }
 
+/** Web browsers can't decode HEIC/HEIF (iPhone photos) — a placed file would
+ *  paint a blank where the image should be. Reject at upload with guidance. */
+function rejectHeic(ext: string): string | null {
+  if (ext === '.heic' || ext === '.heif') {
+    return 'HEIC/HEIF (iPhone photo format) can’t be displayed by web browsers — export it as JPG or PNG and upload that instead.';
+  }
+  return null;
+}
+
 /** Editor-gated signed upload URL for an ad creative (browser → Storage). */
 export async function requestAdUploadUrl(
   fileName: string
@@ -383,6 +392,8 @@ export async function requestAdUploadUrl(
   }
   const dot = fileName.lastIndexOf('.');
   const ext = dot >= 0 ? fileName.slice(dot).toLowerCase() : '';
+  const heicErr = rejectHeic(ext);
+  if (heicErr) return { ok: false, error: heicErr };
   const path = `${randomUUID()}${ext}`;
   const { data, error } = await admin.storage
     .from(NEWSPAPER_ADS_BUCKET)
@@ -571,6 +582,8 @@ export async function requestImageUploadUrl(
   }
   const dot = fileName.lastIndexOf('.');
   const ext = dot >= 0 ? fileName.slice(dot).toLowerCase() : '';
+  const heicErr = rejectHeic(ext);
+  if (heicErr) return { ok: false, error: heicErr };
   const path = `${randomUUID()}${ext}`;
   const { data, error } = await admin.storage
     .from(NEWSPAPER_IMAGES_BUCKET)

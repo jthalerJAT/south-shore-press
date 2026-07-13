@@ -31,6 +31,16 @@ export async function requestAdFileUploadUrl(
     return { ok: false, error: 'Uploads are not configured on this deployment.' };
   }
   const folder = kind === 'insert' ? 'insert-orders' : kind === 'contract' ? 'contracts' : 'copy';
+  // Ad COPY must render on a newspaper page, and web browsers can't decode
+  // HEIC/HEIF (iPhone photos). Insert orders / contracts are records, not
+  // renderables, so they stay unrestricted.
+  const fileExt = ext(fileName);
+  if (kind === 'copy' && (fileExt === '.heic' || fileExt === '.heif')) {
+    return {
+      ok: false,
+      error: 'HEIC/HEIF (iPhone photo format) can’t be displayed by web browsers — export the ad copy as JPG or PNG and upload that instead.',
+    };
+  }
   const path = `${folder}/${randomUUID()}${ext(fileName)}`;
   const { data, error } = await admin.storage.from(AD_FILES_BUCKET).createSignedUploadUrl(path);
   if (error || !data) {

@@ -15,6 +15,7 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { adFilePublicUrl } from '@/lib/ad-files';
+import { AdCopyView } from './ad-copy';
 import { SectionFlag } from './section-flag';
 import { FUN_SECTION_HEADER, funBlockIsFull, type FunPageData, type FunBlock } from '@/lib/newspaper/fun-page';
 
@@ -207,11 +208,11 @@ function FunBlockView({ block, editing }: { block: FunBlock; editing: boolean })
     return (
       <div style={{ ...style, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         {src ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <AdCopyView
             src={src}
-            alt={block.ad_file_name ?? 'Advertisement'}
-            style={{ maxWidth: '100%', maxHeight: BAND_FULL_H, objectFit: 'contain' }}
+            fileName={block.ad_file_name}
+            storagePath={block.ad_storage_path}
+            style={{ width: '100%', height: full ? BAND_FULL_H : BAND_HALF_H, objectFit: 'contain' }}
           />
         ) : editing ? (
           <div

@@ -7,6 +7,7 @@
  */
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import type { FullAdData } from '@/lib/newspaper/full-ad';
+import { AdCopyView } from './ad-copy';
 
 const ADS_BUCKET = 'newspaper-ads';
 function adUrl(path: string): string {
@@ -37,10 +38,10 @@ export function FullPageAd({
       }}
     >
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
+        <AdCopyView
           src={src}
-          alt={data.file_name ?? data.business_name ?? 'Advertisement'}
+          fileName={data.file_name ?? data.business_name}
+          storagePath={data.storage_path}
           style={{ width: '100%', height: '100%', objectFit: 'fill' }}
         />
       ) : editing ? (

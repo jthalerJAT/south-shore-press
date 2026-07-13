@@ -17,6 +17,7 @@ import {
 } from '@/lib/newspaper/layout-engine';
 import { adSizeLabel } from '@/lib/newspaper-templates';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
+import { AdCopyView } from './ad-copy';
 
 const runTextStyle: CSSProperties = {
   fontFamily: BODY_FONT_FAMILY,
@@ -233,8 +234,14 @@ function AdBand({
         Advertisement — {sizeLabel}
       </div>
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt={data.file_name ?? 'Advertisement'} className="border border-zinc-200" style={{ width, height, objectFit: 'fill', display: 'block' }} />
+        <div className="border border-zinc-200" style={{ width, height }}>
+          <AdCopyView
+            src={src}
+            fileName={data.file_name}
+            storagePath={data.storage_path}
+            style={{ width: '100%', height: '100%', objectFit: 'fill' }}
+          />
+        </div>
       ) : (
         <div
           className="border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400"

@@ -104,13 +104,15 @@ export function fillOpEdFromStory(data: OpEdData, story: StorySource): OpEdData 
 
 type AdSource = { id: string; copy_storage_path?: string | null; copy_file_name?: string | null };
 
-/** Place an ad from the Ad Database into the Bottom Ad slot. */
+/** Place an ad from the Ad Database into the Bottom Ad slot. Ads without an
+ *  uploaded copy file are skipped — there would be nothing to render. */
 export function fillOpEdAd(data: OpEdData, ad: AdSource): OpEdData {
+  if (!ad.copy_storage_path) return data;
   return {
     ...data,
     bottom_ad: {
       ad_id: ad.id,
-      storage_path: ad.copy_storage_path ?? undefined,
+      storage_path: ad.copy_storage_path,
       file_name: ad.copy_file_name ?? undefined,
     },
   };

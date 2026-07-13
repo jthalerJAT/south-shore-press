@@ -22,6 +22,7 @@
 import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS, type StoredStoryLayout } from '@/lib/newspaper/layout-engine';
 import { useComputedBands, type BandInput } from '@/lib/newspaper/use-bands';
 import { adFilePublicUrl } from '@/lib/ad-files';
+import { AdCopyView } from './ad-copy';
 import { BandRenderer } from './band-renderer';
 import { PageHeader } from './page-header';
 import { PAGE_FOUR_TOP_COLUMNS, PAGE_FOUR_BOTTOM_COLUMNS, type PageFourData, type PageFourArticle } from '@/lib/newspaper/page-four';
@@ -173,11 +174,11 @@ export function PageFour({
             article's dividing line aligns to (both start at this section's top). */}
         <div style={{ width: AD_W, flexShrink: 0 }}>
           {adUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <AdCopyView
               src={adUrl}
-              alt={data.ad?.file_name ?? ''}
-              style={{ width: AD_W, height: AD_H, objectFit: 'fill', display: 'block' }}
+              fileName={data.ad?.file_name}
+              storagePath={data.ad?.storage_path}
+              style={{ width: AD_W, height: AD_H, objectFit: 'fill' }}
             />
           ) : editing ? (
             <div

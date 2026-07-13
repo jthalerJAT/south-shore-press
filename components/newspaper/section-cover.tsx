@@ -1,10 +1,13 @@
+'use client';
+
 /**
  * SectionCover — to-scale (11×15) wireframe renderer for a section-cover page
- * (Front Page, Sports cover). Pure presentational; reused by the cover editor
- * preview, the print proof, and View File. Renders at the page content size in
- * unscaled print px; callers apply zoom via CSS transform.
+ * (Front Page, Sports cover). Reused by the cover editor preview, the print
+ * proof, and View File. Renders at the page content size in unscaled print px;
+ * callers apply zoom via CSS transform. Client component: the hero headline is
+ * measured + auto-fitted to the photo.
  */
-import type { CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { SITE } from '@/lib/site-config';
 import type { SectionCoverData, CoverTile } from '@/lib/newspaper/section-cover';
@@ -27,6 +30,97 @@ const outlinedHeadline: CSSProperties = {
   lineHeight: 0.92,
   letterSpacing: '-0.01em',
 };
+
+/** House hero size from the printed template ("TOXIC / TIDE TURNS", 2026-06-17
+ *  issue): ~123px at our 960px content width. Long headlines shrink from here
+ *  to stay inside the photo. */
+const HERO_MAX_FS = 124;
+
+/** Split a hero headline into stacked lines like the printed front page.
+ *  Manual line breaks win; otherwise pick the word break(s) that give the most
+ *  balanced stack (2 lines, or 3 for very long headlines). */
+function stackHeadlineLines(raw: string): string[] {
+  const text = raw.trim();
+  if (!text) return [];
+  if (/\n/.test(text)) return text.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+  const words = text.split(/\s+/);
+  if (words.length < 2 || text.length <= 12) return [text];
+  const lineCount = text.length > 30 && words.length >= 3 ? 3 : 2;
+  let best: string[] = [text];
+  let bestLen = Infinity;
+  if (lineCount === 2) {
+    for (let i = 1; i < words.length; i++) {
+      const lines = [words.slice(0, i).join(' '), words.slice(i).join(' ')];
+      const len = Math.max(...lines.map((l) => l.length));
+      if (len < bestLen) {
+        bestLen = len;
+        best = lines;
+      }
+    }
+  } else {
+    for (let i = 1; i < words.length - 1; i++) {
+      for (let j = i + 1; j < words.length; j++) {
+        const lines = [words.slice(0, i).join(' '), words.slice(i, j).join(' '), words.slice(j).join(' ')];
+        const len = Math.max(...lines.map((l) => l.length));
+        if (len < bestLen) {
+          bestLen = len;
+          best = lines;
+        }
+      }
+    }
+  }
+  return best;
+}
+
+/** The stacked, outlined hero headline, font-fitted so every line stays within
+ *  the photo (maxW) and the stack within maxH. Renders an estimate first (so
+ *  print without layout still looks sane), then measures and corrects. */
+function HeroHeadline({ text, maxW, maxH }: { text: string; maxW: number; maxH: number }) {
+  const lines = useMemo(() => stackHeadlineLines(text), [text]);
+  const ref = useRef<HTMLDivElement | null>(null);
+  const longest = Math.max(1, ...lines.map((l) => l.length));
+  // Anton is condensed (~0.52em average uppercase advance) — first estimate
+  // from character count; the layout effect measures the real render.
+  const estimate = Math.max(
+    24,
+    Math.min(HERO_MAX_FS, maxW / (0.52 * longest), maxH / (0.92 * Math.max(1, lines.length)))
+  );
+  const [fontSize, setFontSize] = useState(estimate);
+  const [fontsTick, setFontsTick] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    document.fonts?.ready?.then(() => {
+      if (alive) setFontsTick((t) => t + 1);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  useLayoutEffect(() => {
+    setFontSize(estimate);
+  }, [estimate]);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || lines.length === 0) return;
+    const widest = Math.max(0, ...Array.from(el.children).map((c) => (c as HTMLElement).scrollWidth));
+    if (widest <= 0) return;
+    const corrected = Math.min(
+      HERO_MAX_FS,
+      fontSize * (maxW / widest),
+      maxH / (0.92 * lines.length)
+    );
+    if (Math.abs(corrected - fontSize) > 0.5) setFontSize(corrected);
+  }, [lines, maxW, maxH, fontSize, fontsTick]);
+  return (
+    <div ref={ref} style={{ ...outlinedHeadline, fontFamily: DISPLAY_FONT, fontSize }}>
+      {lines.map((l, i) => (
+        <div key={i} style={{ whiteSpace: 'nowrap', width: 'fit-content' }}>
+          {l}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export function SectionCover({
   data,
@@ -97,9 +191,7 @@ export function SectionCover({
 
         <div className="absolute left-0 right-0 bottom-0 p-3">
           {data.hero.headline ? (
-            <div style={{ ...outlinedHeadline, fontFamily: DISPLAY_FONT, fontSize: 88, whiteSpace: 'pre-line' }}>
-              {data.hero.headline}
-            </div>
+            <HeroHeadline text={data.hero.headline} maxW={CONTENT_W_PX - 24} maxH={heroH * 0.55} />
           ) : null}
           {data.hero.subhead ? (
             <div style={{ fontFamily: CONDENSED_FONT, color: '#fff', textShadow: '1px 1px 0 #000', fontWeight: 700, fontSize: 30, marginTop: 4, whiteSpace: 'pre-line' }}>

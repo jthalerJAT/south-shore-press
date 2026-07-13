@@ -199,10 +199,18 @@ export function OpEdEditor({
                 className="block w-full max-w-sm rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
               >
                 <option value="">Choose an ad from the database…</option>
-                {ads.map((a) => (
-                  <option key={a.id} value={a.id}>{a.business_name}</option>
-                ))}
+                {ads
+                  .filter((a) => a.copy_storage_path)
+                  .map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.business_name}
+                      {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
+                    </option>
+                  ))}
               </select>
+              <p className="mt-1 text-xs text-zinc-500">
+                Only ads with copy uploaded in the Ad Database are listed.
+              </p>
             </div>
           )}
         </Section>

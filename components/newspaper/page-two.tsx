@@ -11,6 +11,7 @@
 import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS, type StoredStoryLayout } from '@/lib/newspaper/layout-engine';
 import { useComputedBands, type BandInput } from '@/lib/newspaper/use-bands';
 import { adFilePublicUrl } from '@/lib/ad-files';
+import { AdCopyView } from './ad-copy';
 import { BandRenderer } from './band-renderer';
 import { PageHeader } from './page-header';
 import { OPED_MAIN_COLUMNS, OPED_SECOND_COLUMNS, type OpEdData } from '@/lib/newspaper/oped';
@@ -191,11 +192,11 @@ export function PageTwo({
       {adUrl ? (
         <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: adGap }}>
           <div style={{ borderTop: `3px solid ${BLUE}`, margin: `0 0 ${adGap}px`, flexShrink: 0 }} />
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <AdCopyView
             src={adUrl}
-            alt={data.bottom_ad?.file_name ?? ''}
-            style={{ width: '100%', flex: '1 1 0%', minHeight: 0, objectFit: 'fill', display: 'block' }}
+            fileName={data.bottom_ad?.file_name}
+            storagePath={data.bottom_ad?.storage_path}
+            style={{ width: '100%', flex: '1 1 0%', minHeight: 0, objectFit: 'fill' }}
           />
         </section>
       ) : editing ? (

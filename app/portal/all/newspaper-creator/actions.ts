@@ -766,20 +766,38 @@ export async function savePageFour(pageId: string, data: Record<string, unknown>
 /** Save typed legal-notice copy into the Legal Notices database (reusable —
  *  publication notices run multiple consecutive weeks). */
 export async function createLegalNotice(
-  body: string
+  body: string,
+  header?: string
 ): Promise<{ ok: boolean; error?: string; id?: string }> {
   await requireRole([...EDITOR_ROLES], BASE);
   const trimmed = (body ?? '').trim();
   if (!trimmed) return { ok: false, error: 'The notice copy is empty.' };
+  const headerTrimmed = (header ?? '').trim();
   const supabase = createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('legal_notices')
-    .insert({ label: legalNoticeLabel(trimmed), body: trimmed })
+    .insert({
+      label: legalNoticeLabel(trimmed),
+      header: headerTrimmed || null,
+      body: trimmed,
+    })
     .select('id')
     .single();
+  if (error) {
+    // Pre-migration-035 fallback: save without the header column. The header
+    // still prints (it's carried on the page's template_data) — it just won't
+    // be restored when this notice is re-picked until 035 is applied.
+    const retry = await supabase
+      .from('legal_notices')
+      .insert({ label: legalNoticeLabel(trimmed), body: trimmed })
+      .select('id')
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
   if (error || !data) {
     console.error('[createLegalNotice]', error);
-    return { ok: false, error: 'Could not save the notice. Is migration 034 applied?' };
+    return { ok: false, error: 'Could not save the notice. Are migrations 034 + 035 applied?' };
   }
   revalidatePath(BASE);
   return { ok: true, id: (data as { id: string }).id };

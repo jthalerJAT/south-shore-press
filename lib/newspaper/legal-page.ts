@@ -8,10 +8,16 @@
 
 export const LEGAL_PAGE_COLUMNS = 6;
 
+/** The header printed above a notice when none is typed. */
+export const DEFAULT_LEGAL_HEADER = 'PUBLIC NOTICE';
+
 export type PlacedLegalNotice = {
   id: string;
   /** legal_notices row this came from (reference; body below is the snapshot). */
   notice_id?: string | null;
+  /** Centered underlined title above the notice (default PUBLIC NOTICE;
+   *  e.g. "Attorney" for attorney ads). */
+  header?: string;
   body: string;
 };
 
@@ -38,6 +44,7 @@ export function normalizeLegalPage(raw: unknown): LegalPageData {
           {
             id: typeof p.id === 'string' && p.id ? p.id : `n-${i}`,
             notice_id: typeof p.notice_id === 'string' ? p.notice_id : null,
+            header: typeof p.header === 'string' && p.header.trim() ? p.header : undefined,
             body: p.body,
           },
         ];

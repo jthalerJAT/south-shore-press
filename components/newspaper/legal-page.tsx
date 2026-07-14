@@ -14,7 +14,7 @@
  */
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { PageHeader } from './page-header';
-import { LEGAL_PAGE_COLUMNS, type LegalPageData } from '@/lib/newspaper/legal-page';
+import { LEGAL_PAGE_COLUMNS, DEFAULT_LEGAL_HEADER, type LegalPageData } from '@/lib/newspaper/legal-page';
 
 const NAVY = '#1e3a8a';
 const CONDENSED_FONT = "var(--font-news-condensed), 'Arial Narrow', sans-serif";
@@ -111,7 +111,7 @@ export function LegalPage({
                     margin: `${i === 0 ? 0 : 6}px 0 4px`,
                   }}
                 >
-                  PUBLIC NOTICE
+                  {n.header?.trim() || DEFAULT_LEGAL_HEADER}
                 </div>
                 <div style={{ whiteSpace: 'pre-line' }}>{n.body}</div>
               </div>

@@ -15,6 +15,7 @@ import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { LegalPage } from '@/components/newspaper/legal-page';
 import {
   legalNoticeLabel,
+  DEFAULT_LEGAL_HEADER,
   type LegalPageData,
   type PlacedLegalNotice,
 } from '@/lib/newspaper/legal-page';
@@ -46,6 +47,7 @@ export function LegalEditor({
   const [data, setData] = useState<LegalPageData>(initialData);
   const [notices, setNotices] = useState<LegalNotice[]>(savedNotices);
   const [adding, setAdding] = useState(false);
+  const [newHeader, setNewHeader] = useState(DEFAULT_LEGAL_HEADER);
   const [newCopy, setNewCopy] = useState('');
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -64,6 +66,10 @@ export function LegalEditor({
   function patchBody(id: string, body: string) {
     touch();
     setData((d) => ({ ...d, notices: d.notices.map((n) => (n.id === id ? { ...n, body } : n)) }));
+  }
+  function patchHeader(id: string, header: string) {
+    touch();
+    setData((d) => ({ ...d, notices: d.notices.map((n) => (n.id === id ? { ...n, header } : n)) }));
   }
   function remove(id: string) {
     touch();
@@ -85,15 +91,16 @@ export function LegalEditor({
   function pickFromDatabase(noticeId: string) {
     const n = notices.find((x) => x.id === noticeId);
     if (!n) return;
-    place({ id: newId(), notice_id: n.id, body: n.body });
+    place({ id: newId(), notice_id: n.id, header: n.header ?? undefined, body: n.body });
   }
 
   async function addNewCopy() {
     const body = newCopy.trim();
     if (!body) return;
+    const header = newHeader.trim() || DEFAULT_LEGAL_HEADER;
     setBusy(true);
     setError(null);
-    const res = await createLegalNotice(body);
+    const res = await createLegalNotice(body, header);
     setBusy(false);
     if (!res.ok || !res.id) {
       setError(res.error ?? 'Could not save the notice.');
@@ -101,10 +108,11 @@ export function LegalEditor({
     }
     // It's in the database now — future pages can re-pick it.
     setNotices((prev) => [
-      { id: res.id!, label: legalNoticeLabel(body), body, created_at: new Date().toISOString() },
+      { id: res.id!, label: legalNoticeLabel(body), header, body, created_at: new Date().toISOString() },
       ...prev,
     ]);
-    place({ id: newId(), notice_id: res.id, body });
+    place({ id: newId(), notice_id: res.id, header, body });
+    setNewHeader(DEFAULT_LEGAL_HEADER);
     setNewCopy('');
     setAdding(false);
   }
@@ -177,7 +185,18 @@ export function LegalEditor({
             </div>
             <div className="text-xs text-zinc-400 text-center uppercase tracking-widest">or</div>
             <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">Paste new copy</label>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">Header</label>
+              <input
+                type="text"
+                value={newHeader}
+                onChange={(e) => setNewHeader(e.target.value)}
+                placeholder={DEFAULT_LEGAL_HEADER}
+                className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+              />
+              <p className="mt-1 text-[11px] text-zinc-400">
+                The centered title printed above this notice — e.g. PUBLIC NOTICE or Attorney.
+              </p>
+              <label className="block text-sm font-medium text-zinc-700 mb-1 mt-3">Paste new copy</label>
               <textarea
                 rows={8}
                 value={newCopy}
@@ -204,7 +223,7 @@ export function LegalEditor({
               <div key={n.id} className="rounded-lg border border-zinc-200 bg-white p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                    Notice {i + 1} — {legalNoticeLabel(n.body)}
+                    Notice {i + 1} — {(n.header?.trim() || DEFAULT_LEGAL_HEADER).toUpperCase()}
                   </span>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => move(n.id, -1)} disabled={i === 0} className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-30">↑</button>
@@ -212,6 +231,13 @@ export function LegalEditor({
                     <button type="button" onClick={() => remove(n.id)} className="text-xs font-medium text-red-600 hover:underline">Remove</button>
                   </div>
                 </div>
+                <input
+                  type="text"
+                  value={n.header ?? DEFAULT_LEGAL_HEADER}
+                  onChange={(e) => patchHeader(n.id, e.target.value)}
+                  placeholder={DEFAULT_LEGAL_HEADER}
+                  className="mb-2 block w-full rounded border border-zinc-300 px-3 py-1.5 text-xs font-semibold focus:border-brand-red focus:outline-none"
+                />
                 <textarea
                   rows={5}
                   value={n.body}

@@ -1,12 +1,19 @@
+'use client';
+
 /**
  * ColophonRail — the South Shore Press standing "publication info" rail that
  * runs down the right side of the masthead page (page 5 in the reference issue):
  * imprint, mailing/contact info, staff list, subscription prices, copyright,
  * memberships, and the communities served. Mostly static week to week.
  *
- * Transcribed from the 2026-06-17 printed issue. Presentational; rendered at a
- * fixed narrow column width inside an interior flow page.
+ * The bottom three blocks (copyright, memberships, communities served) AUTO-FIT:
+ * their font size grows from the base until the rail's copy reaches the bottom
+ * of the page, so the rail never ends with a stub of empty space.
+ *
+ * Transcribed from the 2026-06-17 printed issue. Rendered at a fixed narrow
+ * column width inside an interior flow page.
  */
+import { useLayoutEffect, useRef, useState } from 'react';
 import { Seagull } from './seagull';
 import { PLAN_DISPLAY } from '@/lib/stripe/plans';
 
@@ -16,9 +23,50 @@ const SERIF = "var(--font-crimson), Georgia, 'Times New Roman', serif";
 export const COLOPHON_RAIL_W = 215;
 export const COLOPHON_GAP = 16;
 
+/** Auto-fit bounds for the bottom blocks' font size (px at print scale). */
+const FIT_MIN_FS = 8.5;
+const FIT_MAX_FS = 14;
+/** The bottom blocks' font size, settable per-render via CSS variable. */
+const FIT_FS = 'var(--colophon-fit-fs, 8.5px)';
+
 export function ColophonRail({ width = 215 }: { width?: number }) {
+  const ref = useRef<HTMLElement | null>(null);
+  const [fitFs, setFitFs] = useState(FIT_MIN_FS);
+
+  // Bisect the largest bottom-block font size whose full rail copy still fits
+  // the rail's (page-height) box — the copy then runs to the page bottom.
+  useLayoutEffect(() => {
+    function fit() {
+      const aside = ref.current;
+      if (!aside || aside.clientHeight < 200) return; // unstyled/collapsed
+      const apply = (f: number) => {
+        aside.style.setProperty('--colophon-fit-fs', `${f}px`);
+        void aside.getBoundingClientRect(); // force layout
+      };
+      let lo = FIT_MIN_FS;
+      let hi = FIT_MAX_FS;
+      apply(hi);
+      if (aside.scrollHeight <= aside.clientHeight + 1) {
+        lo = hi;
+      } else {
+        for (let i = 0; i < 9; i++) {
+          const mid = (lo + hi) / 2;
+          apply(mid);
+          if (aside.scrollHeight <= aside.clientHeight + 1) lo = mid;
+          else hi = mid;
+        }
+      }
+      apply(lo);
+      setFitFs(lo);
+    }
+    fit();
+    const t = setTimeout(fit, 500); // re-fit after webfonts settle
+    return () => clearTimeout(t);
+  }, []);
+
   return (
     <aside
+      ref={ref}
       style={{
         width,
         fontFamily: SERIF,
@@ -27,6 +75,8 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
         color: '#111',
         borderLeft: '1px solid #000',
         paddingLeft: 10,
+        overflow: 'hidden',
+        ['--colophon-fit-fs' as never]: `${fitFs}px`,
       }}
     >
       {/* Imprint */}
@@ -107,7 +157,7 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
       </div>
 
       <Rule />
-      <p style={{ fontSize: 8.5, lineHeight: 1.25, textAlign: 'justify' }}>
+      <p style={{ fontSize: FIT_FS, lineHeight: 1.25, textAlign: 'justify' }}>
         Copyright© 2025 South Shore Press, LLC. All rights reserved. Material appearing herein may
         not be published, broadcast, rewritten or redistributed in any form. Copying part or all of
         the editorial or graphic arts in any machine-readable form, making multiple printouts
@@ -123,7 +173,7 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
       </p>
 
       <Rule />
-      <p style={{ fontSize: 8.5, lineHeight: 1.25, textAlign: 'justify' }}>
+      <p style={{ fontSize: FIT_FS, lineHeight: 1.25, textAlign: 'justify' }}>
         <i>South Shore Press, LLC.</i> is a proud member of the following community organizations:
         The Greater Mastic Beach Chamber of Commerce, The Rocky Point Sound Beach Chamber of
         Commerce, The Mastic/Shirley Chamber of Commerce, The Moriches Chamber of Commerce, The
@@ -132,8 +182,10 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
       </p>
 
       <Rule />
-      <p style={{ fontStyle: 'italic', textAlign: 'center' }}>Serving the Communities of</p>
-      <p style={{ fontSize: 8.5, lineHeight: 1.25, textAlign: 'justify' }}>
+      <p style={{ fontStyle: 'italic', textAlign: 'center', fontSize: `calc(${FIT_FS} + 1px)` }}>
+        Serving the Communities of
+      </p>
+      <p style={{ fontSize: FIT_FS, lineHeight: 1.25, textAlign: 'justify' }}>
         The Village of Bellport, Brookhaven, Center Moriches, Centereach, Coram, East Moriches, East
         Patchogue, Eastport, East Shoreham, Farmingville, Gordon Heights, Lake Ronkonkoma,
         Manorville, Medford, Mastic, The Village of Mastic Beach, Middle Island, Miller Place,

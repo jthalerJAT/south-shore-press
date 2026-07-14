@@ -164,7 +164,7 @@ export default async function NewspaperPageEditorPage({
     }
 
     if (tid === 'classified') {
-      const classifieds = await getClassifiedsList();
+      const [classifieds, issueDate] = await Promise.all([getClassifiedsList(), getIssueDate()]);
       const options = classifieds.map((c) => ({
         id: c.id,
         dateLabel: formatClassifiedDate(c.classified_date),
@@ -181,6 +181,8 @@ export default async function NewspaperPageEditorPage({
         >
           <ClassifiedEditor
             pageId={page.id}
+            pageNumber={ordinal}
+            dateLabel={issueDate}
             initialData={normalizeClassifiedPage(page.template_data)}
             options={options}
           />

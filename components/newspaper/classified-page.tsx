@@ -1,71 +1,274 @@
 /**
- * ClassifiedPage — renders a `classifieds` template page: one uploaded
- * classified file filling the whole page area, no running head/footer. Used by
- * the editor preview, per-page proof, View File, and the press route. PDFs are
- * shown in an <iframe> (the file is usually a full classifieds-page PDF);
- * images render directly. Client-safe (builds the public URL from NEXT_PUBLIC).
+ * ClassifiedPage — renders a `classifieds` template page.
+ *
+ * COMPOSED model (matches p22 of the printed 2026-07-15 issue): running
+ * PageHeader, navy "THE CLASSIFIEDS" banner, two columns of stacked classified
+ * ads — each column top/bottom-JUSTIFIED (first ad flush to the top, last ad
+ * flush to the bottom, spacing between distributed automatically) — a navy
+ * house rail on the right ("LIST YOUR CLASSIFIED AD IN THE SOUTH SHORE PRESS /
+ * CONTACT US"), and the navy footer bar with the ads phone + email.
+ *
+ * LEGACY model: one uploaded whole-page file (no running head), kept so
+ * previously built pages render unchanged.
+ *
+ * Shared by the editor preview, per-page proof, View File, and the press
+ * route — so screen == print. Client-safe.
  */
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
-import type { ClassifiedPageData } from '@/lib/newspaper/classified';
+import { PageHeader } from './page-header';
+import { Seagull } from './seagull';
+import { classifiedFileUrl, type ClassifiedPageData, type ClassifiedAd } from '@/lib/newspaper/classified';
 
-const CLASSIFIEDS_BUCKET = 'classifieds';
-function fileUrl(path: string): string {
-  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
-  return `${base}/storage/v1/object/public/${CLASSIFIEDS_BUCKET}/${path}`;
-}
+const NAVY = '#1e3a8a';
+const CONDENSED_FONT = "var(--font-news-condensed), 'Arial Narrow', sans-serif";
+/** Right house-rail width (printed p22 proportion: ~178/1100 of the sheet). */
+const RAIL_W = 155;
+const COL_GAP = 14;
+const FOOTER_H = 46;
 
 function isPdf(data: ClassifiedPageData): boolean {
   const name = (data.file_name ?? data.storage_path ?? '').toLowerCase();
   return name.endsWith('.pdf');
 }
 
-export function ClassifiedPage({
-  data,
-  editing = false,
-}: {
-  data: ClassifiedPageData;
-  /** When true (editor/proof preview) show a placeholder if no file is set. */
-  editing?: boolean;
-}) {
-  const src = data.storage_path ? fileUrl(data.storage_path) : null;
-
+/** One ad column: stacked creatives, top & bottom justified. With a single ad
+ *  it sits at the top; with several, the gaps distribute evenly. */
+function AdColumn({ ads }: { ads: ClassifiedAd[] }) {
   return (
     <div
+      data-classified-column
       style={{
-        width: CONTENT_W_PX,
-        height: CONTENT_H_PX,
+        flex: 1,
+        minWidth: 0,
+        height: '100%',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: '#fff',
+        flexDirection: 'column',
+        justifyContent: ads.length > 1 ? 'space-between' : 'flex-start',
         overflow: 'hidden',
       }}
     >
-      {src ? (
-        isPdf(data) ? (
+      {ads.map((ad) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={ad.id}
+          src={classifiedFileUrl(ad.storage_path)}
+          alt={ad.file_name ?? 'Classified ad'}
+          style={{ width: '100%', height: 'auto', display: 'block' }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** The navy house rail on the right of the printed classifieds page. */
+function HouseRail() {
+  const word: React.CSSProperties = {
+    fontFamily: CONDENSED_FONT,
+    fontWeight: 700,
+    fontSize: 26,
+    lineHeight: 1.25,
+    letterSpacing: '0.04em',
+    textAlign: 'center',
+  };
+  return (
+    <div
+      style={{
+        width: RAIL_W,
+        flexShrink: 0,
+        height: '100%',
+        background: NAVY,
+        color: '#fff',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '36px 10px 24px',
+      }}
+    >
+      <Seagull width={44} color="#fff" />
+      <div style={word}>
+        LIST
+        <br />
+        YOUR
+        <br />
+        CLASSIFIED
+        <br />
+        AD IN
+      </div>
+      <div style={word}>
+        THE
+        <br />
+        SOUTH
+        <br />
+        SHORE
+        <br />
+        PRESS
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ ...word, fontSize: 18 }}>CONTACT US</div>
+        <div
+          style={{
+            fontFamily: 'var(--font-crimson), Georgia, serif',
+            fontStyle: 'italic',
+            fontWeight: 700,
+            fontSize: 17,
+            marginTop: 4,
+          }}
+        >
+          631-878-0888
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-crimson), Georgia, serif',
+            fontStyle: 'italic',
+            fontSize: 11.5,
+            marginTop: 2,
+          }}
+        >
+          ads@southshorepress.com
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ClassifiedPage({
+  data,
+  pageNumber,
+  dateLabel,
+  editing = false,
+}: {
+  data: ClassifiedPageData;
+  pageNumber?: number;
+  dateLabel?: string;
+  /** When true (editor/proof preview) show a placeholder if no content. */
+  editing?: boolean;
+}) {
+  const ads = data.ads ?? [];
+  const composed = ads.length > 0;
+  const legacySrc = data.storage_path ? classifiedFileUrl(data.storage_path) : null;
+
+  // ── LEGACY: one whole-page file, no running head ──────────────
+  if (!composed && legacySrc) {
+    return (
+      <div
+        style={{
+          width: CONTENT_W_PX,
+          height: CONTENT_H_PX,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#fff',
+          overflow: 'hidden',
+        }}
+      >
+        {isPdf(data) ? (
           <iframe
-            src={`${src}#toolbar=0&navpanes=0&view=FitH`}
+            src={`${legacySrc}#toolbar=0&navpanes=0&view=FitH`}
             title={data.file_name ?? 'Classified'}
             style={{ width: '100%', height: '100%', border: 'none' }}
           />
         ) : (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={src}
+            src={legacySrc}
             alt={data.file_name ?? 'Classifieds'}
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
-        )
-      ) : editing ? (
+        )}
+      </div>
+    );
+  }
+
+  // ── COMPOSED: the printed classifieds layout ──────────────────
+  const col1 = ads.filter((a) => a.column === 1);
+  const col2 = ads.filter((a) => a.column === 2);
+
+  return (
+    <div
+      className="flex flex-col"
+      style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, background: '#fff', color: '#111' }}
+    >
+      <PageHeader pageNumber={pageNumber ?? 22} dateLabel={dateLabel} />
+
+      {/* ── THE CLASSIFIEDS banner ─────────────────────────── */}
+      <div
+        className="flex items-center justify-center shrink-0"
+        style={{
+          background: NAVY,
+          color: '#fff',
+          height: 38,
+          fontFamily: CONDENSED_FONT,
+          fontWeight: 700,
+          fontSize: 26,
+          letterSpacing: '0.1em',
+        }}
+      >
+        THE CLASSIFIEDS
+      </div>
+
+      {/* ── Ad columns + house rail ────────────────────────── */}
+      <div
+        className="flex-1"
+        style={{ minHeight: 0, display: 'flex', gap: COL_GAP, padding: '10px 0' }}
+      >
+        {composed ? (
+          <>
+            <AdColumn ads={col1} />
+            <AdColumn ads={col2} />
+          </>
+        ) : editing ? (
+          <div
+            className="border-2 border-dashed border-zinc-300 text-zinc-400 text-sm flex items-center justify-center text-center px-8"
+            style={{ flex: 1, height: '100%' }}
+          >
+            No classifieds placed — drop the ad PDFs advertisers send onto “+ Add Classified”.
+            <br />
+            Each ad is cropped out of its PDF automatically and stacked here.
+          </div>
+        ) : (
+          <div style={{ flex: 1 }} />
+        )}
+        <HouseRail />
+      </div>
+
+      {/* ── Footer bar ─────────────────────────────────────── */}
+      <div className="shrink-0" style={{ display: 'flex', gap: COL_GAP, height: FOOTER_H }}>
         <div
-          className="border-2 border-dashed border-zinc-300 text-zinc-400 text-sm flex items-center justify-center text-center"
-          style={{ width: '100%', height: '100%' }}
+          style={{
+            flex: 1,
+            background: NAVY,
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontFamily: CONDENSED_FONT,
+            fontWeight: 700,
+            fontSize: 28,
+            letterSpacing: '0.06em',
+          }}
         >
-          No classified placed — choose one from the Classified Upload library,
-          <br />
-          or drag a classified onto this page from the board.
+          LIST YOUR CLASSIFIED AD IN THE SOUTH SHORE PRESS
         </div>
-      ) : null}
+        <div
+          style={{
+            width: RAIL_W,
+            flexShrink: 0,
+            background: NAVY,
+            color: '#fff',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            lineHeight: 1.1,
+          }}
+        >
+          <div style={{ fontFamily: CONDENSED_FONT, fontWeight: 700, fontSize: 19 }}>631-878-0888</div>
+          <div style={{ fontFamily: 'var(--font-crimson), Georgia, serif', fontStyle: 'italic', fontSize: 10.5 }}>
+            ads@southshorepress.com
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

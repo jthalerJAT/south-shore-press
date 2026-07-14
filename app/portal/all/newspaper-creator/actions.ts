@@ -23,6 +23,7 @@ import { normalizeOpEd, fillOpEdFromStory, fillOpEdAd } from '@/lib/newspaper/op
 import { normalizePageFour, fillPageFourFromStory, fillPageFourAd } from '@/lib/newspaper/page-four';
 import { fillFullAdFromAd, normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage, fillClassifiedFromRecord } from '@/lib/newspaper/classified';
+import { CLASSIFIEDS_BUCKET } from '@/lib/queries/classifieds';
 import { legalNoticeLabel } from '@/lib/newspaper/legal-page';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
@@ -402,6 +403,33 @@ export async function requestAdUploadUrl(
   if (error || !data) {
     console.error('[requestAdUploadUrl]', error);
     return { ok: false, error: 'Could not start the upload. Is the `newspaper-ads` bucket created?' };
+  }
+  return { ok: true, path, token: data.token };
+}
+
+/** Editor-gated signed upload URL for a CROPPED classified-ad PNG (browser →
+ *  `classifieds` bucket). The editor extracts the artwork from the advertiser's
+ *  PDF client-side and uploads the resulting image here. */
+export async function requestClassifiedAdUploadUrl(): Promise<{
+  ok: boolean;
+  error?: string;
+  path?: string;
+  token?: string;
+}> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { ok: false, error: 'Uploads are not configured on this deployment.' };
+  }
+  const path = `np-ads/${randomUUID()}.png`;
+  const { data, error } = await admin.storage
+    .from(CLASSIFIEDS_BUCKET)
+    .createSignedUploadUrl(path);
+  if (error || !data) {
+    console.error('[requestClassifiedAdUploadUrl]', error);
+    return { ok: false, error: 'Could not start the upload. Is the `classifieds` bucket created?' };
   }
   return { ok: true, path, token: data.token };
 }

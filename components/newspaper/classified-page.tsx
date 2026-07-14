@@ -1,3 +1,5 @@
+'use client';
+
 /**
  * ClassifiedPage — renders a `classifieds` template page.
  *
@@ -8,12 +10,17 @@
  * house rail on the right ("LIST YOUR CLASSIFIED AD IN THE SOUTH SHORE PRESS /
  * CONTACT US"), and the navy footer bar with the ads phone + email.
  *
+ * AUTO-FIT: when a column's ads stack taller than the page area, every ad in
+ * that column is scaled down proportionally (aspect preserved, centered) until
+ * the stack fits with even gaps — nothing is ever clipped on print.
+ *
  * LEGACY model: one uploaded whole-page file (no running head), kept so
  * previously built pages render unchanged.
  *
  * Shared by the editor preview, per-page proof, View File, and the press
- * route — so screen == print. Client-safe.
+ * route — so screen == print.
  */
+import { useLayoutEffect, useRef, useState } from 'react';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { PageHeader } from './page-header';
 import { Seagull } from './seagull';
@@ -31,18 +38,63 @@ function isPdf(data: ClassifiedPageData): boolean {
   return name.endsWith('.pdf');
 }
 
+/** Minimum breathing room kept between ads when a column has to shrink. */
+const MIN_AD_GAP = 8;
+
 /** One ad column: stacked creatives, top & bottom justified. With a single ad
- *  it sits at the top; with several, the gaps distribute evenly. */
+ *  it sits at the top; with several, the gaps distribute evenly. When the
+ *  stack's natural height exceeds the column, every ad shrinks by the same
+ *  factor (aspect preserved, centered) so the whole stack always fits. */
 function AdColumn({ ads }: { ads: ClassifiedAd[] }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [scale, setScale] = useState(1);
+  // Natural height/width ratio per creative, keyed by storage path (stable).
+  const ratios = useRef<Map<string, number>>(new Map());
+  const [loadedCount, setLoadedCount] = useState(0);
+
+  function recordRatio(path: string, img: HTMLImageElement | null) {
+    if (!img) return;
+    const record = () => {
+      if (img.naturalWidth > 0 && !ratios.current.has(path)) {
+        ratios.current.set(path, img.naturalHeight / img.naturalWidth);
+        setLoadedCount((n) => n + 1);
+      }
+    };
+    if (img.complete) record();
+    else img.onload = record;
+  }
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el || ads.length === 0) {
+      setScale(1);
+      return;
+    }
+    const known = ads.filter((a) => ratios.current.has(a.storage_path));
+    if (known.length < ads.length) return; // wait until every creative measured
+    const colW = el.clientWidth;
+    const colH = el.clientHeight;
+    if (colW <= 0 || colH <= 0) return;
+    const naturalSum = ads.reduce(
+      (sum, a) => sum + colW * (ratios.current.get(a.storage_path) ?? 0),
+      0
+    );
+    const avail = colH - MIN_AD_GAP * Math.max(0, ads.length - 1);
+    setScale(naturalSum > avail ? Math.max(0.2, avail / naturalSum) : 1);
+  }, [ads, loadedCount]);
+
   return (
     <div
+      ref={ref}
       data-classified-column
+      data-fit-scale={scale.toFixed(3)}
       style={{
         flex: 1,
         minWidth: 0,
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
+        alignItems: 'center',
         justifyContent: ads.length > 1 ? 'space-between' : 'flex-start',
         overflow: 'hidden',
       }}
@@ -51,9 +103,10 @@ function AdColumn({ ads }: { ads: ClassifiedAd[] }) {
         // eslint-disable-next-line @next/next/no-img-element
         <img
           key={ad.id}
+          ref={(img) => recordRatio(ad.storage_path, img)}
           src={classifiedFileUrl(ad.storage_path)}
           alt={ad.file_name ?? 'Classified ad'}
-          style={{ width: '100%', height: 'auto', display: 'block' }}
+          style={{ width: `${scale * 100}%`, height: 'auto', display: 'block' }}
         />
       ))}
     </div>

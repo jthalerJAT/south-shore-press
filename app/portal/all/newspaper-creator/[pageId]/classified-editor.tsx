@@ -158,17 +158,18 @@ export function ClassifiedEditor({
     router.refresh();
   }
 
-  // Overflow check: a column whose stacked ads exceed the page area gets
-  // clipped on print — measure the preview's columns and warn.
+  // Auto-fit means nothing ever clips — instead warn when a column had to
+  // shrink its ads substantially (they may print smaller than intended).
   useEffect(() => {
     const t = setTimeout(() => {
       const cols = previewRef.current?.querySelectorAll('[data-classified-column]') ?? [];
-      let over = false;
+      let cramped = false;
       cols.forEach((el) => {
-        if (el.scrollHeight > el.clientHeight + 2) over = true;
+        const s = parseFloat(el.getAttribute('data-fit-scale') ?? '1');
+        if (s < 0.67) cramped = true;
       });
-      setOverflowing(over);
-    }, 400); // give the ad images a beat to load
+      setOverflowing(cramped);
+    }, 600); // give the ad images a beat to load + the fit a beat to settle
     return () => clearTimeout(t);
   }, [data]);
 
@@ -344,9 +345,10 @@ export function ClassifiedEditor({
           </div>
         </div>
         {overflowing ? (
-          <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
-            ⚠ A column&rsquo;s ads are taller than the page — the overflow is clipped on print. Move
-            an ad to the other column or to the next classifieds page.
+          <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            ⚠ A column&rsquo;s ads were shrunk quite small to fit the page. Everything still prints
+            in full — but consider moving an ad to the other column or the next classifieds page so
+            they run larger.
           </div>
         ) : null}
       </div>

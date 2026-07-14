@@ -34,11 +34,30 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
   const [fitFs, setFitFs] = useState(FIT_MIN_FS);
 
   // Bisect the largest bottom-block font size whose full rail copy still fits
-  // the rail's (page-height) box — the copy then runs to the page bottom.
+  // the VISIBLE page area — the copy then runs to the page bottom. The rail's
+  // own flex box can stretch past the sheet when the story column overflows,
+  // so the target is measured to the clipping page frame's bottom edge, not
+  // the rail's box (converted back to layout px in case the page is scaled).
   useLayoutEffect(() => {
     function fit() {
       const aside = ref.current;
-      if (!aside || aside.clientHeight < 200) return; // unstyled/collapsed
+      if (!aside) return;
+      // Available height: distance from the rail's top to the bottom of the
+      // nearest overflow-clipping ancestor (the to-scale page frame).
+      let target = aside.clientHeight;
+      const asideRect = aside.getBoundingClientRect();
+      const scale = aside.offsetHeight > 0 ? asideRect.height / aside.offsetHeight : 1;
+      for (let el = aside.parentElement; el; el = el.parentElement) {
+        const cs = getComputedStyle(el);
+        if (cs.overflowY === 'hidden' || cs.overflowY === 'clip') {
+          const clipRect = el.getBoundingClientRect();
+          if (scale > 0) {
+            target = Math.min(target, (clipRect.bottom - asideRect.top) / scale);
+          }
+          break;
+        }
+      }
+      if (target < 200) return; // unstyled/collapsed — don't fit against noise
       const apply = (f: number) => {
         aside.style.setProperty('--colophon-fit-fs', `${f}px`);
         void aside.getBoundingClientRect(); // force layout
@@ -46,13 +65,13 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
       let lo = FIT_MIN_FS;
       let hi = FIT_MAX_FS;
       apply(hi);
-      if (aside.scrollHeight <= aside.clientHeight + 1) {
+      if (aside.scrollHeight <= target + 1) {
         lo = hi;
       } else {
         for (let i = 0; i < 9; i++) {
           const mid = (lo + hi) / 2;
           apply(mid);
-          if (aside.scrollHeight <= aside.clientHeight + 1) lo = mid;
+          if (aside.scrollHeight <= target + 1) lo = mid;
           else hi = mid;
         }
       }

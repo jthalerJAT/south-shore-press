@@ -69,6 +69,10 @@ export function LegalPage({
             style={{
               height: '100%',
               columnCount: columns,
+              // Newspaper flow: fill column 1 to the full page height, then
+              // column 2, ... — NOT the default 'balance', which spreads short
+              // copy into an even horizontal band across every column.
+              columnFill: 'auto',
               columnGap: 10,
               fontFamily: 'Arial, Helvetica, sans-serif',
               fontSize: 9.5,

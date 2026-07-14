@@ -47,6 +47,10 @@ export type BandRenderProps = {
    *  Space for them is reserved inside the photo's exclusion rect. */
   photoCaption?: string;
   photoCredit?: string;
+  /** True in the layout editor only: shows edit-time affordances (the
+   *  "Advertisement — size" label, empty-slot placeholders). NEVER set on the
+   *  proof/print/View File paths — those must render only what prints. */
+  editing?: boolean;
 };
 
 /** Height reserved at the bottom of the photo rect for the caption/credit row. */
@@ -68,10 +72,17 @@ export function BandRenderer({
   bylineLead,
   photoCaption,
   photoCredit,
+  editing,
 }: BandRenderProps) {
   if (type === 'ad') {
     return (
-      <AdBand data={data} width={geometry.contentWidthPx} height={adHeightPx ?? 200} adPublicUrl={adPublicUrl} />
+      <AdBand
+        data={data}
+        width={geometry.contentWidthPx}
+        height={adHeightPx ?? 200}
+        adPublicUrl={adPublicUrl}
+        editing={editing}
+      />
     );
   }
   return (
@@ -220,21 +231,27 @@ function AdBand({
   width,
   height,
   adPublicUrl,
+  editing,
 }: {
   data: NpAdData;
   width: number;
   height: number;
   adPublicUrl?: (path: string) => string;
+  editing?: boolean;
 }) {
   const sizeLabel = adSizeLabel(data.ad_size);
   const src = data.storage_path && adPublicUrl ? adPublicUrl(data.storage_path) : null;
   return (
-    <div style={{ width }}>
-      <div className="text-[10px] uppercase tracking-widest font-bold text-zinc-400 mb-1">
-        Advertisement — {sizeLabel}
-      </div>
+    <div style={{ width, position: 'relative' }}>
+      {/* Editor-only slot label — overlaid (not in flow, so the band height
+          matches print exactly) and never rendered on the printed page. */}
+      {editing ? (
+        <div className="absolute -top-4 left-0 text-[10px] uppercase tracking-widest font-bold text-zinc-400">
+          Advertisement — {sizeLabel}
+        </div>
+      ) : null}
       {src ? (
-        <div className="border border-zinc-200" style={{ width, height }}>
+        <div className={editing ? 'border border-zinc-200' : undefined} style={{ width, height }}>
           <AdCopyView
             src={src}
             fileName={data.file_name}
@@ -242,13 +259,16 @@ function AdBand({
             style={{ width: '100%', height: '100%', objectFit: 'fill' }}
           />
         </div>
-      ) : (
+      ) : editing ? (
         <div
           className="border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400"
           style={{ width, height }}
         >
           Ad placeholder ({sizeLabel})
         </div>
+      ) : (
+        // Print: an unfilled slot is blank space, never a wireframe.
+        <div style={{ width, height }} />
       )}
     </div>
   );

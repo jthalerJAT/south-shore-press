@@ -46,6 +46,7 @@ export function StoryBand({
         layoutResult={computed.layoutResult}
         adHeightPx={computed.adHeightPx}
         adPublicUrl={adPublicUrl}
+        editing
       >
         {selected && hasPhoto ? (
           <PhotoOverlay

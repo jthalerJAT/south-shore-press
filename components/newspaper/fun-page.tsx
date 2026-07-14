@@ -113,9 +113,12 @@ export function FunPage({
   const answersScale = CONTENT_W_PX / APP_PAGE_W;
   const answersSrcDoc = answersHtml
     ? `<!doctype html><html><head><meta charset="utf-8">` +
-      `<style>html,body{margin:0;padding:0;background:#fff}</style>` +
       `<style>${css}</style>` +
-      `<style>${APP_ANSWERS_SELECTORS}{display:block!important;padding-left:0!important;padding-right:0!important}</style>` +
+      // Overrides after the app CSS so they win — the strip lives outside the
+      // app's white "paper page" wrapper, so its dark page backdrop would
+      // otherwise show through behind the answers.
+      `<style>html,body{margin:0!important;padding:0!important;background:#fff!important}` +
+      `${APP_ANSWERS_SELECTORS}{display:block!important;padding-left:0!important;padding-right:0!important}</style>` +
       `</head><body>${answersHtml}</body></html>`
     : '';
 

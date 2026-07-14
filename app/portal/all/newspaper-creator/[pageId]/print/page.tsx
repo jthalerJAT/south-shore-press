@@ -100,7 +100,7 @@ export default async function PagePrintProof({
             be on the printed sheet — so this proof can't mislead by stretching. */}
         <div style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, overflow: 'hidden', position: 'relative', outline: '1px solid #e4e4e7' }}>
         {isTemplate && tid === 'full_ad' ? (
-          <FullPageAd data={normalizeFullAd(page.template_data)} />
+          <FullPageAd data={normalizeFullAd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'oped' ? (
           <PageTwo data={normalizeOpEd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'page_four' ? (
@@ -116,6 +116,7 @@ export default async function PagePrintProof({
             data={normalizeCover(page.template_data, page.kind)}
             variant={cfg?.variant ?? 'news'}
             mastheadWord={cfg?.mastheadWord}
+            issueDate={issueDate}
           />
         ) : (
           <div style={{ width: CONTENT_W_PX }}>

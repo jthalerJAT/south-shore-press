@@ -92,7 +92,7 @@ export default async function NewspaperViewFile() {
                 <div style={{ transform: `scale(${VIEW_SCALE})`, transformOrigin: 'top left' }}>
                   <div style={{ width: PAGE_W_PX, minHeight: PAGE_H_PX, padding: MARGIN_PX, boxSizing: 'border-box' }}>
                     {r.kind === 'template' && templateId(page.kind) === 'full_ad' ? (
-                      <FullPageAd data={normalizeFullAd(page.template_data)} />
+                      <FullPageAd data={normalizeFullAd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' && templateId(page.kind) === 'oped' ? (
                       <PageTwo data={normalizeOpEd(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' && templateId(page.kind) === 'page_four' ? (
@@ -108,6 +108,7 @@ export default async function NewspaperViewFile() {
                         data={normalizeCover(page.template_data, page.kind)}
                         variant={cfg?.variant ?? 'news'}
                         mastheadWord={cfg?.mastheadWord}
+                        issueDate={issueDate}
                       />
                     ) : (
                       <div style={{ width: CONTENT_W_PX }}>

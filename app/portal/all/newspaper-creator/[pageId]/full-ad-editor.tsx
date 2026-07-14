@@ -23,9 +23,13 @@ const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
 
 export function FullAdEditor({
   pageId,
+  pageNumber,
+  dateLabel,
   initialData,
 }: {
   pageId: string;
+  pageNumber?: number;
+  dateLabel?: string;
   initialData: FullAdData;
 }) {
   const router = useRouter();
@@ -193,7 +197,7 @@ export function FullAdEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            <FullPageAd data={data} editing />
+            <FullPageAd data={data} pageNumber={pageNumber} dateLabel={dateLabel} editing />
           </div>
         </div>
       </div>

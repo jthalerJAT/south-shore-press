@@ -93,7 +93,7 @@ export default async function PrintIssue({
         return (
           <div className="ssp-pg" key={r.page.id}>
             {r.kind === 'template' && templateId(r.page.kind) === 'full_ad' ? (
-              <FullPageAd data={normalizeFullAd(r.page.template_data)} />
+              <FullPageAd data={normalizeFullAd(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' && templateId(r.page.kind) === 'oped' ? (
               <PageTwo data={normalizeOpEd(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' && templateId(r.page.kind) === 'page_four' ? (
@@ -109,6 +109,7 @@ export default async function PrintIssue({
                 data={normalizeCover(r.page.template_data, r.page.kind)}
                 variant={cfg?.variant ?? 'news'}
                 mastheadWord={cfg?.mastheadWord}
+                issueDate={issueDate}
               />
             ) : (
               <div style={{ width: CONTENT_W_PX }}>

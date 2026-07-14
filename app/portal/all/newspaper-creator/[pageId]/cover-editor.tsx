@@ -24,12 +24,15 @@ export function CoverEditor({
   pageId,
   variant,
   mastheadWord,
+  issueDate,
   initialData,
   stories,
 }: {
   pageId: string;
   variant: 'news' | 'sports';
   mastheadWord?: string;
+  /** Front Page issue date — the preview's fallback when this cover hasn't typed its own. */
+  issueDate?: string;
   initialData: SectionCoverData;
   stories: EditorStoryRow[];
 }) {
@@ -174,7 +177,7 @@ export function CoverEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            <SectionCover data={data} variant={variant} mastheadWord={mastheadWord} />
+            <SectionCover data={data} variant={variant} mastheadWord={mastheadWord} issueDate={issueDate} />
           </div>
         </div>
       </div>

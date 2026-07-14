@@ -127,12 +127,17 @@ export function SectionCover({
   variant,
   mastheadWord,
   logoUrl = SITE.logoUrl,
+  issueDate,
 }: {
   data: SectionCoverData;
   variant: 'news' | 'sports';
   mastheadWord?: string;
   logoUrl?: string;
+  /** Issue date from the Front Page — the fallback when this cover hasn't
+   *  typed its own, so every page shows the same date automatically. */
+  issueDate?: string;
 }) {
+  const dateLabel = (data.issue_date ?? '').trim() || (issueDate ?? '').trim();
   // The sports back-cover header is a single compact band (date + logo/navy
   // row); the news front's stacked masthead needs more room.
   const headerH = variant === 'sports' ? 150 : 198;
@@ -152,7 +157,7 @@ export function SectionCover({
           // rule below — the navy block's bottom edge is the divider.
           <>
             <div className="text-right" style={{ fontSize: 13, fontWeight: 700, textTransform: 'uppercase', padding: '2px 2px 4px 0' }}>
-              {data.issue_date || '— DATE —'}
+              {dateLabel || '— DATE —'}
             </div>
             <div className="flex items-stretch flex-1" style={{ minHeight: 0 }}>
               {/* The logo PNG carries transparent padding top/bottom, so
@@ -208,7 +213,7 @@ export function SectionCover({
             <div className="flex items-end justify-between" style={{ fontSize: 12, marginTop: 3 }}>
               <span style={{ fontWeight: 700 }}>{data.year_issue || '— YEAR • ISSUE —'}</span>
               <span style={{ fontStyle: 'italic', fontWeight: 600 }}>{data.tagline}</span>
-              <span style={{ fontWeight: 700, textTransform: 'uppercase' }}>{data.issue_date || '— DATE —'}</span>
+              <span style={{ fontWeight: 700, textTransform: 'uppercase' }}>{dateLabel || '— DATE —'}</span>
             </div>
           </>
         )}

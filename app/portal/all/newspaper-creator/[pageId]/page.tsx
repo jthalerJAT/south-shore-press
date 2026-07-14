@@ -54,6 +54,7 @@ export default async function NewspaperPageEditorPage({
     const tid = templateId(page.kind);
 
     if (tid === 'full_ad') {
+      const issueDate = await getIssueDate();
       return (
         <PortalShell
           user={user}
@@ -62,7 +63,12 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <FullAdEditor pageId={page.id} initialData={normalizeFullAd(page.template_data)} />
+          <FullAdEditor
+            pageId={page.id}
+            pageNumber={ordinal}
+            dateLabel={issueDate}
+            initialData={normalizeFullAd(page.template_data)}
+          />
         </PortalShell>
       );
     }
@@ -191,7 +197,7 @@ export default async function NewspaperPageEditorPage({
     }
 
     const cfg = coverConfig(page.kind);
-    const stories = await getAllStoriesForEditor();
+    const [stories, coverIssueDate] = await Promise.all([getAllStoriesForEditor(), getIssueDate()]);
     return (
       <PortalShell
         user={user}
@@ -204,6 +210,7 @@ export default async function NewspaperPageEditorPage({
           pageId={page.id}
           variant={cfg?.variant ?? 'news'}
           mastheadWord={cfg?.mastheadWord}
+          issueDate={coverIssueDate}
           initialData={normalizeCover(page.template_data, page.kind)}
           stories={stories}
         />

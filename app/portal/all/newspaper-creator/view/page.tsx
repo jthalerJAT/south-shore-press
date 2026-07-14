@@ -20,7 +20,8 @@ import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { FunPage } from '@/components/newspaper/fun-page';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { SectionFlag } from '@/components/newspaper/section-flag';
-import { ColophonRail, COLOPHON_RAIL_W, COLOPHON_GAP } from '@/components/newspaper/colophon-rail';
+import { ColophonRail } from '@/components/newspaper/colophon-rail';
+import { COLOPHON_RAIL_W, COLOPHON_GAP } from '@/lib/newspaper/colophon';
 import { PAGE_W_PX, PAGE_H_PX, CONTENT_W_PX, MARGIN_IN, DPI } from '@/lib/newspaper/layout-engine';
 import { ProofBands, type ProofItem } from '../[pageId]/print/proof-bands';
 

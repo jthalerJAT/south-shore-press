@@ -19,9 +19,9 @@ import { PLAN_DISPLAY } from '@/lib/stripe/plans';
 
 const SERIF = "var(--font-crimson), Georgia, 'Times New Roman', serif";
 
-/** Default rail width + the gap to the story columns (px at print scale). */
-export const COLOPHON_RAIL_W = 215;
-export const COLOPHON_GAP = 16;
+// NOTE: COLOPHON_RAIL_W / COLOPHON_GAP live in lib/newspaper/colophon.ts —
+// this file is 'use client', and constants exported from a client module turn
+// into client references inside server pages (width math became NaN).
 
 /** Auto-fit bounds for the bottom blocks' font size (px at print scale). */
 const FIT_MIN_FS = 8.5;

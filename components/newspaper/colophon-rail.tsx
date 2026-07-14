@@ -41,19 +41,24 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
   useLayoutEffect(() => {
     function fit() {
       const aside = ref.current;
-      if (!aside) return;
-      // Available height: distance from the rail's top to the bottom of the
-      // nearest overflow-clipping ancestor (the to-scale page frame).
-      let target = aside.clientHeight;
+      const lastEl = aside?.lastElementChild as HTMLElement | null;
+      if (!aside || !lastEl) return;
       const asideRect = aside.getBoundingClientRect();
+      // Preview scaling factor (View File / editor previews render the page
+      // inside a CSS transform; rects are screen px, layout math needs px).
       const scale = aside.offsetHeight > 0 ? asideRect.height / aside.offsetHeight : 1;
+      if (scale <= 0) return;
+      // Available height: from the rail's top to the PRINTABLE bottom of the
+      // nearest overflow-clipping page frame (minus its padding — the sheet
+      // margin). The aside's own box can't be used: as a stretched flex item
+      // it can extend past the sheet when the story column overflows.
+      let target = aside.clientHeight;
       for (let el = aside.parentElement; el; el = el.parentElement) {
         const cs = getComputedStyle(el);
         if (cs.overflowY === 'hidden' || cs.overflowY === 'clip') {
           const clipRect = el.getBoundingClientRect();
-          if (scale > 0) {
-            target = Math.min(target, (clipRect.bottom - asideRect.top) / scale);
-          }
+          const padBottom = parseFloat(cs.paddingBottom) || 0;
+          target = Math.min(target, (clipRect.bottom - asideRect.top) / scale - padBottom);
           break;
         }
       }
@@ -62,16 +67,20 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
         aside.style.setProperty('--colophon-fit-fs', `${f}px`);
         void aside.getBoundingClientRect(); // force layout
       };
+      // The rail's real copy height = the last block's bottom edge relative to
+      // the rail top (scrollHeight would report the stretched flex box).
+      const copyH = () =>
+        (lastEl.getBoundingClientRect().bottom - aside.getBoundingClientRect().top) / scale;
       let lo = FIT_MIN_FS;
       let hi = FIT_MAX_FS;
       apply(hi);
-      if (aside.scrollHeight <= target + 1) {
+      if (copyH() <= target + 1) {
         lo = hi;
       } else {
         for (let i = 0; i < 9; i++) {
           const mid = (lo + hi) / 2;
           apply(mid);
-          if (aside.scrollHeight <= target + 1) lo = mid;
+          if (copyH() <= target + 1) lo = mid;
           else hi = mid;
         }
       }

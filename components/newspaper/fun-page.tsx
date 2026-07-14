@@ -31,6 +31,12 @@ const REFLOW_MAX_W = 2200;
 const BAND_FULL_H = Math.round(CONTENT_H_PX * 0.3); // ~1/3 page
 const BAND_HALF_H = Math.round(CONTENT_H_PX * 0.24); // ~1/4 page
 
+/** Selectors the source apps use for parts we re-arrange: their reserved ad box
+ *  (we place our own ads in the bottom band) and the puzzle answer key (moved
+ *  BELOW our ad band so answers never sit next to the puzzles). */
+const APP_AD_SELECTORS = '.ad-section,.ad-slot,.advertisement';
+const APP_ANSWERS_SELECTORS = '.answers-section,#answersSection';
+
 export function FunPage({
   data,
   sectionLabel = FUN_SECTION_HEADER,
@@ -69,19 +75,78 @@ export function FunPage({
   const css = data.css ?? fetchedSnap?.css ?? '';
   const blocks = data.blocks ?? [];
 
+  // The answer key (puzzles) prints below our ad band, so it is cut out of the
+  // pulled content and rendered as its own strip. DOM parsing is client-only.
+  const [answersHtml, setAnswersHtml] = useState<string | null>(null);
+  useEffect(() => {
+    if (!html) {
+      setAnswersHtml(null);
+      return;
+    }
+    try {
+      const doc = new DOMParser().parseFromString(html, 'text/html');
+      const el = doc.querySelector(APP_ANSWERS_SELECTORS);
+      setAnswersHtml(el ? el.outerHTML : null);
+    } catch {
+      setAnswersHtml(null);
+    }
+  }, [html]);
+
   // App CSS first, then our overrides last so they reliably win: hide the app's
-  // own reserved ad box (we place our own ads in the bottom band).
+  // own reserved ad box + answer key (both re-placed by us), and collapse any
+  // fixed "paper page" height the app bakes in (e.g. min-height:1147px) — with
+  // sections hidden that height is empty whitespace the fitter would otherwise
+  // scale in, cramming the real content at the top of the area.
   const srcDoc = html
     ? `<!doctype html><html><head><meta charset="utf-8"><base target="_blank">` +
       `<style>html,body{margin:0;padding:0;background:#fff}</style>` +
       `<style>${css}</style>` +
-      `<style>.ad-section,.ad-slot,.advertisement{display:none!important}</style>` +
+      `<style>${APP_AD_SELECTORS},${APP_ANSWERS_SELECTORS}{display:none!important}` +
+      `#newspaperPage{height:auto!important;min-height:0!important}</style>` +
       `</head><body>${html}</body></html>`
     : '';
 
-  // How much of the page height the bottom band takes changes the area the
-  // pulled content must fill — refit when the band composition changes.
-  const bandKey = blocks.map((b) => (funBlockIsFull(b) ? 'f' : 'h')).join('');
+  // Answer key strip (below the ad band): rendered at the app's native width in
+  // its own iframe, scaled to our content width; height measured from the doc.
+  const answersFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [answersH, setAnswersH] = useState(0);
+  const answersScale = CONTENT_W_PX / APP_PAGE_W;
+  const answersSrcDoc = answersHtml
+    ? `<!doctype html><html><head><meta charset="utf-8">` +
+      `<style>html,body{margin:0;padding:0;background:#fff}</style>` +
+      `<style>${css}</style>` +
+      `<style>${APP_ANSWERS_SELECTORS}{display:block!important;padding-left:0!important;padding-right:0!important}</style>` +
+      `</head><body>${answersHtml}</body></html>`
+    : '';
+
+  useEffect(() => {
+    if (!answersSrcDoc) {
+      setAnswersH(0);
+      return;
+    }
+    const frame = answersFrameRef.current;
+    if (!frame) return;
+    function measure() {
+      try {
+        const h = answersFrameRef.current?.contentDocument?.body?.scrollHeight ?? 0;
+        if (h > 0) setAnswersH(h);
+      } catch {
+        /* same-origin srcdoc; stay defensive */
+      }
+    }
+    frame.addEventListener('load', measure);
+    const t1 = setTimeout(measure, 150);
+    const t2 = setTimeout(measure, 800);
+    return () => {
+      frame.removeEventListener('load', measure);
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [answersSrcDoc]);
+
+  // How much of the page height the bottom band + answers strip take changes
+  // the area the pulled content must fill — refit when either changes.
+  const bandKey = blocks.map((b) => (funBlockIsFull(b) ? 'f' : 'h')).join('') + `|a${answersH}`;
 
   useLayoutEffect(() => {
     if (!html) return;
@@ -210,6 +275,29 @@ export function FunPage({
           {blocks.map((b) => (
             <FunBlockView key={b.id} block={b} editing={editing} />
           ))}
+        </div>
+      ) : null}
+
+      {/* Answer key — always the last thing on the page, below the ad band. */}
+      {answersSrcDoc ? (
+        <div
+          style={{
+            flexShrink: 0,
+            height: Math.ceil(answersH * answersScale),
+            overflow: 'hidden',
+            borderTop: '1px solid #d4d4d8',
+            marginTop: 4,
+          }}
+        >
+          <div style={{ transform: `scale(${answersScale})`, transformOrigin: 'top left', width: APP_PAGE_W }}>
+            <iframe
+              ref={answersFrameRef}
+              srcDoc={answersSrcDoc}
+              title="Puzzle answers"
+              scrolling="no"
+              style={{ width: APP_PAGE_W, height: Math.max(answersH, 10), border: 0, display: 'block' }}
+            />
+          </div>
         </div>
       ) : null}
     </div>

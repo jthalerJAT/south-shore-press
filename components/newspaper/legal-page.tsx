@@ -99,6 +99,8 @@ export function LegalPage({
             </div>
             {data.notices.map((n, i) => (
               <div key={n.id}>
+                {/* Horizontal rule between notices, as in the printed page. */}
+                {i > 0 ? <div style={{ borderTop: '1px solid #000', margin: '8px 0 0' }} /> : null}
                 <div
                   style={{
                     breakInside: 'avoid',
@@ -106,7 +108,7 @@ export function LegalPage({
                     fontWeight: 700,
                     textDecoration: 'underline',
                     fontSize: 10,
-                    margin: `${i === 0 ? 0 : 8}px 0 4px`,
+                    margin: `${i === 0 ? 0 : 6}px 0 4px`,
                   }}
                 >
                   PUBLIC NOTICE

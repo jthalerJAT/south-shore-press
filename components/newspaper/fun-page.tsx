@@ -17,6 +17,7 @@ import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { imagePublicUrl } from '@/lib/newspaper-images';
 import { adFilePublicUrl } from '@/lib/ad-files';
 import { AdCopyView } from './ad-copy';
+import { PageHeader } from './page-header';
 import { SectionFlag } from './section-flag';
 import { FUN_SECTION_HEADER, funBlockIsFull, type FunPageData, type FunBlock } from '@/lib/newspaper/fun-page';
 
@@ -40,10 +41,16 @@ const APP_ANSWERS_SELECTORS = '.answers-section,#answersSection';
 export function FunPage({
   data,
   sectionLabel = FUN_SECTION_HEADER,
+  pageNumber,
+  dateLabel,
   editing = false,
 }: {
   data: FunPageData;
   sectionLabel?: string;
+  /** Running-head page number; omitted → no header (back-compat). */
+  pageNumber?: number;
+  /** Issue date from the Front Page, shown in the running head. */
+  dateLabel?: string;
   editing?: boolean;
 }) {
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -227,6 +234,11 @@ export function FunPage({
         flexDirection: 'column',
       }}
     >
+      {/* Running head first, like every interior page; the reflow fitter
+          measures whatever area remains, so pulled content adapts unharmed. */}
+      {typeof pageNumber === 'number' && pageNumber > 0 ? (
+        <PageHeader pageNumber={pageNumber} dateLabel={dateLabel} />
+      ) : null}
       <SectionFlag label={sectionLabel} />
 
       {/* Pulled content — fills the space above the bottom band. */}

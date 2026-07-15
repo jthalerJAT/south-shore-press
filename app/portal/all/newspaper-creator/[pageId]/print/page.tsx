@@ -109,7 +109,7 @@ export default async function PagePrintProof({
         ) : isTemplate && tid === 'classified' ? (
           <ClassifiedPage data={normalizeClassifiedPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'fun' ? (
-          <FunPage data={normalizeFunPage(page.template_data)} />
+          <FunPage data={normalizeFunPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'legal' ? (
           <LegalPage data={normalizeLegalPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate ? (

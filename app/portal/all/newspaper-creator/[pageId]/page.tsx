@@ -128,7 +128,11 @@ export default async function NewspaperPageEditorPage({
     if (tid === 'fun') {
       const source = getFunSource(page.kind);
       if (!source) notFound();
-      const [ads, stories] = await Promise.all([getAds(), getAllStoriesForEditor()]);
+      const [ads, stories, funIssueDate] = await Promise.all([
+        getAds(),
+        getAllStoriesForEditor(),
+        getIssueDate(),
+      ]);
       return (
         <PortalShell
           user={user}
@@ -140,6 +144,8 @@ export default async function NewspaperPageEditorPage({
           <FunEditor
             pageId={page.id}
             source={source}
+            pageNumber={ordinal}
+            dateLabel={funIssueDate}
             initialData={normalizeFunPage(page.template_data)}
             ads={ads}
             stories={stories}

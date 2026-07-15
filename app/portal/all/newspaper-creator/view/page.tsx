@@ -101,7 +101,7 @@ export default async function NewspaperViewFile() {
                     ) : r.kind === 'template' && templateId(page.kind) === 'classified' ? (
                       <ClassifiedPage data={normalizeClassifiedPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' && templateId(page.kind) === 'fun' ? (
-                      <FunPage data={normalizeFunPage(page.template_data)} />
+                      <FunPage data={normalizeFunPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' && templateId(page.kind) === 'legal' ? (
                       <LegalPage data={normalizeLegalPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' ? (

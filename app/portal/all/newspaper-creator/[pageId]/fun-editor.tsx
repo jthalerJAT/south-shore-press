@@ -51,12 +51,16 @@ function newBlockId() {
 export function FunEditor({
   pageId,
   source,
+  pageNumber,
+  dateLabel,
   initialData,
   ads,
   stories,
 }: {
   pageId: string;
   source: FunSource;
+  pageNumber?: number;
+  dateLabel?: string;
   initialData: FunPageData;
   ads: AdLite[];
   stories: StoryLite[];
@@ -364,7 +368,7 @@ export function FunEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            <FunPage data={data} editing />
+            <FunPage data={data} pageNumber={pageNumber} dateLabel={dateLabel} editing />
           </div>
         </div>
       </div>

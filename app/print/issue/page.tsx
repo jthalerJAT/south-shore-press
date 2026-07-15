@@ -102,7 +102,7 @@ export default async function PrintIssue({
             ) : r.kind === 'template' && templateId(r.page.kind) === 'classified' ? (
               <ClassifiedPage data={normalizeClassifiedPage(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' && templateId(r.page.kind) === 'fun' ? (
-              <FunPage data={normalizeFunPage(r.page.template_data)} />
+              <FunPage data={normalizeFunPage(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' && templateId(r.page.kind) === 'legal' ? (
               <LegalPage data={normalizeLegalPage(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' ? (

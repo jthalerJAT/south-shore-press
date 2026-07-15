@@ -128,6 +128,7 @@ export function SectionCover({
   mastheadWord,
   logoUrl = SITE.logoUrl,
   issueDate,
+  editing,
 }: {
   data: SectionCoverData;
   variant: 'news' | 'sports';
@@ -136,14 +137,22 @@ export function SectionCover({
   /** Issue date from the Front Page — the fallback when this cover hasn't
    *  typed its own, so every page shows the same date automatically. */
   issueDate?: string;
+  /** True in the cover editor preview only: shows edit-time affordances (the
+   *  mailing-panel label). NEVER set on the proof/print/View File paths. */
+  editing?: boolean;
 }) {
   const dateLabel = (data.issue_date ?? '').trim() || (issueDate ?? '').trim();
   // The sports back-cover header is a single compact band (date + logo/navy
   // row); the news front's stacked masthead needs more room.
   const headerH = variant === 'sports' ? 150 : 198;
   const bannerH = data.banner_text ? 36 : 0;
-  const tiles = data.tiles.slice(0, data.tile_count);
-  const tilesH = tiles.length > 0 ? 220 : 0;
+  // The news front's lower-right tile slot is a white knockout the printer
+  // sprays the mailing address onto (required when an issue runs over 32
+  // pages), so it carries at most 2 content tiles and always shows the band.
+  const isFront = variant === 'news';
+  const tiles = data.tiles.slice(0, Math.min(data.tile_count, isFront ? 2 : 3));
+  const showTileBand = tiles.length > 0 || isFront;
+  const tilesH = showTileBand ? 220 : 0;
   const heroH = Math.max(160, CONTENT_H_PX - headerH - tilesH - bannerH);
 
   return (
@@ -258,15 +267,16 @@ export function SectionCover({
       </div>
 
       {/* ── Bottom tiles ─────────────────────────────────────── */}
-      {tiles.length > 0 ? (
+      {showTileBand ? (
         <div style={{ height: tilesH, background: SSP_BLUE, padding: 8 }}>
           <div
             className="grid h-full"
-            style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))`, gap: 8 }}
+            style={{ gridTemplateColumns: `repeat(${isFront ? 3 : tiles.length}, minmax(0, 1fr))`, gap: 8 }}
           >
             {tiles.map((t, i) => (
               <Tile key={i} tile={t} />
             ))}
+            {isFront ? <MailingPanel editing={editing} /> : null}
           </div>
         </div>
       ) : null}
@@ -278,6 +288,24 @@ export function SectionCover({
           style={{ height: bannerH, background: NAVY, color: '#fff', fontStyle: 'italic', fontWeight: 800, fontSize: 18 }}
         >
           {data.banner_text}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The white mailing-address knockout in the front page's lower-right tile
+ *  slot. Prints as a plain white rectangle; the label only shows in the
+ *  cover editor preview. */
+function MailingPanel({ editing }: { editing?: boolean }) {
+  return (
+    <div style={{ gridColumn: '3', height: '100%', background: '#fff' }}>
+      {editing ? (
+        <div
+          className="h-full flex items-center justify-center text-center"
+          style={{ color: '#a1a1aa', fontSize: 13, fontWeight: 600, padding: 12 }}
+        >
+          Kept white — the printer sprays the mailing address here
         </div>
       ) : null}
     </div>

@@ -81,7 +81,11 @@ export function CoverEditor({
     router.refresh();
   }
 
-  const tiles = data.tiles.slice(0, data.tile_count);
+  // The news front's third (lower-right) tile slot is reserved as the white
+  // mailing-address knockout, so it carries at most 2 content tiles.
+  const maxTiles = variant === 'news' ? 2 : 3;
+  const tileCount = Math.min(data.tile_count, maxTiles);
+  const tiles = data.tiles.slice(0, tileCount);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8">
@@ -114,14 +118,20 @@ export function CoverEditor({
           <div>
             <label className="block text-sm font-medium text-zinc-700 mb-1">Number of tiles</label>
             <select
-              value={data.tile_count}
+              value={tileCount}
               onChange={(e) => setField('tile_count', Number(e.target.value) as 0 | 1 | 2 | 3)}
               className="rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
             >
-              {[0, 1, 2, 3].map((n) => (
+              {Array.from({ length: maxTiles + 1 }, (_, n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
+            {variant === 'news' ? (
+              <p className="mt-1 text-xs text-zinc-500">
+                The lower-right tile slot stays white — the printer sprays the mailing-address
+                label there (required when an issue runs over 32 pages).
+              </p>
+            ) : null}
           </div>
           {tiles.map((t, i) => (
             <div key={i} className="rounded border border-zinc-200 p-3 space-y-3">
@@ -177,7 +187,7 @@ export function CoverEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            <SectionCover data={data} variant={variant} mastheadWord={mastheadWord} issueDate={issueDate} />
+            <SectionCover data={data} variant={variant} mastheadWord={mastheadWord} issueDate={issueDate} editing />
           </div>
         </div>
       </div>

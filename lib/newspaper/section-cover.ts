@@ -33,6 +33,13 @@ export type SectionCoverData = {
   banner_text?: string;
 };
 
+/** The news front's lower-right tile slot is reserved as a white knockout for
+ *  the printer's mailing-address label (required when an issue runs over 32
+ *  pages), so the front page carries at most 2 content tiles. */
+export function maxTileCount(kind: string): 2 | 3 {
+  return coverConfig(kind)?.variant === 'news' ? 2 : 3;
+}
+
 export function defaultCover(kind: string): SectionCoverData {
   const cfg: CoverConfig | null = coverConfig(kind);
   const label = cfg?.defaultTabLabel ?? 'LOCAL';
@@ -42,7 +49,7 @@ export function defaultCover(kind: string): SectionCoverData {
     tagline: cfg?.defaultTagline ?? '',
     issue_date: '',
     hero: {},
-    tile_count: 3,
+    tile_count: maxTileCount(kind),
     tiles: [
       { section_label: label },
       { section_label: label },
@@ -52,9 +59,9 @@ export function defaultCover(kind: string): SectionCoverData {
   };
 }
 
-function clampCount(n: unknown): 0 | 1 | 2 | 3 {
-  const v = Math.round(typeof n === 'number' ? n : 3);
-  return (v < 0 ? 0 : v > 3 ? 3 : v) as 0 | 1 | 2 | 3;
+function clampCount(n: unknown, max: 2 | 3): 0 | 1 | 2 | 3 {
+  const v = Math.round(typeof n === 'number' ? n : max);
+  return (v < 0 ? 0 : v > max ? max : v) as 0 | 1 | 2 | 3;
 }
 
 /** Merge a raw jsonb blob over the defaults so a missing field never crashes. */
@@ -62,7 +69,7 @@ export function normalizeCover(raw: unknown, kind: string): SectionCoverData {
   const base = defaultCover(kind);
   if (!raw || typeof raw !== 'object') return base;
   const r = raw as Partial<SectionCoverData>;
-  const tile_count = r.tile_count != null ? clampCount(r.tile_count) : base.tile_count;
+  const tile_count = r.tile_count != null ? clampCount(r.tile_count, maxTileCount(kind)) : base.tile_count;
   const tiles: CoverTile[] = Array.from({ length: 3 }, (_, i) => ({
     ...base.tiles[i],
     ...(Array.isArray(r.tiles) ? r.tiles[i] : undefined),

@@ -73,6 +73,45 @@ try {
   await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
   await page.waitForTimeout(2500); // let client measurement + copyfit settle
 
+  // ── 1a-pre. Verify every photo actually loaded ──────────────────────────
+  // networkidle can pass even when an image request failed (429/drop) — the
+  // <img> then prints as a blank gray box (the printer's "missing photos",
+  // 2026-07-15 issue, p34). Retry each failed image once with a cache-buster,
+  // then name anything still broken in the log instead of letting the printer
+  // find it.
+  const brokenImages = await page.evaluate(async () => {
+    const bad = () => Array.from(document.images).filter((im) => !(im.complete && im.naturalWidth > 0));
+    await Promise.all(
+      bad().map(
+        (im) =>
+          new Promise((res) => {
+            const done = () => res(undefined);
+            im.addEventListener('load', done, { once: true });
+            im.addEventListener('error', done, { once: true });
+            setTimeout(done, 15000);
+            try {
+              const u = new URL(im.src, location.href);
+              u.searchParams.set('ssp-retry', String(Date.now()));
+              im.src = u.href;
+            } catch {
+              done();
+            }
+          })
+      )
+    );
+    return bad().map((im) => {
+      const sheet = im.closest('.ssp-pg');
+      const ordinal = sheet ? Array.from(document.querySelectorAll('.ssp-pg')).indexOf(sheet) + 1 : null;
+      return { src: im.src, sheet: ordinal };
+    });
+  });
+  for (const im of brokenImages) {
+    console.warn(`!! MISSING IMAGE${im.sheet ? ` on sheet ${im.sheet}` : ''}: ${im.src} — it will print blank.`);
+  }
+  if (brokenImages.length > 0) {
+    console.warn(`!! ${brokenImages.length} image(s) failed to load. The export continues, but check the pages above before sending to the printer.`);
+  }
+
   // ── 1a. Rasterize PDF frames ────────────────────────────────────────────
   // On screen, PDFs (classifieds, PDF ad copy) render in the browser's NATIVE
   // viewer via <iframe> — but headless page.pdf() prints those frames BLANK

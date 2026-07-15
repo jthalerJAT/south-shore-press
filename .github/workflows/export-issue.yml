@@ -51,9 +51,9 @@ jobs:
       - name: Use built Ghostscript
         run: echo "GS=$HOME/gs-install/bin/gs" >> "$GITHUB_ENV"
 
-      - name: Install Playwright + Chromium
+      - name: Install Playwright + Chromium + mupdf
         run: |
-          npm i -D playwright
+          npm i -D playwright mupdf
           npx playwright install --with-deps chromium
 
       - name: Export PDF/X-1a

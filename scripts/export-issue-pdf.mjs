@@ -194,12 +194,103 @@ try {
   await browser.close();
 }
 
-// ── 1b. K-only black: handled by Ghostscript itself (-dBlackText/-dBlackVector)
-// Chromium emits black text/rules as RGB (0,0,0); a colorimetric CMYK
-// conversion would turn that into rich black. The old neutralize-black.mjs
-// stream-rewrite pre-pass CORRUPTED content streams (bad zlib checksums,
-// broken BT/ET pairs — gs "repaired" them into mangled pages). Ghostscript
-// ≥9.55 does the same job natively and safely during color conversion.
+// ── 1b. K-only black pre-pass (mupdf stream rewrite) ─────────────────────────
+// Chromium paints text/rules in near-neutral RGB (zinc-900 carries a blue
+// tint); a colorimetric CMYK conversion turns that into rich black — a
+// registration hazard on newsprint. Two prior attempts both failed:
+//   - neutralize-black.mjs hand-rewrote compressed streams and corrupted them
+//     (bad zlib checksums, broken BT/ET pairs).
+//   - -dBlackText/-dBlackVector do NOT mean "keep black K-only": in gs 10.x
+//     they force ALL non-white text/vectors TO black (an ink-saving mode) —
+//     they printed every navy flag, red badge, and the History page's cream
+//     boxes solid black on the 2026-07-15 issue.
+// This pass uses mupdf's PDF API (proper decompress/recompress, no hand-rolled
+// zlib): any near-neutral `r g b rg/RG` paint op in a content/form/soft-mask
+// stream becomes DeviceGray, which pdfwrite's default DeviceGrayToK then emits
+// as K-only. Photos are untouched (image data, not paint ops).
+const kOnly = join(outDir, 'issue-k.pdf');
+let gsInput = rgb;
+try {
+  const mupdf = await import('mupdf');
+  const doc = mupdf.PDFDocument.openDocument(readFileSync(rgb), 'application/pdf');
+  const GRAY_PAINT = /(^|[\s])([\d.]+) ([\d.]+) ([\d.]+) (rg|RG)(?=[\s])/g;
+  const seenStreams = new Set();
+  let rewritten = 0;
+
+  const rewriteStream = (ref) => {
+    const num = ref.isIndirect() ? ref.asIndirect() : -1;
+    if (num >= 0) {
+      if (seenStreams.has(num)) return;
+      seenStreams.add(num);
+    }
+    let txt;
+    try {
+      txt = Buffer.from(ref.readStream().asUint8Array()).toString('latin1');
+    } catch {
+      return;
+    }
+    if (!/ (rg|RG)[\s]/.test(txt)) return;
+    const next = txt.replace(GRAY_PAINT, (all, pre, r, g, b, op) => {
+      const [rf, gf, bf] = [parseFloat(r), parseFloat(g), parseFloat(b)];
+      if (Math.max(rf, gf, bf) - Math.min(rf, gf, bf) > 0.06) return all;
+      const luma = Math.round((0.299 * rf + 0.587 * gf + 0.114 * bf) * 10000) / 10000;
+      return `${pre}${luma} ${op === 'rg' ? 'g' : 'G'}`;
+    });
+    if (next !== txt) {
+      // latin1 keeps a byte-for-byte round trip (TextEncoder is UTF-8 and
+      // would mangle any binary string data in the stream).
+      ref.writeStream(new Uint8Array(Buffer.from(next, 'latin1')));
+      rewritten++;
+    }
+  };
+
+  const walkResources = (res, depth) => {
+    if (!res || res.isNull() || depth > 12) return;
+    const r = res.resolve();
+    if (!r || !r.isDictionary()) return;
+    const egs = r.get('ExtGState');
+    if (egs && !egs.isNull()) {
+      egs.resolve().forEach((v) => {
+        const sm = v.resolve()?.get?.('SMask');
+        if (sm && !sm.isNull() && sm.resolve()?.isDictionary?.()) {
+          const g = sm.resolve().get('G');
+          if (g && !g.isNull()) {
+            rewriteStream(g);
+            walkResources(g.resolve().get('Resources'), depth + 1);
+          }
+        }
+      });
+    }
+    const xo = r.get('XObject');
+    if (xo && !xo.isNull()) {
+      xo.resolve().forEach((v) => {
+        const d = v.resolve();
+        if (d?.get?.('Subtype')?.toString?.() === '/Form') {
+          rewriteStream(v);
+          walkResources(d.get('Resources'), depth + 1);
+        }
+      });
+    }
+  };
+
+  for (let i = 0; i < doc.countPages(); i++) {
+    const pobj = doc.loadPage(i).getObject();
+    const contents = pobj.get('Contents');
+    const carr = contents.resolve();
+    if (carr.isArray()) {
+      for (let j = 0; j < carr.length; j++) rewriteStream(carr.get(j));
+    } else {
+      rewriteStream(contents);
+    }
+    walkResources(pobj.get('Resources'), 0);
+  }
+
+  writeFileSync(kOnly, Buffer.from(doc.saveToBuffer('compress').asUint8Array()));
+  gsInput = kOnly;
+  console.log(`✓ K-only pre-pass: rewrote ${rewritten} stream(s) -> ${kOnly}`);
+} catch (e) {
+  console.warn(`! K-only pre-pass skipped (${e.message}) — black text will be rich black. npm i -D mupdf to enable.`);
+}
 
 // ── 2. Convert to PDF/X-1a CMYK via Ghostscript ──────────────────────────────
 // Find the GS binary: env override, then PATH, then the user-dir Windows install
@@ -283,16 +374,15 @@ const gsArgs = [
   '-dPDFSETTINGS=/prepress',
   '-sColorConversionStrategy=CMYK',
   '-dProcessColorModel=/DeviceCMYK',
-  // Keep pure-black text and vectors (rules, boxes) K-only instead of rich
-  // black — replaces the corrupting neutralize-black.mjs stream pre-pass.
-  '-dBlackText=true',
-  '-dBlackVector=true',
+  // NO -dBlackText/-dBlackVector: those force all non-white text/vectors TO
+  // black (gs 10.x ink-saving mode) — see the K-only pre-pass above for the
+  // correct treatment of near-neutral blacks.
   '-dPDFACompatibilityPolicy=1',
   '-dPDFXSETBLEEDBOXTOMEDIABOX=true',
   `-sOutputICCProfile=${icc.replace(/\\/g, '/')}`,
   `-sOutputFile=${x1a}`,
   defPath,
-  rgb, // Chromium's RGB output, untouched
+  gsInput, // Chromium's RGB output after the K-only pre-pass
 ];
 
 try {

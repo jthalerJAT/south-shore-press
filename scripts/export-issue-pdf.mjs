@@ -227,7 +227,10 @@ if (!icc) {
 console.log('CMYK profile:', icc);
 
 const defTemplate = readFileSync(join(__dir, 'pdfx', 'PDFX_def.ps'), 'utf8');
-const defResolved = defTemplate.replace('__ICC_PROFILE__', icc.replace(/\\/g, '/'));
+// replaceAll: the template mentions the token in a comment BEFORE the real
+// /ICCProfile reference — .replace() only substituted the comment, leaving
+// Ghostscript to open the literal file "(__ICC_PROFILE__)" and die.
+const defResolved = defTemplate.replaceAll('__ICC_PROFILE__', icc.replace(/\\/g, '/'));
 const defPath = join(outDir, 'pdfx_def_resolved.ps');
 writeFileSync(defPath, defResolved, 'utf8');
 

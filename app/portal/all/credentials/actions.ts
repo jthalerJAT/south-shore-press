@@ -117,11 +117,15 @@ export async function setUserRolesAction(
     ? [...granted, 'master admin']
     : granted;
 
-  // Sync the legacy single-role column to the highest-privilege role.
-  // Keeps v1 (still in production at southshorepress.vercel.app)
-  // reading what it expects. Falls back to 'journalist' so we never
-  // try to write NULL to what might be a NOT NULL column.
-  const primaryRole: UserRole = pickHighestRole(finalRoles) ?? 'journalist';
+  // Sync the legacy single-role column to the highest-privilege role, which
+  // `getCurrentUser` falls back to whenever `roles` is empty (and which v1's
+  // RLS still reads). When every role is unchecked the user has NO editorial
+  // credentials, so this MUST be 'reader' — the no-access baseline. It used to
+  // fall back to 'journalist' (only to avoid writing NULL into a possibly
+  // NOT NULL column), which silently demoted de-credentialed users to
+  // journalist instead of revoking them — and journalists may publish their
+  // own stories, so they kept publishing. 'reader' has no portal access.
+  const primaryRole: UserRole = pickHighestRole(finalRoles) ?? 'reader';
 
   const { error: updErr } = await supabase
     .from('profiles')

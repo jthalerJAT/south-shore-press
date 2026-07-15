@@ -52,7 +52,6 @@ if (!TOKEN) {
 }
 
 const rgb = join(outDir, 'issue-rgb.pdf');
-const prepped = join(outDir, 'issue-rgb-k.pdf');
 const x1a = join(outDir, 'issue-x1a.pdf');
 
 // ── 1. Render to RGB PDF via Playwright ──────────────────────────────────────
@@ -156,13 +155,12 @@ try {
   await browser.close();
 }
 
-// ── 1b. Press pre-pass: neutral RGB -> DeviceGray so black separates K-only ──
+// ── 1b. K-only black: handled by Ghostscript itself (-dBlackText/-dBlackVector)
 // Chromium emits black text/rules as RGB (0,0,0); a colorimetric CMYK
-// conversion would turn that into rich black. Rewriting neutrals to DeviceGray
-// makes Ghostscript separate them to K-only (verified: DeviceGray -> K, no CMY).
-execFileSync(process.execPath, [join(__dir, 'neutralize-black.mjs'), rgb, prepped], {
-  stdio: 'inherit',
-});
+// conversion would turn that into rich black. The old neutralize-black.mjs
+// stream-rewrite pre-pass CORRUPTED content streams (bad zlib checksums,
+// broken BT/ET pairs — gs "repaired" them into mangled pages). Ghostscript
+// ≥9.55 does the same job natively and safely during color conversion.
 
 // ── 2. Convert to PDF/X-1a CMYK via Ghostscript ──────────────────────────────
 // Find the GS binary: env override, then PATH, then the user-dir Windows install
@@ -246,12 +244,16 @@ const gsArgs = [
   '-dPDFSETTINGS=/prepress',
   '-sColorConversionStrategy=CMYK',
   '-dProcessColorModel=/DeviceCMYK',
+  // Keep pure-black text and vectors (rules, boxes) K-only instead of rich
+  // black — replaces the corrupting neutralize-black.mjs stream pre-pass.
+  '-dBlackText=true',
+  '-dBlackVector=true',
   '-dPDFACompatibilityPolicy=1',
   '-dPDFXSETBLEEDBOXTOMEDIABOX=true',
   `-sOutputICCProfile=${icc.replace(/\\/g, '/')}`,
   `-sOutputFile=${x1a}`,
   defPath,
-  prepped, // K-only-prepped input, not the raw RGB
+  rgb, // Chromium's RGB output, untouched
 ];
 
 try {

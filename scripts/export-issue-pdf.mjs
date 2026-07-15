@@ -189,9 +189,15 @@ const gsBin = resolveGsBin();
 function resolveIcc() {
   // 1. Explicit override (ideally the PRINTER's newsprint profile).
   if (process.env.CMYK_ICC && existsSync(process.env.CMYK_ICC)) return process.env.CMYK_ICC;
-  // 2. A newsprint profile checked into the repo next to this script.
-  const repoSnap = join(__dir, 'pdfx', 'USNewsprintSNAP2007.icc');
-  if (existsSync(repoSnap)) return repoSnap;
+  // 2. Profiles checked into the repo next to this script. CGATS21_CRPC1
+  //    (ISO/PAS 15339 "ColdsetNews", from the ICC registry — freely
+  //    redistributable, hence committable) is the newsprint condition and the
+  //    one CI uses; a locally dropped USNewsprintSNAP2007.icc still wins if
+  //    present (it's gitignored — Adobe profile, not redistributed).
+  for (const name of ['USNewsprintSNAP2007.icc', 'CGATS21_CRPC1.icc']) {
+    const p = join(__dir, 'pdfx', name);
+    if (existsSync(p)) return p;
+  }
   // 3. The US newsprint profile Adobe CC installs (SNAP 2007) — correct for a
   //    U.S. paper: ~newsprint dot gain + ink limit, unlike the glossy default.
   const adobe = [

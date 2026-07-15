@@ -38,6 +38,16 @@ const BAND_HALF_H = Math.round(CONTENT_H_PX * 0.24); // ~1/4 page
 const APP_AD_SELECTORS = '.ad-section,.ad-slot,.advertisement';
 const APP_ANSWERS_SELECTORS = '.answers-section,#answersSection';
 
+/** Press-pipeline safety: shadows/filters make Chromium emit PDF transparency
+ *  (soft-masked fills), which forces Ghostscript to rasterize the whole sheet
+ *  for PDF/X-1a — and gs 10.x misrenders that flattened raster (the History
+ *  page's pale boxes printed SOLID BLACK on p27 of the 2026-07-15 issue).
+ *  Shadows are screen cosmetics with no print meaning, so strip them inside
+ *  every pulled snapshot; the sheet then stays transparency-free and exports
+ *  as crisp vectors. */
+const PRINT_SAFE_CSS =
+  '*,*::before,*::after{box-shadow:none!important;text-shadow:none!important;filter:none!important;backdrop-filter:none!important}';
+
 export function FunPage({
   data,
   sectionLabel = FUN_SECTION_HEADER,
@@ -110,6 +120,7 @@ export function FunPage({
       `<style>${css}</style>` +
       `<style>${APP_AD_SELECTORS},${APP_ANSWERS_SELECTORS}{display:none!important}` +
       `#newspaperPage{height:auto!important;min-height:0!important}</style>` +
+      `<style>${PRINT_SAFE_CSS}</style>` +
       `</head><body>${html}</body></html>`
     : '';
 
@@ -126,6 +137,7 @@ export function FunPage({
       // otherwise show through behind the answers.
       `<style>html,body{margin:0!important;padding:0!important;background:#fff!important}` +
       `${APP_ANSWERS_SELECTORS}{display:block!important;padding-left:0!important;padding-right:0!important}</style>` +
+      `<style>${PRINT_SAFE_CSS}</style>` +
       `</head><body>${answersHtml}</body></html>`
     : '';
 

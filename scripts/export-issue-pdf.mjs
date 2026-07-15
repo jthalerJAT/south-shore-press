@@ -189,12 +189,13 @@ const gsBin = resolveGsBin();
 function resolveIcc() {
   // 1. Explicit override (ideally the PRINTER's newsprint profile).
   if (process.env.CMYK_ICC && existsSync(process.env.CMYK_ICC)) return process.env.CMYK_ICC;
-  // 2. Profiles checked into the repo next to this script. CGATS21_CRPC1
-  //    (ISO/PAS 15339 "ColdsetNews", from the ICC registry — freely
-  //    redistributable, hence committable) is the newsprint condition and the
-  //    one CI uses; a locally dropped USNewsprintSNAP2007.icc still wins if
-  //    present (it's gitignored — Adobe profile, not redistributed).
-  for (const name of ['USNewsprintSNAP2007.icc', 'CGATS21_CRPC1.icc']) {
+  // 2. Profiles next to this script. Must be ICC v2 — PDF/X-1a is a PDF 1.3
+  //    standard and older Ghostscript dies mid-file on a v4 output intent
+  //    (the runner's gs 10.02 failed on CGATS21_CRPC1 v4; local 10.07 coped).
+  //    A locally dropped USNewsprintSNAP2007.icc (Adobe, gitignored) wins;
+  //    default_cmyk.icc (Ghostscript's own, v2.1, AGPL-redistributable) is
+  //    committed so CI always has a working profile.
+  for (const name of ['USNewsprintSNAP2007.icc', 'default_cmyk.icc']) {
     const p = join(__dir, 'pdfx', name);
     if (existsSync(p)) return p;
   }
@@ -260,6 +261,8 @@ try {
   console.log('Send this file to the printer (or a PDF/X preflight) to confirm it passes.');
 } catch (e) {
   console.error('\n! Ghostscript failed:', e.message);
+  if (e.status != null) console.error(`  exit status: ${e.status}`);
+  if (e.signal) console.error(`  killed by signal: ${e.signal}`);
   console.error(`  Is Ghostscript installed and on PATH? (binary tried: ${gsBin})`);
   console.error('  RGB PDF is still available at', rgb);
   process.exit(1);

@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 /node_modules
 /.pnp
 .pnp.js
@@ -37,4 +37,4 @@ next-env.d.ts
 # Adobe/printer ICC profiles (licensed; resolved at runtime, not committed)
 scripts/pdfx/*.icc
 /out/
-!scripts/pdfx/CGATS21_CRPC1.icc
+!scripts/pdfx/default_cmyk.icc

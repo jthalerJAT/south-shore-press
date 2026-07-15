@@ -28,8 +28,28 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install Ghostscript
-        run: sudo apt-get update && sudo apt-get install -y ghostscript
+      # Ubuntu's packaged Ghostscript (10.02) SEGFAULTS converting the rendered
+      # issue to PDF/X-1a; 10.07.1 handles it (verified on the same input).
+      # Build 10.07.1 from the official tarball once and cache the install —
+      # later runs restore it in seconds.
+      - name: Cache Ghostscript 10.07.1
+        id: gs-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/gs-install
+          key: ghostscript-10.07.1-${{ runner.os }}
+
+      - name: Build Ghostscript 10.07.1
+        if: steps.gs-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL -o gs.tar.gz https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/download/gs10071/ghostscript-10.07.1.tar.gz
+          tar xzf gs.tar.gz
+          cd ghostscript-10.07.1
+          ./configure --prefix="$HOME/gs-install" --without-x --disable-cups --disable-gtk
+          make -j"$(nproc)" && make install
+
+      - name: Use built Ghostscript
+        run: echo "GS=$HOME/gs-install/bin/gs" >> "$GITHUB_ENV"
 
       - name: Install Playwright + Chromium
         run: |

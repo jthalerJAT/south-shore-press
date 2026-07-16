@@ -1,9 +1,10 @@
 'use client';
 
 import { useMemo, useState, useTransition } from 'react';
-import { Search, ArrowUp, ArrowDown, Check, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, ArrowUp, ArrowDown, Check, X, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { setUserRolesAction } from '@/app/portal/all/credentials/actions';
+import { setUserRolesAction, deleteUserAction } from '@/app/portal/all/credentials/actions';
 import type { ProfileForCredentials } from '@/lib/queries/profiles';
 import type { UserRole } from '@/lib/auth';
 
@@ -93,8 +94,10 @@ export function CredentialsTable({
   const [sortKey, setSortKey] = useState<SortKey>('last');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; label: string; email: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const router = useRouter();
 
   // Pre-compute name split, master flag, and per-row / per-cell lock
   // state once. Lock rules mirror server-side canManageUser /
@@ -150,14 +153,16 @@ export function CredentialsTable({
         isReaderBadge = true;
       }
 
-      // Legacy-role drift: getCurrentUser and the RLS policies fall back to
-      // the legacy single `role` column whenever roles[] is empty, so a
-      // non-reader value there still GRANTS access these checkboxes don't
-      // show. Surface it loudly — Bob Chartuk kept publishing for days while
-      // this table read READER (2026-07-15).
+      // Legacy-role drift: the RLS policies (and, for empty roles[],
+      // getCurrentUser) read the legacy single `role` column, so an
+      // editorial value there that roles[] doesn't carry still GRANTS
+      // access these checkboxes don't show. Surface it loudly — Bob
+      // Chartuk kept publishing for days while this table read READER
+      // (2026-07-15).
       const legacy = normalize(String(p.role ?? ''));
       const legacyDrift =
-        (p.roles ?? []).length === 0 && legacy !== '' && legacy !== 'reader'
+        ['journalist', 'editor', 'admin', 'master admin'].includes(legacy) &&
+        !(p.roles ?? []).some((r) => normalize(r) === legacy)
           ? legacy
           : null;
 
@@ -294,6 +299,21 @@ export function CredentialsTable({
     });
   }
 
+  function applyDelete() {
+    if (!deleteTarget) return;
+    const target = deleteTarget;
+    setDeleteTarget(null);
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteUserAction(target.id);
+      if (res.error) {
+        setError(`${target.label}: ${res.error}`);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {error ? (
@@ -366,6 +386,12 @@ export function CredentialsTable({
                   dir={sortDir}
                   onClick={toggleSort}
                 />
+                <th
+                  className="w-24 px-4 py-2.5 text-center font-semibold text-zinc-700"
+                  title="Every account holds the Reader credential — it can never be revoked, only the whole account deleted."
+                >
+                  Reader
+                </th>
                 {ROLE_KEYS.map((rk) => (
                   <SortableTh
                     key={rk}
@@ -377,13 +403,16 @@ export function CredentialsTable({
                     className="w-28 text-center"
                   />
                 ))}
+                <th className="w-16 px-4 py-2.5 text-center font-semibold text-zinc-700">
+                  <span className="sr-only">Delete account</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-100">
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={6}
+                    colSpan={8}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     No users match.
@@ -431,6 +460,12 @@ export function CredentialsTable({
                           ) : null}
                         </div>
                       </td>
+                      <td
+                        className="px-4 py-3 text-center"
+                        title="Every account holds the Reader credential — read the site, manage their own profile. It can never be revoked; delete the account to remove the user entirely."
+                      >
+                        <RoleCheckbox checked disabled />
+                      </td>
                       {ROLE_KEYS.map((rk) => {
                         const cellDisabled = p.roleDisabled[rk];
                         return (
@@ -449,6 +484,35 @@ export function CredentialsTable({
                           </td>
                         );
                       })}
+                      <td className="px-4 py-3 text-center">
+                        <button
+                          type="button"
+                          disabled={p.rowLocked || isPending}
+                          onClick={() =>
+                            setDeleteTarget({
+                              id: p.id,
+                              email: p.email,
+                              label:
+                                p.display_name?.trim() ||
+                                `${p.first} ${p.last}`.trim() ||
+                                p.email,
+                            })
+                          }
+                          title={
+                            p.rowLocked
+                              ? 'This account is locked (self, master admin, or admin visible to a non-master viewer).'
+                              : 'Delete this account entirely'
+                          }
+                          className={cn(
+                            'inline-flex items-center justify-center w-7 h-7 rounded transition-colors',
+                            p.rowLocked || isPending
+                              ? 'text-zinc-300 cursor-not-allowed'
+                              : 'text-zinc-400 hover:text-white hover:bg-red-600'
+                          )}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
                     </tr>
                   );
                 })
@@ -466,6 +530,66 @@ export function CredentialsTable({
           onConfirm={applyChanges}
         />
       ) : null}
+
+      {/* Delete-account modal */}
+      {deleteTarget ? (
+        <DeleteModal
+          target={deleteTarget}
+          onCancel={() => setDeleteTarget(null)}
+          onConfirm={applyDelete}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function DeleteModal({
+  target,
+  onCancel,
+  onConfirm,
+}: {
+  target: { id: string; label: string; email: string };
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="credentials-delete-title"
+    >
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-zinc-200">
+          <h2
+            id="credentials-delete-title"
+            className="font-headline text-xl font-bold text-zinc-900"
+          >
+            Delete {target.label}&rsquo;s account?
+          </h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            This permanently removes <span className="font-medium">{target.email}</span> from the
+            system — sign-in, profile, and all credentials. Their published stories stay on the
+            site (with no linked account). This cannot be undone.
+          </p>
+        </div>
+        <div className="px-6 py-4 flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-4 py-2 text-sm font-bold uppercase tracking-wide text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+          >
+            Delete Account
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

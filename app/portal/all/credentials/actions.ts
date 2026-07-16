@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import {
   getCurrentUser,
   canManageCredentials,
@@ -113,9 +114,16 @@ export async function setUserRolesAction(
   // exposes a toggle for master admin; this guards against any
   // direct-API path that omits it).
   const wasMasterAdmin = isMasterAdmin(targetUserObj);
-  const finalRoles: UserRole[] = wasMasterAdmin
-    ? [...granted, 'master admin']
-    : granted;
+  // Every account always retains the reader credential — revoking all
+  // editorial roles leaves a plain reader row, never a role-less one whose
+  // access silently falls back to the legacy column (2026-07-16 policy;
+  // the drift that let Bob Chartuk keep publishing). Removal from the
+  // system entirely is deleteUserAction, not an empty role set.
+  const finalRoles: UserRole[] = [
+    ...granted,
+    ...(wasMasterAdmin ? (['master admin'] as UserRole[]) : []),
+    'reader',
+  ];
 
   // Sync the legacy single-role column to the highest-privilege role, which
   // `getCurrentUser` falls back to whenever `roles` is empty (and which v1's
@@ -146,6 +154,74 @@ export async function setUserRolesAction(
         [updErr.message, updErr.details, updErr.hint]
           .filter(Boolean)
           .join(' — ') || 'Failed to update roles.',
+    };
+  }
+
+  revalidatePath('/portal/all/credentials');
+  return { error: null };
+}
+
+/**
+ * Permanently remove an account from the system: deletes the auth user
+ * (the profile row cascades — migration 036; their stories survive with
+ * author_id cleared to NULL). Same hierarchy rules as role changes:
+ * master admin rows and (for regular admins) admin rows are off limits,
+ * and nobody can delete themselves.
+ */
+export async function deleteUserAction(targetUserId: string): Promise<Result> {
+  const me = await getCurrentUser();
+  if (!me) return { error: 'Not signed in.' };
+  if (!canManageCredentials(me)) {
+    return { error: 'Only admins can manage credentials.' };
+  }
+  if (targetUserId === me.id) {
+    return { error: 'You cannot delete your own account.' };
+  }
+
+  const supabase = createClient();
+  const { data: target, error: loadErr } = await supabase
+    .from('profiles')
+    .select('id, email, roles')
+    .eq('id', targetUserId)
+    .maybeSingle();
+  if (loadErr || !target) {
+    return { error: 'Target user not found.' };
+  }
+
+  const targetRoles: UserRole[] = (Array.isArray(target.roles) ? target.roles : [])
+    .map(normalizeRole)
+    .filter((r): r is UserRole => r !== null);
+  const targetUserObj = { id: target.id, roles: targetRoles };
+
+  if (!canManageUser(me, targetUserObj)) {
+    if (isMasterAdmin(targetUserObj)) {
+      return { error: 'Master admin accounts can only be removed via SQL.' };
+    }
+    return { error: 'Only master admin can delete another admin.' };
+  }
+
+  // Deleting the auth user requires the service-role key — the normal
+  // cookie-scoped client has no auth-admin powers.
+  let admin;
+  try {
+    admin = createAdminClient();
+  } catch {
+    return { error: 'SUPABASE_SERVICE_ROLE_KEY is not configured on the server.' };
+  }
+
+  const { error: delErr } = await admin.auth.admin.deleteUser(targetUserId);
+  if (delErr) {
+    console.error('[deleteUserAction]', { message: delErr.message, targetUserId });
+    return { error: delErr.message || 'Failed to delete the account.' };
+  }
+
+  // Belt and suspenders: if migration 036's ON DELETE CASCADE isn't applied
+  // yet, remove the orphaned profile row directly (service role bypasses RLS).
+  const { error: profErr } = await admin.from('profiles').delete().eq('id', targetUserId);
+  if (profErr && profErr.code !== 'PGRST116') {
+    console.error('[deleteUserAction] profile cleanup', { message: profErr.message, targetUserId });
+    return {
+      error: `Auth account deleted, but the profile row could not be removed: ${profErr.message}. Run migration 036 and delete the row in Supabase Studio.`,
     };
   }
 

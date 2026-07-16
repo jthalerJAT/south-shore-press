@@ -14,6 +14,12 @@ export type ProfileForCredentials = {
   /** Multi-role array. Possibly empty for users with no editor-tier
    *  access. May contain 'master admin' — caller decides how to render. */
   roles: string[];
+  /** Legacy single-role column. getCurrentUser and the RLS policies fall
+   *  back to THIS whenever `roles` is empty, so access can be granted by a
+   *  value the checkboxes don't show — the credentials UI must surface the
+   *  drift (Bob Chartuk kept publishing for days while his row read
+   *  READER, 2026-07-15). */
+  role: string | null;
 };
 
 /** Every profile in the system, sorted by email for stable ordering.
@@ -23,7 +29,7 @@ export async function getAllProfiles(): Promise<ProfileForCredentials[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, display_name, roles')
+    .select('id, email, display_name, roles, role')
     .order('email', { ascending: true });
   if (error) {
     console.error('[getAllProfiles]', error);

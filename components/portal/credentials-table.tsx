@@ -150,6 +150,17 @@ export function CredentialsTable({
         isReaderBadge = true;
       }
 
+      // Legacy-role drift: getCurrentUser and the RLS policies fall back to
+      // the legacy single `role` column whenever roles[] is empty, so a
+      // non-reader value there still GRANTS access these checkboxes don't
+      // show. Surface it loudly — Bob Chartuk kept publishing for days while
+      // this table read READER (2026-07-15).
+      const legacy = normalize(String(p.role ?? ''));
+      const legacyDrift =
+        (p.roles ?? []).length === 0 && legacy !== '' && legacy !== 'reader'
+          ? legacy
+          : null;
+
       return {
         ...p,
         first,
@@ -161,6 +172,7 @@ export function CredentialsTable({
         roleDisabled,
         lockBadge,
         isReaderBadge,
+        legacyDrift,
         originalRoles,
       };
     });
@@ -407,6 +419,14 @@ export function CredentialsTable({
                               )}
                             >
                               {p.lockBadge}
+                            </span>
+                          ) : null}
+                          {p.legacyDrift ? (
+                            <span
+                              title={`The database's legacy role column still says "${p.legacyDrift}" — the site and its security policies honor THAT when no roles are checked, so this user still has ${p.legacyDrift} access. Grant any role, save, revoke it, and save again to clear it (or reset via SQL for a master admin).`}
+                              className="inline-block px-1.5 py-0.5 text-[9px] uppercase tracking-widest font-bold rounded bg-red-600 text-white"
+                            >
+                              ⚠ Legacy access: {p.legacyDrift}
                             </span>
                           ) : null}
                         </div>

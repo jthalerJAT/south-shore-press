@@ -264,13 +264,16 @@ export function NewspaperBoard({
     run(() => resetIssueContent());
   }
 
+  // Rebuild is the issue's most destructive action — a native confirm() is
+  // too easy to click through, so it gets a full danger modal instead.
+  const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
+
   function handleReseed() {
-    if (
-      !confirm(
-        'Rebuild the entire page list to the standard 40-page issue? This DELETES every current page and its content and re-creates the default skeleton. This cannot be undone.'
-      )
-    )
-      return;
+    setRebuildConfirmOpen(true);
+  }
+
+  function confirmReseed() {
+    setRebuildConfirmOpen(false);
     run(() => reseedPages());
   }
 
@@ -480,6 +483,60 @@ export function NewspaperBoard({
         {dragAd ? <AdChipPresentation ad={dragAd} dragging /> : null}
         {dragClassified ? <ClassifiedChipPresentation classified={dragClassified} dragging /> : null}
       </DragOverlay>
+
+      {rebuildConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rebuild-confirm-title"
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-200">
+              <h2
+                id="rebuild-confirm-title"
+                className="font-headline text-xl font-bold text-red-700"
+              >
+                ⚠ Rebuild Pages — this deletes the whole issue
+              </h2>
+            </div>
+            <div className="px-6 py-4 space-y-3 text-sm text-zinc-700">
+              <p className="font-semibold text-zinc-900">
+                The entire page structure will be deleted — every page and everything on it:
+              </p>
+              <ul className="list-disc pl-5 space-y-1">
+                <li>All placed stories, ads, legals, classifieds, and pulled Fun Stuff pages</li>
+                <li>The Front Page / cover fields, section headers, and page statuses</li>
+                <li>Any pages you added, renamed, reordered, or converted</li>
+              </ul>
+              <p>
+                A fresh standard 40-page skeleton is created in their place.{' '}
+                <span className="font-semibold text-red-700">This cannot be undone.</span>
+              </p>
+              <p className="text-zinc-500">
+                If you only want to empty the pages for a new issue but keep the current page
+                structure, use <span className="font-medium">Reset Content</span> instead.
+              </p>
+            </div>
+            <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRebuildConfirmOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmReseed}
+                className="px-4 py-2 text-sm font-bold uppercase tracking-wide text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+              >
+                Yes — delete everything and rebuild
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </DndContext>
   );
 }

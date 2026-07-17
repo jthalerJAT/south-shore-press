@@ -6,7 +6,8 @@
  * Client-safe (no server imports).
  */
 
-export const LEGAL_PAGE_COLUMNS = 6;
+// 5 per publisher direction 2026-07-17 (was 6, matching the 2026-06-17 issue).
+export const LEGAL_PAGE_COLUMNS = 5;
 
 /** The header printed above a notice when none is typed. */
 export const DEFAULT_LEGAL_HEADER = 'PUBLIC NOTICE';
@@ -24,7 +25,9 @@ export type PlacedLegalNotice = {
 export type LegalPageData = {
   v: 1;
   notices: PlacedLegalNotice[];
-  /** Column count (default 6, matching the printed page). */
+  /** Column count. No editor control sets this — normalize always resolves it
+   *  to LEGAL_PAGE_COLUMNS so the constant governs every page, including ones
+   *  saved when the default was 6. */
   columns?: number;
 };
 
@@ -50,11 +53,9 @@ export function normalizeLegalPage(raw: unknown): LegalPageData {
         ];
       })
     : [];
-  const columns =
-    typeof r.columns === 'number' && r.columns >= 3 && r.columns <= 8
-      ? Math.round(r.columns)
-      : LEGAL_PAGE_COLUMNS;
-  return { v: 1, notices, columns };
+  // Ignore any stored value: previous saves baked in the old default (6),
+  // and there is no editor control that sets columns intentionally.
+  return { v: 1, notices, columns: LEGAL_PAGE_COLUMNS };
 }
 
 /** Picker/list label for a notice: its first non-empty line, truncated. */

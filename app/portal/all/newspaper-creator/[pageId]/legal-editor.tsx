@@ -16,6 +16,7 @@ import { LegalPage } from '@/components/newspaper/legal-page';
 import {
   legalNoticeLabel,
   DEFAULT_LEGAL_HEADER,
+  LEGAL_PAGE_COLUMNS,
   type LegalPageData,
   type PlacedLegalNotice,
 } from '@/lib/newspaper/legal-page';
@@ -145,7 +146,7 @@ export function LegalEditor({
       {/* ── Controls ───────────────────────────────────────── */}
       <div className="max-w-xl space-y-5">
         <p className="text-sm text-zinc-600">
-          Legal notices flow into {data.columns ?? 6} dense columns under the LEGAL NOTICES banner,
+          Legal notices flow into {data.columns ?? LEGAL_PAGE_COLUMNS} dense columns under the LEGAL NOTICES banner,
           exactly like the printed page. Add copy with <strong>+ Add New Legal</strong> — pasted
           copy is saved to the Legal Notices database so it can be re-picked in future issues
           (publication notices typically run six consecutive weeks).

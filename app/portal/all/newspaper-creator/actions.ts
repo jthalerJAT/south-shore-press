@@ -884,7 +884,19 @@ export async function deletePage(pageId: string): Promise<Result> {
     .maybeSingle();
   if (!page) return { ok: false, error: 'Page not found.' };
   if (isMaster(page.kind)) {
-    return { ok: false, error: 'This is a master page and can’t be deleted.' };
+    // Exception: EXTRA Legal Notices pages (added via the board's + button for
+    // heavy weeks) are deletable as long as the standard two remain.
+    if (page.kind === 'legals') {
+      const { count } = await supabase
+        .from('np_pages')
+        .select('id', { count: 'exact', head: true })
+        .eq('kind', 'legals');
+      if ((count ?? 0) <= 2) {
+        return { ok: false, error: 'The standard two Legal Notices pages can’t be deleted.' };
+      }
+    } else {
+      return { ok: false, error: 'This is a master page and can’t be deleted.' };
+    }
   }
 
   const { error } = await supabase.from('np_pages').delete().eq('id', pageId);
@@ -931,6 +943,52 @@ export async function resetIssueContent(): Promise<Result> {
   if (pErr) {
     console.error('[resetIssueContent] pages', pErr);
     return { ok: false, error: 'Cleared content, but could not reset page status.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** Insert an additional Legal Notices page directly AFTER the given legals
+ *  page (the board's + button, for weeks when notices overflow two pages).
+ *  Same template as the standard legals pages; later pages shift down one. */
+export async function addLegalPageAfter(pageId: string): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+
+  const { data: target } = await supabase
+    .from('np_pages')
+    .select('id, kind, title, page_order')
+    .eq('id', pageId)
+    .maybeSingle();
+  if (!target) return { ok: false, error: 'Page not found.' };
+  if (target.kind !== 'legals') {
+    return { ok: false, error: 'Additional pages can only be added after a Legal Notices page.' };
+  }
+
+  // Shift everything after the target down one slot (descending order so the
+  // renumber never collides), then insert the new page in the gap.
+  const { data: after } = await supabase
+    .from('np_pages')
+    .select('id, page_order')
+    .gt('page_order', target.page_order)
+    .order('page_order', { ascending: false });
+  for (const p of after ?? []) {
+    await supabase
+      .from('np_pages')
+      .update({ page_order: (p as { page_order: number }).page_order + 1 })
+      .eq('id', (p as { id: string }).id);
+  }
+
+  const { error } = await supabase.from('np_pages').insert({
+    page_order: target.page_order + 1,
+    kind: 'legals',
+    title: target.title ?? 'Legal Notices',
+    status: 'tbd',
+    template_data: {},
+  });
+  if (error) {
+    console.error('[addLegalPageAfter]', error);
+    return { ok: false, error: 'Could not add the page.' };
   }
   revalidatePath(BASE);
   return { ok: true };

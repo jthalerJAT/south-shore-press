@@ -20,6 +20,9 @@ export type PlacedLegalNotice = {
    *  e.g. "Attorney" for attorney ads). */
   header?: string;
   body: string;
+  /** The notice must keep running but the underlying action is no longer
+   *  valid — prints with a bold diagonal CANCELLED stamp across the copy. */
+  cancelled?: boolean;
 };
 
 export type LegalPageData = {
@@ -49,6 +52,7 @@ export function normalizeLegalPage(raw: unknown): LegalPageData {
             notice_id: typeof p.notice_id === 'string' ? p.notice_id : null,
             header: typeof p.header === 'string' && p.header.trim() ? p.header : undefined,
             body: p.body,
+            cancelled: p.cancelled === true ? true : undefined,
           },
         ];
       })

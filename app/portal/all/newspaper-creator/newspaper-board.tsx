@@ -20,7 +20,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Trash2, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { NpPage, NpItemSummary } from '@/lib/queries/newspaper';
@@ -34,6 +34,7 @@ import {
   addStandardPage,
   reorderPages,
   deletePage,
+  addLegalPageAfter,
   resetIssueContent,
   reseedPages,
   setPageIncluded,
@@ -224,10 +225,23 @@ export function NewspaperBoard({
     });
   }
 
+  // Legals pages are master (protected) — but EXTRA legals pages added for
+  // heavy weeks are deletable as long as the standard two remain.
+  const legalsCount = useMemo(() => order.filter((p) => p.kind === 'legals').length, [order]);
+
+  function canDeletePage(page: NpPage): boolean {
+    if (!isMaster(page.kind)) return true;
+    return page.kind === 'legals' && legalsCount > 2;
+  }
+
   function handleDelete(page: NpPage, ordinal: number) {
-    if (isMaster(page.kind)) return;
+    if (!canDeletePage(page)) return;
     if (!confirm(`Delete "${displayTitle(page, ordinal)}" and its content? This can't be undone.`)) return;
     run(() => deletePage(page.id));
+  }
+
+  function handleAddLegalPage(page: NpPage) {
+    run(() => addLegalPageAfter(page.id));
   }
 
   function handleSetKind(page: NpPage, ordinal: number, kind: NpKind) {
@@ -467,9 +481,11 @@ export function NewspaperBoard({
                     page={page}
                     ordinal={i + 1}
                     subtitles={summaries[page.id] ?? []}
+                    canDelete={canDeletePage(page)}
                     onDelete={() => handleDelete(page, i + 1)}
                     onToggleInclude={(v) => toggleInclude(page.id, v)}
                     onSetKind={(k) => handleSetKind(page, i + 1, k)}
+                    onAddLegal={page.kind === 'legals' ? () => handleAddLegalPage(page) : undefined}
                   />
                 ))}
               </ul>
@@ -545,20 +561,24 @@ function SortablePageRow({
   page,
   ordinal,
   subtitles,
+  canDelete,
   onDelete,
   onToggleInclude,
   onSetKind,
+  onAddLegal,
 }: {
   page: NpPage;
   ordinal: number;
   subtitles: NpItemSummary[];
+  canDelete: boolean;
   onDelete: () => void;
   onToggleInclude: (included: boolean) => void;
   onSetKind: (kind: NpKind) => void;
+  /** Present on Legal Notices rows: insert another legals page after this one. */
+  onAddLegal?: () => void;
 }) {
   const { setNodeRef, attributes, listeners, transform, transition, isDragging, isOver } =
     useSortable({ id: page.id });
-  const master = isMaster(page.kind);
   const included = page.include_in_paper !== false;
 
   // Full-ad and Fun Stuff pages keep their content in template_data, not
@@ -646,20 +666,32 @@ function SortablePageRow({
       >
         Edit Page
       </Link>
-      <button
-        type="button"
-        onClick={onDelete}
-        disabled={master}
-        title={master ? 'Master page — can’t be deleted' : 'Delete page'}
-        className={cn(
-          'inline-flex items-center justify-center w-8 h-8 rounded border transition-colors',
-          master
-            ? 'border-zinc-200 text-zinc-300 cursor-not-allowed'
-            : 'border-zinc-300 text-red-600 hover:bg-red-50'
-        )}
-      >
-        <Trash2 className="w-4 h-4" />
-      </button>
+      <div className="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={!canDelete}
+          title={canDelete ? 'Delete page' : 'Master page — can’t be deleted'}
+          className={cn(
+            'inline-flex items-center justify-center w-8 h-8 rounded border transition-colors',
+            !canDelete
+              ? 'border-zinc-200 text-zinc-300 cursor-not-allowed'
+              : 'border-zinc-300 text-red-600 hover:bg-red-50'
+          )}
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+        {onAddLegal ? (
+          <button
+            type="button"
+            onClick={onAddLegal}
+            title="Add another Legal Notices page after this one (for weeks with more notices than two pages fit)"
+            className="inline-flex items-center justify-center w-8 h-8 rounded border border-zinc-300 text-emerald-700 hover:bg-emerald-50 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        ) : null}
+      </div>
     </li>
   );
 }

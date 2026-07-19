@@ -72,6 +72,13 @@ export function LegalEditor({
     touch();
     setData((d) => ({ ...d, notices: d.notices.map((n) => (n.id === id ? { ...n, header } : n)) }));
   }
+  function patchCancelled(id: string, cancelled: boolean) {
+    touch();
+    setData((d) => ({
+      ...d,
+      notices: d.notices.map((n) => (n.id === id ? { ...n, cancelled: cancelled || undefined } : n)),
+    }));
+  }
   function remove(id: string) {
     touch();
     setData((d) => ({ ...d, notices: d.notices.filter((n) => n.id !== id) }));
@@ -245,6 +252,18 @@ export function LegalEditor({
                   onChange={(e) => patchBody(n.id, e.target.value)}
                   className="block w-full rounded border border-zinc-300 px-3 py-2 text-xs leading-relaxed focus:border-brand-red focus:outline-none"
                 />
+                <label className="mt-2 inline-flex items-center gap-2 text-xs font-medium text-zinc-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={n.cancelled === true}
+                    onChange={(e) => patchCancelled(n.id, e.target.checked)}
+                    className="h-4 w-4 accent-red-600 cursor-pointer"
+                  />
+                  Cancelled
+                  <span className="font-normal text-zinc-400">
+                    — still runs, but prints with a diagonal CANCELLED stamp
+                  </span>
+                </label>
               </div>
             ))}
           </div>

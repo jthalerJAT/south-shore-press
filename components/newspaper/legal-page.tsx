@@ -19,6 +19,24 @@ import { LEGAL_PAGE_COLUMNS, DEFAULT_LEGAL_HEADER, type LegalPageData } from '@/
 const NAVY = '#1e3a8a';
 const CONDENSED_FONT = "var(--font-news-condensed), 'Arial Narrow', sans-serif";
 
+// Bold CANCELLED stamp, running diagonally bottom-left → upper-right. Drawn
+// as an SVG *background* (not an overlay element) so it fragments correctly
+// when a notice breaks across columns — CSS slices a background along with
+// the box, while an absolutely-positioned overlay would stick to the first
+// fragment. Solid gray fill on purpose: rgba/opacity would introduce PDF
+// transparency, which forces Ghostscript to rasterize the whole sheet in the
+// press export.
+const CANCELLED_STAMP_SVG =
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' preserveAspectRatio='none'>` +
+  `<text x='50' y='50' transform='rotate(-45 50 50)' text-anchor='middle' dominant-baseline='middle' ` +
+  `textLength='130' lengthAdjust='spacingAndGlyphs' ` +
+  `font-family='Arial, Helvetica, sans-serif' font-weight='bold' font-size='26' fill='%23999999'>CANCELLED</text></svg>`;
+const CANCELLED_STAMP_BG: React.CSSProperties = {
+  backgroundImage: `url("data:image/svg+xml,${CANCELLED_STAMP_SVG}")`,
+  backgroundSize: '100% 100%',
+  backgroundRepeat: 'no-repeat',
+};
+
 export function LegalPage({
   data,
   pageNumber,
@@ -101,19 +119,21 @@ export function LegalPage({
               <div key={n.id}>
                 {/* Horizontal rule between notices, as in the printed page. */}
                 {i > 0 ? <div style={{ borderTop: '1px solid #000', margin: '8px 0 0' }} /> : null}
-                <div
-                  style={{
-                    breakInside: 'avoid',
-                    textAlign: 'center',
-                    fontWeight: 700,
-                    textDecoration: 'underline',
-                    fontSize: 10,
-                    margin: `${i === 0 ? 0 : 6}px 0 4px`,
-                  }}
-                >
-                  {n.header?.trim() || DEFAULT_LEGAL_HEADER}
+                <div style={n.cancelled ? CANCELLED_STAMP_BG : undefined}>
+                  <div
+                    style={{
+                      breakInside: 'avoid',
+                      textAlign: 'center',
+                      fontWeight: 700,
+                      textDecoration: 'underline',
+                      fontSize: 10,
+                      margin: `${i === 0 ? 0 : 6}px 0 4px`,
+                    }}
+                  >
+                    {n.header?.trim() || DEFAULT_LEGAL_HEADER}
+                  </div>
+                  <div style={{ whiteSpace: 'pre-line' }}>{n.body}</div>
                 </div>
-                <div style={{ whiteSpace: 'pre-line' }}>{n.body}</div>
               </div>
             ))}
           </div>

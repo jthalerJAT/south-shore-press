@@ -44,7 +44,7 @@ const APP_ANSWERS_SELECTORS = '.answers-section,#answersSection';
  *  the sources listed here (publisher direction 2026-07-17); the other apps
  *  keep their flags until asked. */
 const APP_FLAG_HIDE_CSS = '.pc .sb{display:none!important}';
-const APP_FLAG_HIDE_SOURCES = ['Puzzles', 'This Week in History'];
+const APP_FLAG_HIDE_SOURCES = ['Puzzles', 'This Week in History', 'Funny Pages'];
 
 /** Press-pipeline safety: shadows/filters make Chromium emit PDF transparency
  *  (soft-masked fills), which forces Ghostscript to rasterize the whole sheet

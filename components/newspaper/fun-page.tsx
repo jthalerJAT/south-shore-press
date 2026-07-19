@@ -38,6 +38,13 @@ const BAND_HALF_H = Math.round(CONTENT_H_PX * 0.24); // ~1/4 page
 const APP_AD_SELECTORS = '.ad-section,.ad-slot,.advertisement';
 const APP_ANSWERS_SELECTORS = '.answers-section,#answersSection';
 
+/** The puzzles app's own blue "Puzzles" section flag (`.pc .sb`) is redundant
+ *  in the paper — our Fun Stuff flag sits above it and the app's big
+ *  "Puzzles & Games" page title stays. Hidden in the pulled snapshot only for
+ *  the puzzles pull (publisher direction 2026-07-17); the other apps keep
+ *  their flags. */
+const PUZZLES_FLAG_HIDE_CSS = '.pc .sb{display:none!important}';
+
 /** Press-pipeline safety: shadows/filters make Chromium emit PDF transparency
  *  (soft-masked fills), which forces Ghostscript to rasterize the whole sheet
  *  for PDF/X-1a — and gs 10.x misrenders that flattened raster (the History
@@ -121,6 +128,7 @@ export function FunPage({
       `<style>${APP_AD_SELECTORS},${APP_ANSWERS_SELECTORS}{display:none!important}` +
       `#newspaperPage{height:auto!important;min-height:0!important}</style>` +
       `<style>${PRINT_SAFE_CSS}</style>` +
+      (data.source_label === 'Puzzles' ? `<style>${PUZZLES_FLAG_HIDE_CSS}</style>` : '') +
       `</head><body>${html}</body></html>`
     : '';
 

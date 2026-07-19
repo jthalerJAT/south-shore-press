@@ -12,6 +12,7 @@ import type { Ad } from '@/lib/queries/ads';
 import { saveOpEd, fetchStoryDetail } from '../actions';
 import { uploadImage } from '../image-upload-client';
 import { HeadlineField } from '../headline-field';
+import { ImageLibraryPicker } from '../image-library-picker';
 
 const PREVIEW_SCALE = 0.42;
 
@@ -144,7 +145,7 @@ export function OpEdEditor({
         {/* Main OpEd */}
         <Section title="Main OpEd">
           <StoryPicker stories={stories} onPick={fillMainFromStory} />
-          <PhotoField label="Author photo" value={data.main.author_photo_url} onChange={(v) => setMain({ author_photo_url: v })} onError={setError} />
+          <PhotoField label="Author photo" fromLibrary value={data.main.author_photo_url} onChange={(v) => setMain({ author_photo_url: v })} onError={setError} />
           <div className="grid grid-cols-2 gap-3">
             <TextField label="Column name" value={data.main.column_name ?? ''} onChange={(v) => setMain({ column_name: v })} placeholder="NEWSROOM" />
             <TextField label="Author" value={data.main.author ?? ''} onChange={(v) => setMain({ author: v })} />
@@ -400,15 +401,21 @@ function PhotoField({
   onChange,
   onError,
   addLabel = '+ Photo',
+  fromLibrary = false,
 }: {
   label: string;
   value?: string;
   onChange: (url: string) => void;
   onError: (msg: string) => void;
   addLabel?: string;
+  /** Pick from the Owned Images library (searchable modal) instead of
+   *  uploading from the desktop — e.g. the author headshot, which must be a
+   *  house photo. */
+  fromLibrary?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   async function handleFile(file: File | null) {
     if (!file) return;
@@ -429,7 +436,7 @@ function PhotoField({
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
           e.preventDefault();
-          handleFile(e.dataTransfer.files?.[0] ?? null);
+          if (!fromLibrary) handleFile(e.dataTransfer.files?.[0] ?? null);
         }}
         className="rounded-lg border-2 border-dashed border-zinc-300 bg-white px-4 py-3 flex items-center gap-3"
       >
@@ -439,6 +446,17 @@ function PhotoField({
             <img src={value} alt="" className="w-14 h-14 object-cover bg-zinc-100 rounded" />
             <button type="button" onClick={() => onChange('')} className="text-xs text-red-600 hover:underline">
               remove
+            </button>
+          </>
+        ) : fromLibrary ? (
+          <>
+            <span className="text-sm text-zinc-500">Choose from the photo library:</span>
+            <button
+              type="button"
+              onClick={() => setPickerOpen(true)}
+              className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 text-sm font-medium text-zinc-700 rounded"
+            >
+              {addLabel}
             </button>
           </>
         ) : (
@@ -456,6 +474,15 @@ function PhotoField({
           </>
         )}
       </div>
+      {pickerOpen ? (
+        <ImageLibraryPicker
+          onPick={(url) => {
+            onChange(url);
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

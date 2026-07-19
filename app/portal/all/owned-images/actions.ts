@@ -30,6 +30,54 @@ export async function recordOwnedImage(storagePath: string, fileName?: string): 
   return { ok: true };
 }
 
+/** Rename a library image (display name only — the storage file is untouched,
+ *  so URLs already pasted into stories keep working). */
+export async function renameOwnedImage(id: string, fileName: string): Promise<Result> {
+  await requireRole([...CONTRIBUTOR_ROLES], BASE);
+  const name = fileName.trim();
+  if (!name) return { ok: false, error: 'Name cannot be empty.' };
+  if (name.length > 200) return { ok: false, error: 'Name is too long.' };
+  const admin = createAdminClient();
+  const { error } = await admin.from('owned_images').update({ file_name: name }).eq('id', id);
+  if (error) {
+    console.error('[renameOwnedImage]', error);
+    return { ok: false, error: 'Could not rename the image.' };
+  }
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** Search the library by name — feeds the pick-from-library modal on photo
+ *  fields. Empty query returns the newest images. */
+export async function searchOwnedImages(
+  query: string
+): Promise<{ ok: boolean; error?: string; images?: Array<{ id: string; url: string; fileName: string | null; createdAt: string }> }> {
+  await requireRole([...CONTRIBUTOR_ROLES], BASE);
+  const admin = createAdminClient();
+  let q = admin
+    .from('owned_images')
+    .select('id, storage_path, file_name, created_at')
+    .order('created_at', { ascending: false })
+    .limit(200);
+  const needle = query.trim();
+  if (needle) q = q.ilike('file_name', `%${needle.replace(/[%_]/g, '\\$&')}%`);
+  const { data, error } = await q;
+  if (error) {
+    console.error('[searchOwnedImages]', error);
+    return { ok: false, error: 'Could not search the library.' };
+  }
+  const { imagePublicUrl } = await import('@/lib/newspaper-images');
+  return {
+    ok: true,
+    images: (data ?? []).map((r) => ({
+      id: r.id as string,
+      url: imagePublicUrl(r.storage_path as string),
+      fileName: (r.file_name as string | null) ?? null,
+      createdAt: r.created_at as string,
+    })),
+  };
+}
+
 /** Remove an image from the library + its storage object. */
 export async function deleteOwnedImage(id: string): Promise<Result> {
   await requireRole([...ADMIN_ROLES], BASE);

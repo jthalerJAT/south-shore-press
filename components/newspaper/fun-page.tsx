@@ -38,13 +38,12 @@ const BAND_HALF_H = Math.round(CONTENT_H_PX * 0.24); // ~1/4 page
 const APP_AD_SELECTORS = '.ad-section,.ad-slot,.advertisement';
 const APP_ANSWERS_SELECTORS = '.answers-section,#answersSection';
 
-/** Some pull apps carry their own blue section flag (`.pc .sb` — "Puzzles",
- *  "History") which is redundant in the paper: our Fun Stuff flag sits above
- *  it and the app's big page title stays. Hidden in the pulled snapshot for
- *  the sources listed here (publisher direction 2026-07-17); the other apps
- *  keep their flags until asked. */
+/** Every pull app carries its own blue section flag (`.pc .sb` — "Puzzles",
+ *  "History", "Comics", "Entertainment") which is redundant in the paper: our
+ *  Fun Stuff flag sits above it and the app's big page title stays. Hidden in
+ *  the pulled snapshot for all four sources (publisher direction 2026-07-17/19). */
 const APP_FLAG_HIDE_CSS = '.pc .sb{display:none!important}';
-const APP_FLAG_HIDE_SOURCES = ['Puzzles', 'This Week in History', 'Funny Pages'];
+const APP_FLAG_HIDE_SOURCES = ['Puzzles', 'This Week in History', 'Funny Pages', 'Box Office'];
 
 /** Press-pipeline safety: shadows/filters make Chromium emit PDF transparency
  *  (soft-masked fills), which forces Ghostscript to rasterize the whole sheet

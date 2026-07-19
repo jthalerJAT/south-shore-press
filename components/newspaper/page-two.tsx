@@ -78,6 +78,10 @@ function BlueFlag({ columnName, author, photoUrl }: { columnName?: string; autho
   );
 }
 
+/** The bottom-ad slot's fixed share of the page: rule + gap + creative
+ *  together take exactly the bottom 30% (publisher direction 2026-07-19). */
+const AD_SECTION_H = Math.round(CONTENT_H_PX * 0.3);
+
 export function PageTwo({
   data,
   pageNumber,
@@ -187,10 +191,16 @@ export function PageTwo({
       </section>
 
       {/* ── Bottom Ad ─────────────────────────────────────── */}
-      {/* The ad fills the entire remaining bottom rectangle (no letterboxing):
-          the section grows to fill the page, and the creative stretches to it. */}
+      {/* FIXED at 30% of the page (publisher direction 2026-07-19) — the slot
+          no longer flexes into whatever the stories leave over (short copy was
+          ballooning the ad to half a page). marginTop:auto pins it to the page
+          bottom; any slack opens between the stories and the ad, and editors
+          absorb it with the spacing/columns controls above. */}
       {adUrl ? (
-        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: adGap }}>
+        <section
+          className="flex flex-col"
+          style={{ flex: '0 0 auto', height: AD_SECTION_H, marginTop: 'auto', paddingTop: adGap }}
+        >
           <div style={{ borderTop: `3px solid ${BLUE}`, margin: `0 0 ${adGap}px`, flexShrink: 0 }} />
           <AdCopyView
             src={adUrl}
@@ -200,7 +210,10 @@ export function PageTwo({
           />
         </section>
       ) : editing ? (
-        <section className="flex flex-col" style={{ flex: '1 1 0%', minHeight: 200, marginTop: adGap }}>
+        <section
+          className="flex flex-col"
+          style={{ flex: '0 0 auto', height: AD_SECTION_H, marginTop: 'auto', paddingTop: adGap }}
+        >
           <div style={{ borderTop: `3px solid ${BLUE}`, margin: `0 0 ${adGap}px`, flexShrink: 0 }} />
           <div className="w-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400" style={{ flex: '1 1 0%', minHeight: 0 }}>
             Bottom Ad slot (editor only)

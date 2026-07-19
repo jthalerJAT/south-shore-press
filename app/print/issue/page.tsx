@@ -120,13 +120,13 @@ export default async function PrintIssue({
                   <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
                     <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
                       {r.proofItems.length > 0 ? (
-                        <ProofBands items={r.proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
+                        <ProofBands items={r.proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={r.ordinal} />
                       ) : null}
                     </div>
                     <ColophonRail width={COLOPHON_RAIL_W} />
                   </div>
                 ) : r.proofItems.length > 0 ? (
-                  <ProofBands items={r.proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
+                  <ProofBands items={r.proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={r.ordinal} />
                 ) : null}
               </div>
             )}

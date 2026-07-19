@@ -125,13 +125,14 @@ export default async function NewspaperViewFile() {
                                   photoScale={photoScale}
                                   spaceScale={spaceScale}
                                   columns={fitColumns}
+                                  pageOrdinal={ordinal}
                                 />
                               ) : null}
                             </div>
                             <ColophonRail width={COLOPHON_RAIL_W} />
                           </div>
                         ) : (r as { proofItems: ProofItem[] }).proofItems.length > 0 ? (
-                          <ProofBands items={(r as { proofItems: ProofItem[] }).proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
+                          <ProofBands items={(r as { proofItems: ProofItem[] }).proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={ordinal} />
                         ) : (
                           <p className="text-sm text-zinc-300 italic">Blank page</p>
                         )}

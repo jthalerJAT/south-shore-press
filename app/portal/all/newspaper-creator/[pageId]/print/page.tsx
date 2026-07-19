@@ -127,7 +127,7 @@ export default async function PagePrintProof({
               <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
                 <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
                   {proofItems.length > 0 ? (
-                    <ProofBands items={proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
+                    <ProofBands items={proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={ordinal} />
                   ) : (
                     <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
                   )}
@@ -137,7 +137,7 @@ export default async function PagePrintProof({
             ) : proofItems.length === 0 ? (
               <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
             ) : (
-              <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} />
+              <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={ordinal} />
             )}
           </div>
         )}

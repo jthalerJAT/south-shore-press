@@ -12,6 +12,7 @@ import {
   BODY_FONT_FAMILY,
   BODY_FONT_SIZE_PX,
   BODY_LINE_HEIGHT_PX,
+  columnRects,
   type BandGeometry,
   type LayoutResult,
 } from '@/lib/newspaper/layout-engine';
@@ -51,6 +52,9 @@ export type BandRenderProps = {
    *  "Advertisement — size" label, empty-slot placeholders). NEVER set on the
    *  proof/print/View File paths — those must render only what prints. */
   editing?: boolean;
+  /** Creative for the bottom-corner quarter ad carved out of this story band
+   *  (geometry.cornerAd holds the rect; text runs already avoid it). */
+  cornerAdData?: NpAdData;
 };
 
 /** Height reserved at the bottom of the photo rect for the caption/credit row. */
@@ -73,6 +77,7 @@ export function BandRenderer({
   photoCaption,
   photoCredit,
   editing,
+  cornerAdData,
 }: BandRenderProps) {
   if (type === 'ad') {
     return (
@@ -176,6 +181,38 @@ export function BandRenderer({
                     </div>
                   ) : null}
                 </>
+              );
+            })()
+          : null}
+
+        {/* Bottom-corner quarter ad — drawn at the exclusion rect the text
+            runs already flow around. */}
+        {geometry.cornerAd
+          ? (() => {
+              const rects = columnRects(geometry.contentWidthPx, geometry.columns, geometry.gapPx);
+              const first = rects[geometry.cornerAd.colStart0];
+              const last = rects[geometry.cornerAd.colStart0 + geometry.cornerAd.colSpan - 1];
+              const left = first.x;
+              const width = last.x + last.w - left;
+              const height = geometry.cornerAd.heightPx;
+              const top = geometry.bodyHeightPx - height;
+              const src =
+                cornerAdData?.storage_path && adPublicUrl ? adPublicUrl(cornerAdData.storage_path) : null;
+              return (
+                <div style={{ position: 'absolute', left, top, width, height }}>
+                  {src ? (
+                    <AdCopyView
+                      src={src}
+                      fileName={cornerAdData?.file_name}
+                      storagePath={cornerAdData?.storage_path}
+                      style={{ width: '100%', height: '100%', objectFit: 'fill' }}
+                    />
+                  ) : editing ? (
+                    <div className="w-full h-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400">
+                      Quarter-page ad (corner)
+                    </div>
+                  ) : null}
+                </div>
               );
             })()
           : null}

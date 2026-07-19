@@ -369,12 +369,13 @@ export function PageEditor({
                         photoScale={photoScale}
                         spaceScale={spaceScale}
                         columns={columns}
+                        pageOrdinal={pageNumber}
                       />
                     </div>
                     <ColophonRail width={COLOPHON_RAIL_W} />
                   </div>
                 ) : (
-                  <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} />
+                  <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} pageOrdinal={pageNumber} />
                 )
               ) : (
                 <p className="text-sm text-zinc-400 italic">Add a story or ad to see the preview.</p>

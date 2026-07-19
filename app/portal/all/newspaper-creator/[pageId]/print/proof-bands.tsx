@@ -14,7 +14,7 @@ import {
   MIN_COLUMNS,
   MAX_COLUMNS,
 } from '@/lib/newspaper/layout-engine';
-import { useComputedBands, type BandInput } from '@/lib/newspaper/use-bands';
+import { useComputedBands, mergeQuarterAds, type BandInput } from '@/lib/newspaper/use-bands';
 import { BandRenderer } from '@/components/newspaper/band-renderer';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 
@@ -37,6 +37,7 @@ export function ProofBands({
   photoScale = 1,
   spaceScale = 1,
   columns,
+  pageOrdinal,
 }: {
   items: ProofItem[];
   /** Render width for the bands — narrowed when a side rail shares the page. */
@@ -46,9 +47,13 @@ export function ProofBands({
   spaceScale?: number;
   /** When set, override every story band's column count (page-wide +/−). */
   columns?: number;
+  /** Printed page number — quarter ads anchor to the EXTERIOR corner (even
+   *  pages left, odd pages right, like the printed template). Omitted →
+   *  right. */
+  pageOrdinal?: number;
 }) {
   const clampCols = (n: number) => Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, Math.round(n)));
-  const inputs: BandInput[] = useMemo(
+  const rawInputs: BandInput[] = useMemo(
     () =>
       items.map((it, i) => {
         // House style: the byline is the first line of column 1, top-aligned
@@ -77,6 +82,14 @@ export function ProofBands({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [items, photoScale, columns]
   );
+  // Quarter ads fold into the story above them, anchored to the page's
+  // exterior corner (even = left, odd = right).
+  const exteriorSide: 'left' | 'right' =
+    pageOrdinal != null && pageOrdinal % 2 === 0 ? 'left' : 'right';
+  const inputs = useMemo(
+    () => mergeQuarterAds(rawInputs, exteriorSide),
+    [rawInputs, exteriorSide]
+  );
   const { computed } = useComputedBands(inputs, contentWidthPx);
   const byId = useMemo(() => Object.fromEntries(computed.map((c) => [c.id, c])), [computed]);
 
@@ -84,7 +97,7 @@ export function ProofBands({
     // Tighter inter-story spacing (was a loose 24px gap); a thin rule + small
     // gap reads more like a newspaper. Scaled by the page's spacing lever.
     <div className="flex flex-col" style={{ width: contentWidthPx, gap: Math.max(4, Math.round(14 * spaceScale)) }}>
-      {items.map((it) => {
+      {inputs.map((it) => {
         const c = byId[it.id];
         if (!c) return null;
         return (
@@ -99,6 +112,7 @@ export function ProofBands({
             bylineLead={it.type === 'story' && Boolean((it.data.byline ?? '').trim())}
             photoCaption={it.data.photo_caption}
             photoCredit={it.data.photo_credit}
+            cornerAdData={it.cornerAd?.data}
           />
         );
       })}

@@ -105,6 +105,17 @@ export const AD_HEIGHT_FRAC: Record<AdSizeValue, number> = {
   quarter: 0.23,
 };
 
+/** A QUARTER-page ad renders as a bottom-corner rect (half the columns wide ×
+ *  half the content height — measured off the printed template, p4 of the
+ *  2026-06-24 proof: ad 356×512pt on a 720×1008pt content area) with the
+ *  story's text wrapping the open side, instead of a full-width band. */
+export const CORNER_QUARTER_HEIGHT_FRAC = 0.5;
+
+/** Bottom-anchored corner-ad exclusion inside a story band: spans whole
+ *  columns like the photo rect, but pinned to the band's bottom edge so it
+ *  lands in the page corner regardless of the band's resolved height. */
+export type CornerAd = { colStart0: number; colSpan: number; heightPx: number };
+
 // ── Defaults + normalisation (raw jsonb → fully-populated typed layout) ────
 export function defaultStoryLayout(
   bandIndex: number,
@@ -228,6 +239,8 @@ export type BandGeometry = {
   columns: number;
   gapPx: number;
   photo: PhotoRectPx | null;
+  /** Bottom-corner quarter-page ad the text wraps around (see CornerAd). */
+  cornerAd?: CornerAd | null;
 };
 
 export type LayoutResult = {
@@ -279,26 +292,32 @@ function clampInt(n: number, lo: number, hi: number): number {
 }
 
 /**
- * The ordered list of text "runs" — one per column, split into above/below
- * segments where the photo overlaps that column. Flow order is col0 then col1
+ * The ordered list of text "runs" — per column, the vertical segments left
+ * over after subtracting every exclusion that overlaps that column (the photo
+ * rect, and the bottom-corner ad when present). Flow order is col0 then col1
  * etc., top segment before bottom, which yields: full text in unshadowed
- * columns, and text-above-gap-below in the photo's columns.
+ * columns, and text wrapping the exclusions' open sides in shadowed ones.
  */
 export function computeRuns(geo: BandGeometry): ColumnRun[] {
   const runs: ColumnRun[] = [];
   const { photo, columns, bodyHeightPx } = geo;
+  const ad = geo.cornerAd ?? null;
   for (let c = 0; c < columns; c++) {
-    const shadowed =
-      photo && c >= photo.colStart0 && c < photo.colStart0 + photo.colSpan;
-    if (!shadowed) {
-      runs.push({ colIdx: c, topPx: 0, heightPx: bodyHeightPx });
-      continue;
+    const blocked: Array<[number, number]> = [];
+    if (photo && c >= photo.colStart0 && c < photo.colStart0 + photo.colSpan) {
+      blocked.push([photo.top, photo.top + photo.height]);
     }
-    const aboveH = photo!.top;
-    if (aboveH >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: 0, heightPx: aboveH });
-    const belowTop = photo!.top + photo!.height;
-    const belowH = bodyHeightPx - belowTop;
-    if (belowH >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: belowTop, heightPx: belowH });
+    if (ad && c >= ad.colStart0 && c < ad.colStart0 + ad.colSpan) {
+      blocked.push([bodyHeightPx - ad.heightPx, bodyHeightPx]);
+    }
+    blocked.sort((a, b) => a[0] - b[0]);
+    let cursor = 0;
+    for (const [top, bottom] of blocked) {
+      if (top - cursor >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: cursor, heightPx: top - cursor });
+      cursor = Math.max(cursor, bottom);
+    }
+    const tailH = bodyHeightPx - cursor;
+    if (tailH >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: cursor, heightPx: tailH });
   }
   return runs;
 }
@@ -422,7 +441,14 @@ export function estimateBodyHeight(
 ): number {
   const parsed = parseBody(body);
   const photoBottom = geo.photo ? geo.photo.top + geo.photo.height : 0;
-  const lo0 = Math.max(BODY_LINE_HEIGHT_PX, Math.ceil(photoBottom));
+  const adH = geo.cornerAd ? geo.cornerAd.heightPx : 0;
+  // A band carrying a corner ad must at least hold the ad plus one text line
+  // above it (the ad is pinned to the band bottom).
+  const lo0 = Math.max(
+    BODY_LINE_HEIGHT_PX,
+    Math.ceil(photoBottom),
+    adH > 0 ? Math.ceil(adH + BODY_LINE_HEIGHT_PX) : 0
+  );
   if (parsed.words.length === 0) return lo0;
 
   // Closed-form seed: total single-column text height ÷ columns is very close
@@ -437,9 +463,10 @@ export function estimateBodyHeight(
   );
   const photoH = geo.photo ? geo.photo.height : 0;
   const photoSpan = geo.photo ? geo.photo.colSpan : 0;
+  const adSpan = geo.cornerAd ? geo.cornerAd.colSpan : 0;
   const fits = (h: number) => layoutBand(body, { ...geo, bodyHeightPx: h }, measurer).fits;
 
-  let hi = Math.max(lo0, Math.ceil((totalTextH + photoSpan * photoH) / geo.columns));
+  let hi = Math.max(lo0, Math.ceil((totalTextH + photoSpan * photoH + adSpan * adH) / geo.columns));
   let guard = 0;
   while (hi < CONTENT_H_PX && guard++ < 80 && !fits(hi)) {
     hi = Math.min(CONTENT_H_PX, hi + BODY_LINE_HEIGHT_PX);

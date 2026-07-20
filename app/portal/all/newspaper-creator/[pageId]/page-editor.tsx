@@ -106,7 +106,15 @@ export function PageEditor({
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    // ResizeObserver only fires when the BOX size changes — and the box is
+    // fixed now, so content changes (photo/spacing sliders reflowing bands)
+    // never trigger it. Watch the subtree instead: any DOM change re-measures.
+    const mo = new MutationObserver(update);
+    mo.observe(el, { childList: true, subtree: true, attributes: true, characterData: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+    };
   }, []);
 
   // Text-level overflow: on a corner-ad page the sheet is exactly full by

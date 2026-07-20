@@ -39,6 +39,7 @@ export function ProofBands({
   spaceScale = 1,
   columns,
   pageOrdinal,
+  onTextOverflow,
 }: {
   items: ProofItem[];
   /** Render width for the bands — narrowed when a side rail shares the page. */
@@ -52,6 +53,10 @@ export function ProofBands({
    *  pages left, odd pages right, like the printed template). Omitted →
    *  right. */
   pageOrdinal?: number;
+  /** Editor affordance: reports whether any story's text failed to fit its
+   *  band (the pour trims the remainder at the page edge — invisible unless
+   *  surfaced). Never rendered; the print output is unchanged. */
+  onTextOverflow?: (overflowing: boolean) => void;
 }) {
   const clampCols = (n: number) => Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, Math.round(n)));
   const rawInputs: BandInput[] = useMemo(
@@ -112,6 +117,18 @@ export function ProofBands({
   );
   const { computed, ready } = useComputedBands(inputs, contentWidthPx);
   const byId = useMemo(() => Object.fromEntries(computed.map((c) => [c.id, c])), [computed]);
+
+  // Report text overflow (a pour that ran out of room trims silently) so the
+  // page editor can warn and the spacing/photo/columns tools get used.
+  const lastOverflow = useRef<boolean | null>(null);
+  useLayoutEffect(() => {
+    if (!onTextOverflow || !ready) return;
+    const over = computed.some((c) => c.layoutResult !== null && !c.layoutResult.fits);
+    if (lastOverflow.current !== over) {
+      lastOverflow.current = over;
+      onTextOverflow(over);
+    }
+  }, [computed, ready, onTextOverflow]);
 
   useLayoutEffect(() => {
     if (!cornerBandId || !ready) return;

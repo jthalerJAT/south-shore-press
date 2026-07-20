@@ -99,12 +99,20 @@ export function PageEditor({
   useEffect(() => {
     const el = pageRef.current;
     if (!el) return;
-    const update = () => setNaturalHeight(el.offsetHeight);
+    // scrollHeight, not offsetHeight: the page box is now a FIXED-height flex
+    // column (so corner ads can pin to the page bottom), so offsetHeight can
+    // never exceed the page — overflowing bands show up in scrollHeight.
+    const update = () => setNaturalHeight(Math.max(el.scrollHeight, el.offsetHeight));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Text-level overflow: on a corner-ad page the sheet is exactly full by
+  // construction, so overflow shows up as TRIMMED TEXT (the pour ran out of
+  // room), not extra height. ProofBands reports it.
+  const [textOverflow, setTextOverflow] = useState(false);
 
   // Tighten spacing first (to a floor), then shrink photos, until the page fits.
   async function adjustToFit() {
@@ -118,7 +126,10 @@ export function PageEditor({
     let photo = photoScale;
     for (let i = 0; i < 50; i++) {
       await nextFrame();
-      const h = pageRef.current?.offsetHeight ?? 0;
+      // scrollHeight: the page box is fixed-height (see the measurer effect),
+      // so overflow only shows in scrollHeight.
+      const el = pageRef.current;
+      const h = el ? Math.max(el.scrollHeight, el.offsetHeight) : 0;
       if (h <= CONTENT_H_PX + 4) break;
       if (space > MIN_SPACE) {
         space = Math.max(MIN_SPACE, +(space - STEP).toFixed(3));
@@ -373,12 +384,13 @@ export function PageEditor({
                         spaceScale={spaceScale}
                         columns={columns}
                         pageOrdinal={pageNumber}
+                        onTextOverflow={setTextOverflow}
                       />
                     </div>
                     <ColophonRail width={COLOPHON_RAIL_W} />
                   </div>
                 ) : (
-                  <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} pageOrdinal={pageNumber} />
+                  <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} pageOrdinal={pageNumber} onTextOverflow={setTextOverflow} />
                 )
               ) : (
                 <p className="text-sm text-zinc-400 italic">Add a story or ad to see the preview.</p>
@@ -387,10 +399,18 @@ export function PageEditor({
           </div>
         </div>
 
-        {overflow ? (
+        {overflow || textOverflow ? (
           <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
-            ⚠ Content overflows the page by ~{Math.round((naturalHeight - CONTENT_H_PX) / 96 * 100) / 100}in.
-            It will be clipped on the printed sheet — shrink photos, tighten spacing, or trim text.
+            {overflow ? (
+              <>
+                ⚠ Content overflows the page by ~{Math.round((naturalHeight - CONTENT_H_PX) / 96 * 100) / 100}in.
+                It will be clipped on the printed sheet —{' '}
+              </>
+            ) : (
+              <>⚠ Not all of the text fits on this page — the end of the article is being trimmed at the page edge. </>
+            )}
+            shrink photos, tighten spacing, reduce columns, or trim the text (the Adjust-to-fit and
+            sliders above apply to the whole page).
           </div>
         ) : null}
 

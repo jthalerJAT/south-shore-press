@@ -45,32 +45,62 @@ export type BandInput = {
   ad?: StoredAdLayout;
   /** Present on a story band that absorbed a following quarter ad. */
   cornerAd?: CornerAdInput;
+  /** Extra body height (px) beyond the auto-fit — ProofBands stretches the
+   *  corner-ad band with this so the band bottom (and therefore the ad)
+   *  lands exactly on the page bottom. */
+  stretchPx?: number;
 };
 
-/** Fold every QUARTER ad into the story band immediately before it, anchored
- *  to the page's exterior corner (even pages left, odd pages right — the
- *  printed template's convention). A quarter ad with no story above it keeps
- *  the legacy full-width-band rendering. Other sizes are untouched. */
+/** Fold a trailing QUARTER ad into the story band immediately before it,
+ *  anchored to the page's exterior corner (even pages left, odd pages right —
+ *  the printed template's convention). Only the LAST item folds: the corner
+ *  treatment pins the ad to the PAGE bottom, which only makes sense at the end
+ *  of the stack. A quarter ad elsewhere (or with no story above it) keeps the
+ *  legacy full-width-band rendering. Other sizes are untouched. */
 export function mergeQuarterAds(inputs: BandInput[], exteriorSide: 'left' | 'right'): BandInput[] {
-  const out: BandInput[] = [];
-  for (const input of inputs) {
-    const prev = out[out.length - 1];
-    if (
-      input.type === 'ad' &&
-      input.ad?.size === 'quarter' &&
-      prev &&
-      prev.type === 'story' &&
-      !prev.cornerAd
-    ) {
-      out[out.length - 1] = {
+  const last = inputs[inputs.length - 1];
+  const prev = inputs[inputs.length - 2];
+  if (
+    last &&
+    last.type === 'ad' &&
+    last.ad?.size === 'quarter' &&
+    prev &&
+    prev.type === 'story' &&
+    !prev.cornerAd
+  ) {
+    return [
+      ...inputs.slice(0, -2),
+      {
         ...prev,
-        cornerAd: { side: exteriorSide, heightFrac: CORNER_QUARTER_HEIGHT_FRAC, data: input.data },
-      };
-      continue;
-    }
-    out.push(input);
+        cornerAd: { side: exteriorSide, heightFrac: CORNER_QUARTER_HEIGHT_FRAC, data: last.data },
+      },
+    ];
   }
-  return out;
+  return inputs;
+}
+
+/** If the photo's columns intersect the corner ad's columns, shift the photo
+ *  to the ad's OPEN side (clamping its span to the open columns) — otherwise
+ *  the ad creative draws over the photo. Text runs already avoid both rects. */
+function shiftPhotoClearOfAd(
+  photo: ReturnType<typeof photoRectPx>,
+  ad: CornerAd,
+  columns: number,
+  contentWidthPx: number,
+  gapPx: number
+): ReturnType<typeof photoRectPx> {
+  const overlaps =
+    photo.colStart0 < ad.colStart0 + ad.colSpan && ad.colStart0 < photo.colStart0 + photo.colSpan;
+  if (!overlaps) return photo;
+  const openStart = ad.colStart0 === 0 ? ad.colSpan : 0;
+  const openCount = columns - ad.colSpan;
+  if (openCount < 1) return photo;
+  const colSpan = Math.min(photo.colSpan, openCount);
+  const colStart0 = Math.min(Math.max(photo.colStart0, openStart), openStart + openCount - colSpan);
+  const w = (contentWidthPx - (columns - 1) * gapPx) / columns;
+  const left = colStart0 * (w + gapPx);
+  const width = colSpan * w + (colSpan - 1) * gapPx;
+  return { ...photo, colStart0, colSpan, left, width };
 }
 
 /** Resolve a story band's corner ad to whole columns on its anchored side. */
@@ -94,21 +124,25 @@ function computeStory(
   measurer: Measurer
 ): ComputedBand {
   const layout = input.story!;
-  const photo =
+  const cornerAd = cornerAdRect(input, layout.column_count);
+  let photo =
     layout.photo && input.data.hero_photo_url
       ? photoRectPx(layout.photo, contentWidthPx, layout.column_count, COLUMN_GAP_PX)
       : null;
+  if (photo && cornerAd) {
+    photo = shiftPhotoClearOfAd(photo, cornerAd, layout.column_count, contentWidthPx, COLUMN_GAP_PX);
+  }
   const base = {
     contentWidthPx,
     columns: layout.column_count,
     gapPx: COLUMN_GAP_PX,
     photo,
-    cornerAd: cornerAdRect(input, layout.column_count),
+    cornerAd,
   };
   const bodyHeightPx =
-    layout.band_height != null
+    (layout.band_height != null
       ? layout.band_height * CONTENT_H_PX
-      : estimateBodyHeight(input.data.body, base, measurer);
+      : estimateBodyHeight(input.data.body, base, measurer)) + (input.stretchPx ?? 0);
   const geometry: BandGeometry = { ...base, bodyHeightPx };
   const layoutResult = layoutBand(input.data.body, geometry, measurer);
   return { id: input.id, geometry, layoutResult };
@@ -118,11 +152,15 @@ function computeStory(
  *  re-computes with the real measurer on mount. */
 function computeStorySsr(input: BandInput, contentWidthPx: number): ComputedBand {
   const layout = input.story!;
-  const photo =
+  const cornerAd = cornerAdRect(input, layout.column_count);
+  let photo =
     layout.photo && input.data.hero_photo_url
       ? photoRectPx(layout.photo, contentWidthPx, layout.column_count, COLUMN_GAP_PX)
       : null;
-  const bodyHeightPx = (layout.band_height ?? 0.1) * CONTENT_H_PX;
+  if (photo && cornerAd) {
+    photo = shiftPhotoClearOfAd(photo, cornerAd, layout.column_count, contentWidthPx, COLUMN_GAP_PX);
+  }
+  const bodyHeightPx = (layout.band_height ?? 0.1) * CONTENT_H_PX + (input.stretchPx ?? 0);
   return {
     id: input.id,
     geometry: {
@@ -131,7 +169,7 @@ function computeStorySsr(input: BandInput, contentWidthPx: number): ComputedBand
       columns: layout.column_count,
       gapPx: COLUMN_GAP_PX,
       photo,
-      cornerAd: cornerAdRect(input, layout.column_count),
+      cornerAd,
     },
     layoutResult: null,
   };
@@ -158,6 +196,7 @@ function signature(inputs: BandInput[]): string {
       i.story ? [i.story.column_count, i.story.band_height, i.story.photo] : null,
       i.ad ? [i.ad.size, i.ad.height] : null,
       i.cornerAd ? [i.cornerAd.side, i.cornerAd.heightFrac, i.cornerAd.data.storage_path ?? ''] : null,
+      i.stretchPx ?? 0,
     ])
   );
 }

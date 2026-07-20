@@ -120,12 +120,14 @@ export default async function PagePrintProof({
             issueDate={issueDate}
           />
         ) : (
-          <div style={{ width: CONTENT_W_PX }}>
+          // Fixed height + flex column: ProofBands receives the remaining page
+          // height so a corner quarter ad can pin to the page bottom.
+          <div style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, display: 'flex', flexDirection: 'column' }}>
             <PageHeader pageNumber={ordinal} dateLabel={issueDate} />
             <SectionFlag label={page.section_name} />
             {(page.template_data as { show_colophon?: boolean })?.show_colophon ? (
-              <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
-                <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
+              <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX, flex: '1 1 0%', minHeight: 0 }}>
+                <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP, display: 'flex', flexDirection: 'column' }}>
                   {proofItems.length > 0 ? (
                     <ProofBands items={proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={ordinal} />
                   ) : (

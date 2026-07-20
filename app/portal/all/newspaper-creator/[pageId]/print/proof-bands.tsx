@@ -6,11 +6,12 @@
  * what the visual editor showed. Measurement is client-side (DOM), so this is a
  * client component the server proof page mounts.
  */
-import { useMemo } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   normalizeStoryLayout,
   normalizeAdLayout,
   CONTENT_W_PX,
+  CONTENT_H_PX,
   MIN_COLUMNS,
   MAX_COLUMNS,
 } from '@/lib/newspaper/layout-engine';
@@ -86,17 +87,58 @@ export function ProofBands({
   // exterior corner (even = left, odd = right).
   const exteriorSide: 'left' | 'right' =
     pageOrdinal != null && pageOrdinal % 2 === 0 ? 'left' : 'right';
-  const inputs = useMemo(
+  const merged = useMemo(
     () => mergeQuarterAds(rawInputs, exteriorSide),
     [rawInputs, exteriorSide]
   );
-  const { computed } = useComputedBands(inputs, contentWidthPx);
+
+  // A corner-ad band must END at the page bottom (the ad is pinned to the
+  // band's bottom edge). The call sites give this component the full
+  // remaining page height via flex; measure it and stretch the corner band's
+  // body until the stack fills it. When the parent doesn't stretch us
+  // (legacy layouts), clientHeight equals the content height and the delta
+  // is ~0 — a safe no-op.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const [stretchPx, setStretchPx] = useState(0);
+  const gapPx = Math.max(4, Math.round(14 * spaceScale));
+  const cornerBandId = merged.length > 0 && merged[merged.length - 1].cornerAd ? merged[merged.length - 1].id : null;
+
+  const inputs = useMemo(
+    () =>
+      cornerBandId && stretchPx > 0
+        ? merged.map((it) => (it.id === cornerBandId ? { ...it, stretchPx } : it))
+        : merged,
+    [merged, cornerBandId, stretchPx]
+  );
+  const { computed, ready } = useComputedBands(inputs, contentWidthPx);
   const byId = useMemo(() => Object.fromEntries(computed.map((c) => [c.id, c])), [computed]);
+
+  useLayoutEffect(() => {
+    if (!cornerBandId || !ready) return;
+    const root = rootRef.current;
+    if (!root) return;
+    const kids = Array.from(root.children) as HTMLElement[];
+    if (kids.length === 0) return;
+    const total = kids.reduce((s, el) => s + el.offsetHeight, 0) + gapPx * (kids.length - 1);
+    const avail = root.clientHeight;
+    const delta = avail - total;
+    if (delta > 4) {
+      setStretchPx((s) => Math.min(CONTENT_H_PX, s + delta));
+    } else if (delta < -4 && stretchPx > 0) {
+      setStretchPx((s) => Math.max(0, s + delta));
+    }
+  }, [cornerBandId, ready, computed, gapPx, stretchPx]);
 
   return (
     // Tighter inter-story spacing (was a loose 24px gap); a thin rule + small
     // gap reads more like a newspaper. Scaled by the page's spacing lever.
-    <div className="flex flex-col" style={{ width: contentWidthPx, gap: Math.max(4, Math.round(14 * spaceScale)) }}>
+    // flex:1 lets a fixed-height parent hand us the remaining page height for
+    // the corner-ad stretch; in an auto-height parent it has no effect.
+    <div
+      ref={rootRef}
+      className="flex flex-col"
+      style={{ width: contentWidthPx, gap: gapPx, flex: '1 1 0%', minHeight: 0 }}
+    >
       {inputs.map((it) => {
         const c = byId[it.id];
         if (!c) return null;

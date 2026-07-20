@@ -356,13 +356,16 @@ export function PageEditor({
                 flag + colophon layout) — this box is what the overflow warning
                 and "adjust to fit" measure. Anything the real page adds that the
                 preview doesn't gets silently cut on print. */}
-            <div ref={pageRef} style={{ width: CONTENT_W_PX, background: '#fff', color: '#111' }}>
+            <div
+              ref={pageRef}
+              style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, display: 'flex', flexDirection: 'column', background: '#fff', color: '#111' }}
+            >
               <PageHeader pageNumber={pageNumber} dateLabel={dateLabel} />
               <SectionFlag label={sectionName} />
               {proofItems.length > 0 ? (
                 showColophon ? (
-                  <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX }}>
-                    <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP }}>
+                  <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX, flex: '1 1 0%', minHeight: 0 }}>
+                    <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP, display: 'flex', flexDirection: 'column' }}>
                       <ProofBands
                         items={proofItems}
                         contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP}

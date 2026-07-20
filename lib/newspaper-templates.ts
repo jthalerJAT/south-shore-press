@@ -117,11 +117,15 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
     master: true,
     template: 'page_four',
   },
+  // Deletable (master: false) — ad pages are the issue's give: when an extra
+  // legals page pushes the count to 41, deleting an ad page is how the paper
+  // returns to 40. (They were master until 2026-07-19, which forced admins
+  // through the convert-to-blank loophole and cost us the Back Page.)
   full_page_ad: {
     label: 'Full Page Ad',
     slots: 'open',
     mode: 'template',
-    master: true,
+    master: false,
     template: 'full_ad',
   },
   generic: { label: 'Page', slots: 'open', mode: 'flow', master: false },

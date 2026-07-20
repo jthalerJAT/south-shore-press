@@ -701,12 +701,16 @@ function SortablePageRow({
  *  the seeded covers). */
 function PageTypeSelect({ kind, onChange }: { kind: NpKind; onChange: (k: NpKind) => void }) {
   const inList = ASSIGNABLE_KINDS.some((o) => o.kind === kind);
+  // The one-off covers anchor the issue — converting one strips its delete
+  // protection (how the Back Page was lost, 2026-07-19). Server refuses too.
+  const locked = kind === 'front' || kind === 'back';
   return (
     <select
       value={kind}
+      disabled={locked}
       onChange={(e) => onChange(e.target.value as NpKind)}
-      title="Page type / template"
-      className="mt-1 text-[11px] text-zinc-500 bg-transparent border border-zinc-200 rounded px-1 py-0.5 max-w-full focus:border-brand-red focus:outline-none"
+      title={locked ? 'The Front and Back covers can’t be converted to another page type' : 'Page type / template'}
+      className="mt-1 text-[11px] text-zinc-500 bg-transparent border border-zinc-200 rounded px-1 py-0.5 max-w-full focus:border-brand-red focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
     >
       {!inList ? <option value={kind}>{templateFor(kind).label}</option> : null}
       {ASSIGNABLE_KINDS.map((o) => (

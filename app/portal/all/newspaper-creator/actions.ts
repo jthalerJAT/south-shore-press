@@ -827,6 +827,21 @@ export async function saveLegalPage(pageId: string, data: Record<string, unknown
 export async function setPageKind(pageId: string, kind: NpKind): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
+  // The one-off covers anchor the issue and converting one is almost surely
+  // an accident — it also strips the page's delete protection (the
+  // convert-to-blank-then-delete path is how the Back Page was lost,
+  // 2026-07-19). Rebuild Pages is the only way to change these.
+  const { data: current } = await supabase
+    .from('np_pages')
+    .select('kind')
+    .eq('id', pageId)
+    .maybeSingle();
+  if (current && (current.kind === 'front' || current.kind === 'back')) {
+    return {
+      ok: false,
+      error: 'The Front Page and Back Page can’t be converted to another page type.',
+    };
+  }
   const { error } = await supabase
     .from('np_pages')
     // Retitle to the new kind's label so the board reflects the conversion

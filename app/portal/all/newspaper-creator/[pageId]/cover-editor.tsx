@@ -81,16 +81,31 @@ export function CoverEditor({
     router.refresh();
   }
 
-  // The news front's third (lower-right) tile slot is reserved as the white
-  // mailing-address knockout, so it carries at most 2 content tiles.
-  const maxTiles = variant === 'news' ? 2 : 3;
-  const tileCount = Math.min(data.tile_count, maxTiles);
+  const tileCount = data.tile_count;
   const tiles = data.tiles.slice(0, tileCount);
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-8">
       {/* ── Fields ─────────────────────────────────────────── */}
       <div className="max-w-xl space-y-6">
+        {variant === 'news' ? (
+          <label className="flex items-start gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={data.mailing_label === true}
+              onChange={(e) => setField('mailing_label', e.target.checked || undefined)}
+              className="mt-0.5 h-4 w-4 accent-brand-red cursor-pointer"
+            />
+            <span className="text-sm">
+              <span className="font-semibold text-zinc-900">Include White Box for Mailing Label</span>
+              <span className="block text-xs text-zinc-500 mt-0.5">
+                Pastes a pure-white 3.5&Prime; × 1.5&Prime; rectangle over the bottom-right corner of
+                the cover (no border) so the printer can spray the mailing address. Leave unchecked
+                for the non-mailed version.
+              </span>
+            </span>
+          </label>
+        ) : null}
         {variant === 'news' ? (
           <Section title="Issue header">
             <BulletField label="Year / Issue" value={data.year_issue ?? ''} onChange={(v) => setField('year_issue', v)} placeholder="42ND YEAR • ISSUE 24" />
@@ -122,16 +137,10 @@ export function CoverEditor({
               onChange={(e) => setField('tile_count', Number(e.target.value) as 0 | 1 | 2 | 3)}
               className="rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
             >
-              {Array.from({ length: maxTiles + 1 }, (_, n) => (
+              {[0, 1, 2, 3].map((n) => (
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
-            {variant === 'news' ? (
-              <p className="mt-1 text-xs text-zinc-500">
-                The lower-right tile slot stays white — the printer sprays the mailing-address
-                label there (required when an issue runs over 32 pages).
-              </p>
-            ) : null}
           </div>
           {tiles.map((t, i) => (
             <div key={i} className="rounded border border-zinc-200 p-3 space-y-3">

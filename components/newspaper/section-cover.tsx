@@ -146,17 +146,12 @@ export function SectionCover({
   // row); the news front's stacked masthead needs more room.
   const headerH = variant === 'sports' ? 150 : 198;
   const bannerH = data.banner_text ? 36 : 0;
-  // The news front's lower-right tile slot is a white knockout the printer
-  // sprays the mailing address onto (required when an issue runs over 32
-  // pages), so it carries at most 2 content tiles and always shows the band.
-  const isFront = variant === 'news';
-  const tiles = data.tiles.slice(0, Math.min(data.tile_count, isFront ? 2 : 3));
-  const showTileBand = tiles.length > 0 || isFront;
-  const tilesH = showTileBand ? 220 : 0;
+  const tiles = data.tiles.slice(0, data.tile_count);
+  const tilesH = tiles.length > 0 ? 220 : 0;
   const heroH = Math.max(160, CONTENT_H_PX - headerH - tilesH - bannerH);
 
   return (
-    <div style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, background: '#fff', color: '#111' }}>
+    <div style={{ position: 'relative', width: CONTENT_W_PX, height: CONTENT_H_PX, background: '#fff', color: '#111' }}>
       {/* ── Header ───────────────────────────────────────────── */}
       <div style={{ height: headerH }} className="flex flex-col">
         {variant === 'sports' ? (
@@ -267,16 +262,15 @@ export function SectionCover({
       </div>
 
       {/* ── Bottom tiles ─────────────────────────────────────── */}
-      {showTileBand ? (
+      {tiles.length > 0 ? (
         <div style={{ height: tilesH, background: SSP_BLUE, padding: 8 }}>
           <div
             className="grid h-full"
-            style={{ gridTemplateColumns: `repeat(${isFront ? 3 : tiles.length}, minmax(0, 1fr))`, gap: 8 }}
+            style={{ gridTemplateColumns: `repeat(${tiles.length}, minmax(0, 1fr))`, gap: 8 }}
           >
             {tiles.map((t, i) => (
               <Tile key={i} tile={t} />
             ))}
-            {isFront ? <MailingPanel editing={editing} /> : null}
           </div>
         </div>
       ) : null}
@@ -290,22 +284,24 @@ export function SectionCover({
           {data.banner_text}
         </div>
       ) : null}
-    </div>
-  );
-}
 
-/** The white mailing-address knockout in the front page's lower-right tile
- *  slot. Prints as a plain white rectangle; the label only shows in the
- *  cover editor preview. */
-function MailingPanel({ editing }: { editing?: boolean }) {
-  return (
-    <div style={{ gridColumn: '3', height: '100%', background: '#fff' }}>
-      {editing ? (
+      {/* ── Mailing-label knockout ───────────────────────────── */}
+      {/* A pure-white 3.5in × 1.5in rectangle pasted OVER the bottom-corner
+          content (no border) — the printer sprays the mailing address here.
+          Toggled per issue in the cover editor so mailed and non-mailed
+          versions can both be printed. 96 px/in: 336 × 144. */}
+      {data.mailing_label ? (
         <div
-          className="h-full flex items-center justify-center text-center"
-          style={{ color: '#a1a1aa', fontSize: 13, fontWeight: 600, padding: 12 }}
+          style={{ position: 'absolute', right: 0, bottom: 0, width: 336, height: 144, background: '#fff', zIndex: 10 }}
         >
-          Kept white — the printer sprays the mailing address here
+          {editing ? (
+            <div
+              className="h-full flex items-center justify-center text-center"
+              style={{ color: '#d4d4d8', fontSize: 12, fontWeight: 600, padding: 8 }}
+            >
+              Mailing label area (prints pure white)
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

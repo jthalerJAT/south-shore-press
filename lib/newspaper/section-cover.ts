@@ -31,13 +31,19 @@ export type SectionCoverData = {
   tile_count: 0 | 1 | 2 | 3;
   tiles: CoverTile[];
   banner_text?: string;
+  /** Paste a pure-white 3.5in × 1.5in rectangle over the bottom corner for
+   *  the printer's mailing-address label. Off by default so non-mailed
+   *  versions print the full cover. */
+  mailing_label?: boolean;
 };
 
-/** The news front's lower-right tile slot is reserved as a white knockout for
- *  the printer's mailing-address label (required when an issue runs over 32
- *  pages), so the front page carries at most 2 content tiles. */
-export function maxTileCount(kind: string): 2 | 3 {
-  return coverConfig(kind)?.variant === 'news' ? 2 : 3;
+/** All covers carry up to 3 content tiles. (The front page briefly capped at
+ *  2 with a hard-reserved white mailing panel in the third slot; that's now
+ *  the per-issue `mailing_label` overlay instead — a 3.5in × 1.5in pure-white
+ *  rectangle pasted over the bottom corner — so mailed and non-mailed
+ *  versions of the same issue can both be printed.) */
+export function maxTileCount(_kind: string): 2 | 3 {
+  return 3;
 }
 
 export function defaultCover(kind: string): SectionCoverData {
@@ -83,6 +89,7 @@ export function normalizeCover(raw: unknown, kind: string): SectionCoverData {
     tile_count,
     tiles,
     banner_text: r.banner_text ?? base.banner_text,
+    mailing_label: r.mailing_label === true ? true : undefined,
   };
 }
 

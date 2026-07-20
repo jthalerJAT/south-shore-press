@@ -120,18 +120,40 @@ export function LegalPage({
                 {/* Horizontal rule between notices, as in the printed page. */}
                 {i > 0 ? <div style={{ borderTop: '1px solid #000', margin: '8px 0 0' }} /> : null}
                 <div style={n.cancelled ? CANCELLED_STAMP_BG : undefined}>
-                  <div
-                    style={{
-                      breakInside: 'avoid',
-                      textAlign: 'center',
-                      fontWeight: 700,
-                      textDecoration: 'underline',
-                      fontSize: 10,
-                      margin: `${i === 0 ? 0 : 6}px 0 4px`,
-                    }}
-                  >
-                    {n.header?.trim() || DEFAULT_LEGAL_HEADER}
-                  </div>
+                  {/* PUBLIC NOTICE keeps the centered underlined style; any
+                      custom header (Attorney, Auto, Misc. Services, …) prints
+                      as a black bar with white text — the category-header
+                      style from the printed template (p19, 2026-06-24). */}
+                  {(n.header?.trim() || DEFAULT_LEGAL_HEADER).replace(/\s+/g, ' ').toUpperCase() ===
+                  DEFAULT_LEGAL_HEADER ? (
+                    <div
+                      style={{
+                        breakInside: 'avoid',
+                        textAlign: 'center',
+                        fontWeight: 700,
+                        textDecoration: 'underline',
+                        fontSize: 10,
+                        margin: `${i === 0 ? 0 : 6}px 0 4px`,
+                      }}
+                    >
+                      {n.header?.trim() || DEFAULT_LEGAL_HEADER}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        breakInside: 'avoid',
+                        background: '#000',
+                        color: '#fff',
+                        textAlign: 'center',
+                        fontWeight: 700,
+                        fontSize: 10.5,
+                        padding: '3px 4px',
+                        margin: `${i === 0 ? 0 : 6}px 0 4px`,
+                      }}
+                    >
+                      {n.header?.trim()}
+                    </div>
+                  )}
                   <div style={{ whiteSpace: 'pre-line' }}>{n.body}</div>
                 </div>
               </div>

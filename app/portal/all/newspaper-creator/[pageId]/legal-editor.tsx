@@ -159,6 +159,25 @@ export function LegalEditor({
           (publication notices typically run six consecutive weeks).
         </p>
 
+        <label className="flex items-start gap-2.5 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={data.ssp_ad === true}
+            onChange={(e) => {
+              touch();
+              setData((d) => ({ ...d, ssp_ad: e.target.checked || undefined }));
+            }}
+            className="mt-0.5 h-4 w-4 accent-brand-red cursor-pointer"
+          />
+          <span className="text-sm">
+            <span className="font-semibold text-zinc-900">Include Half Page SSP Ad</span>
+            <span className="block text-xs text-zinc-500 mt-0.5">
+              Fills the bottom half of the page with the navy &ldquo;publish your legal notice in the
+              South Shore Press&rdquo; house ad — for light weeks. Notices flow in the top half only.
+            </span>
+          </span>
+        </label>
+
         <div>
           <button
             type="button"

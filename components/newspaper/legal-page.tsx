@@ -74,7 +74,17 @@ export function LegalPage({
       </div>
 
       {/* ── Notice columns ─────────────────────────────────── */}
-      <div className="flex-1" style={{ minHeight: 0, padding: '8px 0', overflow: 'hidden' }}>
+      {/* With the SSP house ad on, notices flow in the TOP HALF only and the
+          navy ad fills the bottom half. */}
+      <div
+        className={data.ssp_ad ? undefined : 'flex-1'}
+        style={{
+          minHeight: 0,
+          padding: '8px 0',
+          overflow: 'hidden',
+          ...(data.ssp_ad ? { height: '50%' } : {}),
+        }}
+      >
         {data.notices.length === 0 ? (
           editing ? (
             <div className="h-full border-2 border-dashed border-zinc-300 text-zinc-400 text-sm flex items-center justify-center">
@@ -161,6 +171,41 @@ export function LegalPage({
           </div>
         )}
       </div>
+
+      {/* ── SSP house ad (bottom half, light weeks) ──────────── */}
+      {/* House style borrowed from the classifieds page's navy rail; swap the
+          copy/creative here when the publisher supplies final artwork. */}
+      {data.ssp_ad ? (
+        <div
+          className="flex-1 flex flex-col items-center justify-center text-center"
+          style={{ minHeight: 0, background: NAVY, color: '#fff', margin: '0 0 8px', padding: 24 }}
+        >
+          <div style={{ fontFamily: CONDENSED_FONT, fontWeight: 800, fontSize: 54, lineHeight: 1.05, letterSpacing: '0.02em' }}>
+            NEED TO PUBLISH A LEGAL NOTICE?
+          </div>
+          <div style={{ fontFamily: CONDENSED_FONT, fontWeight: 600, fontSize: 26, marginTop: 14 }}>
+            The South Shore Press publishes legal notices every week,
+            <br />
+            covering all of Suffolk County.
+          </div>
+          <div
+            style={{
+              marginTop: 22,
+              background: '#fff',
+              color: NAVY,
+              fontFamily: CONDENSED_FONT,
+              fontWeight: 800,
+              fontSize: 30,
+              padding: '10px 28px',
+            }}
+          >
+            EMAIL LEGALS@SOUTHSHOREPRESS.COM
+          </div>
+          <div style={{ fontFamily: CONDENSED_FONT, fontWeight: 600, fontSize: 22, marginTop: 12 }}>
+            or call (631) 878-0888
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Footer ─────────────────────────────────────────── */}
       <div

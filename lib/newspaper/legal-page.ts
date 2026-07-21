@@ -32,6 +32,10 @@ export type LegalPageData = {
    *  to LEGAL_PAGE_COLUMNS so the constant governs every page, including ones
    *  saved when the default was 6. */
   columns?: number;
+  /** Light weeks: fill the bottom half of the page with the navy
+   *  "publish your legal notice in the SSP" house ad; notices flow in the
+   *  top half only. */
+  ssp_ad?: boolean;
 };
 
 export function defaultLegalPage(): LegalPageData {
@@ -59,7 +63,7 @@ export function normalizeLegalPage(raw: unknown): LegalPageData {
     : [];
   // Ignore any stored value: previous saves baked in the old default (6),
   // and there is no editor control that sets columns intentionally.
-  return { v: 1, notices, columns: LEGAL_PAGE_COLUMNS };
+  return { v: 1, notices, columns: LEGAL_PAGE_COLUMNS, ssp_ad: r.ssp_ad === true ? true : undefined };
 }
 
 /** Picker/list label for a notice: its first non-empty line, truncated. */

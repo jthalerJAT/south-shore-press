@@ -125,7 +125,7 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
           published weekly By
         </div>
         <div style={{ margin: '4px 0' }}>
-          <Seagull width={28} />
+          <Seagull width={20} />
         </div>
         <div style={{ fontStyle: 'italic', fontWeight: 700 }}>The South Shore Press LLC</div>
         <div>377 Main Street, Center Moriches, NY 11934.</div>

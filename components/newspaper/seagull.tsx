@@ -1,23 +1,22 @@
 /** Seagull silhouette used in the running-head between the page number and the
- *  masthead text. Created as an inline SVG (the .indd source is binary). */
-export function Seagull({ width = 26, color = '#0b2a4a' }: { width?: number; color?: string }) {
+ *  masthead text — the publisher's supplied bird photo silhouette (2026-07-21),
+ *  replacing the old two-stroke squiggle. Served as pre-flattened PNGs with NO
+ *  alpha channel (transparency would force Ghostscript to rasterize every
+ *  sheet in the press export): navy-on-white for light backgrounds (default)
+ *  and white-on-navy for the classifieds rail. Aspect ratio 160:183. */
+const ASPECT = 183 / 160;
+
+export function Seagull({ width = 16, color = '#0b2a4a' }: { width?: number; color?: string }) {
+  const light = color.trim().toLowerCase() === '#fff' || color.trim().toLowerCase() === '#ffffff';
   return (
-    <svg
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={light ? '/seagull-header-navy.png' : '/seagull-header.png'}
+      alt=""
       width={width}
-      height={(width * 16) / 32}
-      viewBox="0 0 32 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      height={Math.round(width * ASPECT)}
       aria-hidden="true"
       style={{ display: 'inline-block', verticalAlign: 'middle' }}
-    >
-      <path
-        d="M1 12 C6 4 11 4 16 9 C21 4 26 4 31 12"
-        stroke={color}
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+    />
   );
 }

@@ -138,7 +138,7 @@ function HouseRail() {
         padding: '36px 10px 24px',
       }}
     >
-      <Seagull width={44} color="#fff" />
+      <Seagull width={30} color="#fff" />
       <div style={word}>
         LIST
         <br />

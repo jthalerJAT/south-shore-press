@@ -13,7 +13,7 @@ function Masthead({ pageNumber, dateLabel }: { pageNumber: number; dateLabel?: s
   return (
     <div className="flex items-center gap-2">
       <span style={{ fontWeight: 700 }}>Page {pageNumber}</span>
-      <Seagull width={24} />
+      <Seagull width={16} />
       <span style={{ fontFamily: 'var(--font-crimson)', fontWeight: 700 }}>The South Shore Press</span>
       {dateLabel ? <span className="text-zinc-600">• {dateLabel}</span> : null}
     </div>
@@ -25,7 +25,7 @@ function MastheadReversed({ pageNumber, dateLabel }: { pageNumber: number; dateL
     <div className="flex items-center gap-2">
       <span style={{ fontFamily: 'var(--font-crimson)', fontWeight: 700 }}>The South Shore Press</span>
       {dateLabel ? <span className="text-zinc-600">• {dateLabel}</span> : null}
-      <Seagull width={24} />
+      <Seagull width={16} />
       <span style={{ fontWeight: 700 }}>Page {pageNumber}</span>
     </div>
   );

@@ -1,9 +1,10 @@
 'use client';
 
-import { useMemo, useState, useTransition } from 'react';
+import { useMemo, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { deleteOwnedImage, renameOwnedImage } from './actions';
+import { uploadImage } from '../newspaper-creator/image-upload-client';
 
 type Img = { id: string; url: string; fileName: string | null; createdAt: string };
 
@@ -16,6 +17,24 @@ export function OwnedImagesList({ images }: { images: Img[] }) {
   // Inline rename state: which row is being renamed + the draft name.
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
+  // Direct-to-library upload (same pipeline the photo fields use — signed
+  // upload to the newspaper-images bucket + automatic library indexing).
+  const fileRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  async function handleUpload(files: FileList | null) {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setUploading(true);
+    const failed: string[] = [];
+    for (const file of Array.from(files)) {
+      const res = await uploadImage(file);
+      if (!res.ok) failed.push(`${file.name}: ${res.error ?? 'upload failed'}`);
+    }
+    setUploading(false);
+    if (failed.length > 0) setError(failed.join(' · '));
+    router.refresh();
+  }
 
   // Live filter — every keystroke narrows the list to all matches.
   const visible = useMemo(() => {
@@ -66,32 +85,50 @@ export function OwnedImagesList({ images }: { images: Img[] }) {
     });
   }
 
-  if (images.length === 0) {
-    return (
-      <p className="text-sm text-zinc-500">
-        No uploaded images yet. Use a “+ Upload Photo” button on any story or cover field and the
-        image will appear here.
-      </p>
-    );
-  }
-
   return (
     <>
       {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
 
-      {/* Search — filters the library live to every match. */}
-      <div className="relative max-w-md mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+      {/* Search + upload — the search filters live; the button uploads from
+          the PC straight into the library. */}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search images by name…"
+            className="block w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 rounded focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          />
+        </div>
         <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search images by name…"
-          className="block w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 rounded focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            handleUpload(e.target.files);
+            e.target.value = '';
+          }}
         />
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="shrink-0 inline-flex items-center px-4 py-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-semibold rounded transition-colors"
+        >
+          {uploading ? 'Uploading…' : '+ Upload New Image'}
+        </button>
       </div>
 
-      {visible.length === 0 ? (
+      {images.length === 0 ? (
+        <p className="text-sm text-zinc-500">
+          No uploaded images yet. Use “+ Upload New Image” above, or any “+ Upload Photo” button on
+          a story or cover field — everything lands here.
+        </p>
+      ) : visible.length === 0 ? (
         <p className="text-sm text-zinc-500">No images match “{query.trim()}”.</p>
       ) : (
         <ul className="divide-y divide-zinc-100 border border-zinc-200 rounded bg-white">

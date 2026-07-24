@@ -4,7 +4,9 @@ import { requireUser } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { StoryForm } from '@/components/portal/story-form';
 import { getStoryForEdit } from '@/lib/queries/editor-stories';
+import { getStoryAudit } from '@/lib/queries/story-audit';
 import { StatusBadge } from '@/components/portal/status-badge';
+import { StoryHistory } from '@/components/portal/story-history';
 
 export const metadata: Metadata = {
   title: 'Edit story',
@@ -21,7 +23,10 @@ export default async function PortalEditStoryPage({
   searchParams: { saved?: string };
 }) {
   const user = await requireUser(`/portal/edit/${params.id}`);
-  const story = await getStoryForEdit(params.id);
+  const [story, audit] = await Promise.all([
+    getStoryForEdit(params.id),
+    getStoryAudit(params.id),
+  ]);
   if (!story) notFound();
 
   // Journalists can VIEW any story they authored, regardless of status —
@@ -83,6 +88,8 @@ export default async function PortalEditStoryPage({
           published_at: story.published_at,
         }}
       />
+
+      <StoryHistory entries={audit} />
     </PortalShell>
   );
 }

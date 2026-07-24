@@ -109,6 +109,7 @@ export function PageTwo({
   const dividerGap = gap(12, 4);
   const headlineGap = gap(8, 4);
   const adGap = gap(12, 6);
+  const secondEnabled = data.second_enabled !== false;
   const mainCols = clampCols(data.main.columns ?? OPED_MAIN_COLUMNS);
   const secondCols = clampCols(data.second.columns ?? OPED_SECOND_COLUMNS);
   const inputs: BandInput[] = [
@@ -118,16 +119,23 @@ export function PageTwo({
       data: { body: data.main.text ?? '', hero_photo_url: data.main.photo_url ?? '' },
       story: storyLayout(mainCols, 2, 2, 0.2 * ps, Boolean(data.main.photo_url)),
     },
-    {
-      id: 'second',
-      type: 'story',
-      data: { body: secondBody, hero_photo_url: data.second.photo_url ?? '' },
-      story: storyLayout(secondCols, 2, 1, 0.14 * ps, Boolean(data.second.photo_url)),
-    },
+    // When Article 2 is removed, the band is omitted entirely — no divider,
+    // no headline placeholder, no reserved band height between the Main OpEd
+    // and the bottom ad.
+    ...(secondEnabled
+      ? [
+          {
+            id: 'second',
+            type: 'story',
+            data: { body: secondBody, hero_photo_url: data.second.photo_url ?? '' },
+            story: storyLayout(secondCols, 2, 1, 0.14 * ps, Boolean(data.second.photo_url)),
+          } as BandInput,
+        ]
+      : []),
   ];
   const { computed } = useComputedBands(inputs, CONTENT_W_PX);
   const oped = computed[0];
-  const second = computed[1];
+  const second = secondEnabled ? computed[1] : null;
 
   const adUrl = data.bottom_ad?.storage_path ? adFilePublicUrl(data.bottom_ad.storage_path) : null;
 
@@ -163,6 +171,8 @@ export function PageTwo({
         ) : null}
       </section>
 
+      {secondEnabled ? (
+        <>
       <div style={{ borderTop: '1px solid #000', margin: `${dividerGap}px 0` }} />
 
       {/* ── Second Story ──────────────────────────────────── */}
@@ -189,6 +199,8 @@ export function PageTwo({
           </div>
         ) : null}
       </section>
+        </>
+      ) : null}
 
       {/* ── Bottom Ad ─────────────────────────────────────── */}
       {/* FIXED at 30% of the page (publisher direction 2026-07-19) — the slot

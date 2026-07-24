@@ -44,6 +44,9 @@ export type OpEdData = {
   v: 1;
   main: OpEdMain;
   second: OpEdSecond;
+  /** Whether the Second Story renders at all (default true). When off, the
+   *  page is just the Main OpEd + Bottom Ad — no divider, no reserved space. */
+  second_enabled?: boolean;
   bottom_ad: OpEdAd;
   /** Multiplier on the embedded photo heights (1 = default). Used by the
    *  "adjust to fit page" control to shrink/grow photos so the page fits. */
@@ -55,7 +58,7 @@ export type OpEdData = {
 };
 
 export function defaultOpEd(): OpEdData {
-  return { v: 1, main: { column_name: 'NEWSROOM' }, second: {}, bottom_ad: null, photo_scale: 1, space_scale: 1 };
+  return { v: 1, main: { column_name: 'NEWSROOM' }, second: {}, second_enabled: true, bottom_ad: null, photo_scale: 1, space_scale: 1 };
 }
 
 export function normalizeOpEd(raw: unknown): OpEdData {
@@ -66,6 +69,7 @@ export function normalizeOpEd(raw: unknown): OpEdData {
     v: 1,
     main: { ...base.main, ...(r.main ?? {}) },
     second: { ...base.second, ...(r.second ?? {}) },
+    second_enabled: r.second_enabled !== false,
     bottom_ad: r.bottom_ad ?? null,
     photo_scale: typeof r.photo_scale === 'number' && r.photo_scale > 0 ? r.photo_scale : 1,
     space_scale: typeof r.space_scale === 'number' && r.space_scale > 0 ? r.space_scale : 1,
@@ -93,7 +97,7 @@ export function fillOpEdFromStory(data: OpEdData, story: StorySource): OpEdData 
   if (!data.main.title && !data.main.text) {
     return { ...data, main: { ...data.main, title, author, text, photo_url, photo_caption, photo_credit } };
   }
-  if (!data.second.headline && !data.second.text) {
+  if (data.second_enabled !== false && !data.second.headline && !data.second.text) {
     return {
       ...data,
       second: { ...data.second, headline: title, author, text, photo_url, photo_caption, photo_credit },

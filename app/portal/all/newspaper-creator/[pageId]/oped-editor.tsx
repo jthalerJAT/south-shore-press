@@ -160,8 +160,42 @@ export function OpEdEditor({
           </div>
         </Section>
 
-        {/* Second Story */}
-        <Section title="Second Story">
+        {/* Second Story — removable: with it off, the page is Main OpEd + ad
+            only and no blank space is reserved between them. Content is kept,
+            so “+ Add Article” brings it back exactly as it was. */}
+        {data.second_enabled === false ? (
+          <section className="space-y-3">
+            <h3 className="text-xs uppercase tracking-widest font-bold text-zinc-500">Second Story</h3>
+            <button
+              type="button"
+              onClick={() => {
+                touch();
+                setData((d) => ({ ...d, second_enabled: true }));
+              }}
+              className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 text-sm font-medium text-zinc-700 rounded"
+            >
+              + Add Article
+            </button>
+            <p className="text-xs text-zinc-500">
+              Article 2 is removed — the page runs the Main OpEd straight to the bottom ad.
+            </p>
+          </section>
+        ) : (
+        <Section
+          title="Second Story"
+          action={
+            <button
+              type="button"
+              onClick={() => {
+                touch();
+                setData((d) => ({ ...d, second_enabled: false }));
+              }}
+              className="px-2 py-1 text-xs font-medium text-red-600 border border-red-200 rounded hover:bg-red-50"
+            >
+              Remove Article
+            </button>
+          }
+        >
           <StoryPicker stories={stories} onPick={fillSecondFromStory} />
           <HeadlineField label="Headline" value={data.second.headline ?? ''} onChange={(v) => setSecond({ headline: v })} />
           <TextField label="Author" value={data.second.author ?? ''} onChange={(v) => setSecond({ author: v })} />
@@ -174,6 +208,7 @@ export function OpEdEditor({
             <TextField label="Photo credit" value={data.second.photo_credit ?? ''} onChange={(v) => setSecond({ photo_credit: v })} />
           </div>
         </Section>
+        )}
 
         {/* Bottom Ad */}
         <Section title="Bottom Ad">
@@ -310,10 +345,22 @@ export function OpEdEditor({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  /** Optional control rendered on the header row (e.g. “Remove Article”). */
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <section className="space-y-3">
-      <h3 className="text-xs uppercase tracking-widest font-bold text-zinc-500">{title}</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs uppercase tracking-widest font-bold text-zinc-500">{title}</h3>
+        {action ?? null}
+      </div>
       {children}
     </section>
   );

@@ -106,7 +106,8 @@ export function ProofBands({
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [stretchPx, setStretchPx] = useState(0);
   const gapPx = Math.max(4, Math.round(14 * spaceScale));
-  const cornerBandId = merged.length > 0 && merged[merged.length - 1].cornerAd ? merged[merged.length - 1].id : null;
+  const cornerBand = merged.find((it) => it.cornerAd);
+  const cornerBandId = cornerBand ? cornerBand.id : null;
 
   const inputs = useMemo(
     () =>

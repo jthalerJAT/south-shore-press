@@ -58,25 +58,32 @@ export type BandInput = {
  *  of the stack. A quarter ad elsewhere (or with no story above it) keeps the
  *  legacy full-width-band rendering. Other sizes are untouched. */
 export function mergeQuarterAds(inputs: BandInput[], exteriorSide: 'left' | 'right'): BandInput[] {
-  const last = inputs[inputs.length - 1];
-  const prev = inputs[inputs.length - 2];
-  if (
-    last &&
-    last.type === 'ad' &&
-    last.ad?.size === 'quarter' &&
-    prev &&
-    prev.type === 'story' &&
-    !prev.cornerAd
-  ) {
-    return [
-      ...inputs.slice(0, -2),
-      {
-        ...prev,
-        cornerAd: { side: exteriorSide, heightFrac: CORNER_QUARTER_HEIGHT_FRAC, data: last.data },
-      },
-    ];
+  // A quarter-page ad ALWAYS occupies the page's bottom EXTERIOR corner (even
+  // pages left, odd pages right), with the article wrapping around it. Pull the
+  // first quarter ad out of the flow — wherever the editor placed it in the item
+  // list — and fold it into the LAST story band (the one that reaches the page
+  // bottom). ProofBands then stretches that band so the ad pins to the page
+  // bottom corner. This is unconditional: the ad no longer has to be the last
+  // item with a story directly above it.
+  const adIdx = inputs.findIndex((it) => it.type === 'ad' && it.ad?.size === 'quarter');
+  if (adIdx === -1) return inputs;
+  const rest = inputs.filter((_, i) => i !== adIdx);
+  let storyIdx = -1;
+  for (let i = rest.length - 1; i >= 0; i--) {
+    if (rest[i].type === 'story' && !rest[i].cornerAd) {
+      storyIdx = i;
+      break;
+    }
   }
-  return inputs;
+  // No story on the page to wrap around (e.g. an ad-only page) — leave the ad as
+  // an ordinary band rather than dropping it.
+  if (storyIdx === -1) return inputs;
+  const ad = inputs[adIdx];
+  return rest.map((it, i) =>
+    i === storyIdx
+      ? { ...it, cornerAd: { side: exteriorSide, heightFrac: CORNER_QUARTER_HEIGHT_FRAC, data: ad.data } }
+      : it
+  );
 }
 
 /** If the photo's columns intersect the corner ad's columns, shift the photo

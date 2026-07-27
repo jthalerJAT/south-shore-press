@@ -73,13 +73,13 @@ export const PLAN_DISPLAY: Record<PlanTier, PlanDisplay> = {
   },
 };
 
-/** DISPLAY order for the plan cards — the introductory offer leads (it's the
- *  one the welcome flyer sends readers to), then the standing plans by value. */
+/** DISPLAY order for the plan cards — the three standing plans, then the
+ *  introductory offer as the fourth option (publisher direction 2026-07-27). */
 export const PLAN_LIST: readonly PlanDisplay[] = [
-  PLAN_DISPLAY.intro_annual,
   PLAN_DISPLAY.all_access,
   PLAN_DISPLAY.print_annual,
   PLAN_DISPLAY.print_monthly,
+  PLAN_DISPLAY.intro_annual,
 ];
 
 /** True if a string is one of our known tiers (input validation). */

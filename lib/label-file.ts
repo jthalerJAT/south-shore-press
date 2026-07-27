@@ -30,19 +30,26 @@ function csvField(v: string | null | undefined): string {
   return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
 }
 
+/** Mailing labels print in ALL CAPS (USPS-preferred addressing), so every
+ *  recipient text field is uppercased on export regardless of how it was
+ *  typed or imported. */
+function caps(v: string | null | undefined): string {
+  return (v ?? '').toUpperCase();
+}
+
 export function accountToLabelRow(a: Account): string[] {
   return [
     a.subscription_end ?? '',
     PUBLICATION_NAME,
     a.acs_keyline ?? '',
     a.account_number ?? '',
-    a.first_name ?? '',
-    a.last_name ?? '',
-    a.company ?? '',
-    a.address_1 ?? '',
-    a.address_2 ?? '',
-    a.city ?? '',
-    a.state ?? '',
+    caps(a.first_name),
+    caps(a.last_name),
+    caps(a.company),
+    caps(a.address_1),
+    caps(a.address_2),
+    caps(a.city),
+    caps(a.state),
     a.zip ?? '',
   ];
 }

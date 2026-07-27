@@ -74,6 +74,37 @@ function matchField(header: string): Field | null {
 
 const CHUNK = 1000;
 
+/** Shrink a sheet's declared range (`!ref`) to the cells that actually hold
+ *  values. Excel routinely declares ranges out to column XFD / row 1048576
+ *  (stray formatting does it), and `sheet_to_json` materializes EVERY declared
+ *  cell — a real mailer list declared as B2:XFD5988 is ~98 million cells and
+ *  locks the browser. The sheet object is sparse, so scanning its real keys is
+ *  cheap. */
+function trimSheetRange(XLSX: typeof import('xlsx'), sheet: import('xlsx').WorkSheet): void {
+  if (!sheet['!ref']) return;
+  let minR = Infinity;
+  let minC = Infinity;
+  let maxR = -1;
+  let maxC = -1;
+  for (const key of Object.keys(sheet)) {
+    if (key[0] === '!') continue;
+    const cell = sheet[key];
+    if (cell == null) continue;
+    // Blank = no usable VALUE. Formulas don't matter — the import consumes
+    // computed values only. The real-world trigger was a single cell
+    // XFD984="" (a formula evaluating to empty) declaring the full
+    // 16,384-column width.
+    if (cell.v == null || (typeof cell.v === 'string' && cell.v.trim() === '')) continue;
+    const { r, c } = XLSX.utils.decode_cell(key);
+    if (r < minR) minR = r;
+    if (c < minC) minC = c;
+    if (r > maxR) maxR = r;
+    if (c > maxC) maxC = c;
+  }
+  if (maxR < 0) return; // truly empty — leave as-is; caller reports "no data"
+  sheet['!ref'] = XLSX.utils.encode_range({ s: { r: minR, c: minC }, e: { r: maxR, c: maxC } });
+}
+
 export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -103,6 +134,7 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
       const sheet = wb.Sheets[wb.SheetNames[0]];
+      trimSheetRange(XLSX, sheet);
       const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
         defval: '',
         raw: false,

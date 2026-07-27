@@ -44,6 +44,7 @@ export default async function SubscribePage() {
     all_access: isPlanConfigured('all_access'),
     print_annual: isPlanConfigured('print_annual'),
     print_monthly: isPlanConfigured('print_monthly'),
+    intro_annual: isPlanConfigured('intro_annual'),
   };
 
   return (

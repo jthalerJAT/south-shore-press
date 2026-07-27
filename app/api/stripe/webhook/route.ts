@@ -4,11 +4,14 @@ import { getStripe } from '@/lib/stripe/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { PLAN_TIERS, type PlanTier } from '@/lib/stripe/plans';
 
-/** Map a Stripe plan tier onto the Account Database's account_type. */
+/** Map a Stripe plan tier onto the Account Database's account_type. The
+ *  introductory offer is a yearly print delivery, so it lives as paid_yearly —
+ *  reports, label exports, and lapse expiry all treat it like any annual sub. */
 const TIER_TO_ACCOUNT_TYPE: Record<PlanTier, string> = {
   all_access: 'paid_all_access',
   print_annual: 'paid_yearly',
   print_monthly: 'paid_monthly',
+  intro_annual: 'paid_yearly',
 };
 
 // The webhook needs the raw request body for signature verification and
@@ -168,7 +171,7 @@ function orderStatusFor(status: Stripe.Subscription.Status): string | null {
 }
 
 /** Best (highest-value) tier from a set — PLAN_TIERS is already ordered
- *  all_access > print_annual > print_monthly. */
+ *  all_access > print_annual > intro_annual > print_monthly. */
 function bestTier(tiers: PlanTier[]): PlanTier | null {
   for (const t of PLAN_TIERS) {
     if (tiers.includes(t)) return t;

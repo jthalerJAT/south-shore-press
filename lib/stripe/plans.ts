@@ -14,11 +14,14 @@
  * auditable, and we never risk creating duplicate prices on deploy.
  */
 
-export type PlanTier = 'all_access' | 'print_annual' | 'print_monthly';
+export type PlanTier = 'all_access' | 'print_annual' | 'print_monthly' | 'intro_annual';
 
+/** VALUE RANKING (best first) — the webhook's bestTier() walks this order to
+ *  compute a subscriber's top active tier. NOT the display order (PLAN_LIST). */
 export const PLAN_TIERS: readonly PlanTier[] = [
   'all_access',
   'print_annual',
+  'intro_annual',
   'print_monthly',
 ] as const;
 
@@ -60,19 +63,32 @@ export const PLAN_DISPLAY: Record<PlanTier, PlanDisplay> = {
     interval: 'month',
     priceLine: '$10 per month',
   },
+  intro_annual: {
+    tier: 'intro_annual',
+    label: 'Introductory Limited Time Offer (One Year Subscription)',
+    blurb: 'First year of South Shore Press delivered to your door for $49.99',
+    amount: 49.99,
+    interval: 'year',
+    priceLine: '$49.99 per year',
+  },
 };
 
-/** Ordered list for rendering the plan cards. */
-export const PLAN_LIST: readonly PlanDisplay[] = PLAN_TIERS.map(
-  (t) => PLAN_DISPLAY[t]
-);
+/** DISPLAY order for the plan cards — the introductory offer leads (it's the
+ *  one the welcome flyer sends readers to), then the standing plans by value. */
+export const PLAN_LIST: readonly PlanDisplay[] = [
+  PLAN_DISPLAY.intro_annual,
+  PLAN_DISPLAY.all_access,
+  PLAN_DISPLAY.print_annual,
+  PLAN_DISPLAY.print_monthly,
+];
 
 /** True if a string is one of our known tiers (input validation). */
 export function isPlanTier(value: unknown): value is PlanTier {
   return (
     value === 'all_access' ||
     value === 'print_annual' ||
-    value === 'print_monthly'
+    value === 'print_monthly' ||
+    value === 'intro_annual'
   );
 }
 
@@ -82,6 +98,7 @@ const PRICE_ENV: Record<PlanTier, string> = {
   all_access: 'STRIPE_PRICE_ALL_ACCESS',
   print_annual: 'STRIPE_PRICE_PRINT_ANNUAL',
   print_monthly: 'STRIPE_PRICE_PRINT_MONTHLY',
+  intro_annual: 'STRIPE_PRICE_INTRO_ANNUAL',
 };
 
 /** Resolve the Stripe Price ID for a tier, or null if its env var isn't

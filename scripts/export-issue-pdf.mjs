@@ -68,10 +68,20 @@ console.log('Rendering:', url);
 const browser = await chromium.launch();
 try {
   const page = await browser.newPage();
-  const resp = await page.goto(url, { waitUntil: 'networkidle', timeout: 90000 });
+  // 'load' + explicit image/font waits, NOT networkidle: with 40 pages of
+  // storage-hosted photos plus client-side pdf.js ad rasterization, the
+  // network never goes fully quiet and networkidle times out (seen 2026-07-28).
+  const resp = await page.goto(url, { waitUntil: 'load', timeout: 180000 });
   if (!resp || !resp.ok()) throw new Error(`print page returned HTTP ${resp ? resp.status() : '??'}`);
   await page.evaluate(() => (document.fonts ? document.fonts.ready : Promise.resolve()));
-  await page.waitForTimeout(2500); // let client measurement + copyfit settle
+  // Wait for every <img> to settle (loaded or errored), up to 120s.
+  await page
+    .waitForFunction(
+      () => Array.from(document.images).every((im) => im.complete),
+      { timeout: 120000 }
+    )
+    .catch(() => console.warn('! Some images still loading after 120s — continuing.'));
+  await page.waitForTimeout(4000); // client measurement + copyfit + pdf.js ads settle
 
   // ── 1a-pre. Verify every photo actually loaded ──────────────────────────
   // networkidle can pass even when an image request failed (429/drop) — the

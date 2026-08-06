@@ -22,6 +22,7 @@ import {
 } from '@/lib/newspaper/page-four';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Ad } from '@/lib/queries/ads';
+import { AdCopyPicker } from '../ad-copy-picker';
 import { createClient } from '@/lib/supabase/client';
 import { savePageFour, fetchStoryDetail, requestAdUploadUrl } from '../actions';
 import { uploadImage } from '../image-upload-client';
@@ -126,9 +127,7 @@ export function PageFourEditor({
     setBottom({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url, photo_caption: d.photo_caption, photo_credit: d.photo_credit });
   }
 
-  function insertAd(id: string) {
-    const a = ads.find((x) => x.id === id);
-    if (!a) return;
+  function insertAd(a: Ad) {
     touch();
     setData((d) => ({
       ...d,
@@ -211,23 +210,8 @@ export function PageFourEditor({
             </div>
           ) : (
             <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-zinc-700 mb-1">Select from the Ad Database</label>
-                <select
-                  value=""
-                  onChange={(e) => e.target.value && insertAd(e.target.value)}
-                  className="block w-full max-w-sm rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
-                >
-                  <option value="">Choose an ad…</option>
-                  {ads
-                    .filter((a) => a.copy_storage_path)
-                    .map((a) => (
-                      <option key={a.id} value={a.id}>
-                        {a.business_name}
-                        {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
-                      </option>
-                    ))}
-                </select>
+              <div className="max-w-sm">
+                <AdCopyPicker ads={ads} onPick={insertAd} label="Select from the Ad Database" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">…or upload a new ad</label>

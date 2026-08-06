@@ -1,25 +1,22 @@
 'use client';
 
 /**
- * AdPicker — the "+ Upload Ad" destination for a full-page-ad page. Left: the Ad
- * Database list (draggable + clickable). Right: a drop-zone where the editor can
- * drag an ad from the list OR drop / upload a file from their PC. Either action
- * designates the page's creative and returns to the page editor.
+ * AdPicker — the "+ Upload Ad" destination for a full-page-ad page. Left: the
+ * Ad Database as accounts → copy files (drag a copy or click to place). Right:
+ * a drop-zone where the editor can drag a copy from the list OR drop / upload
+ * a file from their PC. Either action designates the page's creative and
+ * returns to the page editor.
  */
-import { useRef, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import type { FullAdData } from '@/lib/newspaper/full-ad';
+import type { Ad } from '@/lib/queries/ads';
+import { adSizeLabel, fmtAdDate } from '../../ad-copy-picker';
 import { addAdToPage, saveFullAd, requestAdUploadUrl } from '../../actions';
 
 const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
-
-type AdLite = {
-  id: string;
-  business_name: string;
-  copy_file_name: string | null;
-  copy_storage_path: string | null;
-};
 
 const DRAG_KEY = 'text/ssp-ad-id';
 
@@ -29,14 +26,31 @@ export function AdPicker({
   initialData,
 }: {
   pageId: string;
-  ads: AdLite[];
+  ads: Ad[];
   initialData: FullAdData;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [openClient, setOpenClient] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement | null>(null);
+
+  // Account names (alphabetical) → their copies (newest first).
+  const clients = useMemo(() => {
+    const byName = new Map<string, Ad[]>();
+    for (const a of ads) {
+      const list = byName.get(a.business_name) ?? [];
+      list.push(a);
+      byName.set(a.business_name, list);
+    }
+    return Array.from(byName.entries())
+      .sort(([x], [y]) => x.localeCompare(y, 'en', { sensitivity: 'base' }))
+      .map(([name, copies]) => ({
+        name,
+        copies: copies.sort((a, b) => b.created_at.localeCompare(a.created_at)),
+      }));
+  }, [ads]);
 
   function done() {
     router.push(`/portal/all/newspaper-creator/${pageId}`);
@@ -44,11 +58,6 @@ export function AdPicker({
   }
 
   async function pickAd(adId: string) {
-    const ad = ads.find((a) => a.id === adId);
-    if (ad && !ad.copy_storage_path) {
-      setError(`"${ad.business_name}" has no copy uploaded yet — add the file on its page in the Ad Database first.`);
-      return;
-    }
     setBusy(true);
     setError(null);
     const res = await addAdToPage(pageId, adId);
@@ -99,34 +108,53 @@ export function AdPicker({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[20rem_1fr] gap-6">
-      {/* Ad list */}
+      {/* Accounts → copies */}
       <div>
         <div className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">Ad Database</div>
         <ul className="border border-zinc-200 rounded divide-y divide-zinc-100 bg-white max-h-[70vh] overflow-y-auto">
-          {ads.length === 0 ? (
+          {clients.length === 0 ? (
             <li className="px-3 py-6 text-center text-sm text-zinc-400">
-              No ads yet. Add them in the Ad Database.
+              No clients yet. Add them in the Ad Database.
             </li>
           ) : (
-            ads.map((a) => {
-              const hasCopy = Boolean(a.copy_storage_path);
+            clients.map(({ name, copies }) => {
+              const open = openClient === name;
               return (
-                <li
-                  key={a.id}
-                  draggable={hasCopy}
-                  onDragStart={(e) => hasCopy && e.dataTransfer.setData(DRAG_KEY, a.id)}
-                  onClick={() => !busy && pickAd(a.id)}
-                  className={
-                    hasCopy
-                      ? 'px-3 py-2 cursor-pointer hover:bg-zinc-50 transition-colors'
-                      : 'px-3 py-2 cursor-not-allowed opacity-50'
-                  }
-                  title={hasCopy ? 'Drag to the page, or click to place' : 'No copy uploaded — add the file in the Ad Database first'}
-                >
-                  <div className="text-[13px] font-medium text-zinc-900 truncate">{a.business_name}</div>
-                  <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-                    {a.copy_file_name || (hasCopy ? 'Copy on file' : 'No copy — upload it in the Ad Database')}
-                  </div>
+                <li key={name}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenClient(open ? null : name)}
+                    className="w-full px-3 py-2 flex items-center gap-1.5 text-left hover:bg-zinc-50 transition-colors"
+                  >
+                    {open ? (
+                      <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                    ) : (
+                      <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                    )}
+                    <span className="text-[13px] font-medium text-zinc-900 truncate">{name}</span>
+                    <span className="ml-auto text-[11px] text-zinc-400">{copies.length}</span>
+                  </button>
+                  {open ? (
+                    <ul className="pb-1">
+                      {copies.map((a) => (
+                        <li
+                          key={a.id}
+                          draggable
+                          onDragStart={(e) => e.dataTransfer.setData(DRAG_KEY, a.id)}
+                          onClick={() => !busy && pickAd(a.id)}
+                          className="pl-8 pr-3 py-1.5 cursor-pointer hover:bg-zinc-50 transition-colors"
+                          title="Drag to the page, or click to place"
+                        >
+                          <div className="text-[12px] text-zinc-800 truncate">
+                            {a.copy_file_name || 'Copy file'}
+                          </div>
+                          <div className="text-[11px] text-zinc-500">
+                            {adSizeLabel(a.copy_size)} · {fmtAdDate(a.created_at)}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
                 </li>
               );
             })
@@ -136,7 +164,7 @@ export function AdPicker({
 
       {/* Drop zone */}
       <div>
-        <div className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">Page 3 — Full Page Ad</div>
+        <div className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">Full Page Ad</div>
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -159,7 +187,7 @@ export function AdPicker({
           style={{ minHeight: '60vh' }}
         >
           <p className="text-sm text-zinc-500 mb-3">
-            {busy ? 'Working…' : 'Drag an ad here, drop a file, or'}
+            {busy ? 'Working…' : 'Drag a copy here, drop a file, or'}
           </p>
           <input
             ref={fileRef}

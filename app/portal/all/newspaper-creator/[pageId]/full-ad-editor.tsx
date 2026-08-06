@@ -16,22 +16,15 @@ import { AD_SIZES } from '@/lib/newspaper-templates';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import type { FullAdData } from '@/lib/newspaper/full-ad';
+import type { Ad } from '@/lib/queries/ads';
+import { AdCopyPicker } from '../ad-copy-picker';
 import { saveFullAd, requestAdUploadUrl } from '../actions';
 
 const PREVIEW_SCALE = 0.4;
 const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
 
-/** Ad Database row, trimmed to what the placement dropdown needs. */
-export type AdOption = {
-  id: string;
-  business_name: string;
-  contact_name: string | null;
-  contact_phone: string | null;
-  contact_email: string | null;
-  copy_storage_path: string | null;
-  copy_file_name: string | null;
-  copy_size: string | null;
-};
+/** One placeable copy file (client fields joined) — see lib/queries/ads. */
+export type AdOption = Ad;
 
 export function FullAdEditor({
   pageId,
@@ -49,12 +42,10 @@ export function FullAdEditor({
   const router = useRouter();
   const [data, setData] = useState<FullAdData>(initialData);
 
-  // Dropdown: place an existing ad from the Ad Database. Fills every field
+  // Picker: place a client's copy from the Ad Database. Fills every field
   // (business, contacts, copy file, copy size) into the form as an unsaved
   // draft — the editor reviews the preview and hits Save Page to commit.
-  function placeFromDatabase(adId: string) {
-    const ad = ads.find((a) => a.id === adId);
-    if (!ad) return;
+  function placeFromDatabase(ad: Ad) {
     if (!ad.copy_storage_path) {
       setError(`"${ad.business_name}" has no copy uploaded yet — add the file on its page in the Ad Database first.`);
       return;
@@ -131,25 +122,7 @@ export function FullAdEditor({
       {/* ── Fields ─────────────────────────────────────────── */}
       <div className="max-w-xl space-y-5">
         <div>
-          <label className="block text-sm font-medium text-zinc-700 mb-1">
-            Place an ad from the Ad Database
-          </label>
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) placeFromDatabase(e.target.value);
-              e.target.value = '';
-            }}
-            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
-          >
-            <option value="">Choose an existing ad…</option>
-            {ads.map((a) => (
-              <option key={a.id} value={a.id} disabled={!a.copy_storage_path}>
-                {a.business_name}
-                {a.copy_file_name ? ` — ${a.copy_file_name}` : a.copy_storage_path ? '' : ' (no copy uploaded)'}
-              </option>
-            ))}
-          </select>
+          <AdCopyPicker ads={ads} onPick={placeFromDatabase} />
           <p className="mt-1 text-[11px] text-zinc-400">
             Fills the fields below from the Ad Database — review the preview, then Save Page.
           </p>

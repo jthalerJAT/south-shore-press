@@ -26,6 +26,8 @@ import {
   type FunSource,
 } from '@/lib/newspaper/fun-page';
 import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
+import type { Ad } from '@/lib/queries/ads';
+import { AdCopyPicker } from '../ad-copy-picker';
 import { saveFunPage, requestAdUploadUrl, requestImageUploadUrl, fetchStoryDetail } from '../actions';
 
 const PREVIEW_SCALE = 0.4;
@@ -34,12 +36,6 @@ const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
 // stretch a ~9-minute Funny Pages generation well past 20 minutes.
 const PULL_TIMEOUT_MS = 25 * 60 * 1000;
 
-type AdLite = {
-  id: string;
-  business_name: string;
-  copy_file_name: string | null;
-  copy_storage_path: string | null;
-};
 type StoryLite = { id: string; headline: string; categories?: string[] | null };
 
 let blockCounter = 0;
@@ -62,7 +58,7 @@ export function FunEditor({
   pageNumber?: number;
   dateLabel?: string;
   initialData: FunPageData;
-  ads: AdLite[];
+  ads: Ad[];
   stories: StoryLite[];
 }) {
   const router = useRouter();
@@ -400,7 +396,7 @@ function BlockCard({
   onRemove,
 }: {
   block: FunBlock;
-  ads: AdLite[];
+  ads: Ad[];
   stories: StoryLite[];
   uploading: boolean;
   onPatch: (patch: Partial<FunBlock>) => void;
@@ -459,7 +455,7 @@ function BlockCard({
       </div>
 
       {block.kind === 'ad' ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-col gap-2">
           {block.ad_file_name ? (
             <span className="text-sm text-zinc-700">
               {block.ad_file_name}{' '}
@@ -473,40 +469,27 @@ function BlockCard({
             </span>
           ) : (
             <>
-              <select
-                value=""
-                onChange={(e) => {
-                  if (e.target.value) onPickAd(e.target.value);
-                  e.target.value = '';
-                }}
-                className="rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
-              >
-                <option value="">Choose from Ad Database…</option>
-                {ads
-                  .filter((a) => a.copy_storage_path)
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.business_name}
-                      {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
-                    </option>
-                  ))}
-              </select>
-              <span className="text-xs text-zinc-400">or</span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*,application/pdf"
-                className="hidden"
-                onChange={(e) => onUploadAd(e.target.files?.[0] ?? null)}
-              />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={uploading}
-                className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
-              >
-                {uploading ? 'Uploading…' : '+ Upload Ad'}
-              </button>
+              <div className="max-w-sm">
+                <AdCopyPicker ads={ads} onPick={(a) => onPickAd(a.id)} label="Choose from Ad Database" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-400">or</span>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => onUploadAd(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={uploading}
+                  className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 text-sm font-medium text-zinc-700 rounded transition-colors"
+                >
+                  {uploading ? 'Uploading…' : '+ Upload Ad'}
+                </button>
+              </div>
             </>
           )}
         </div>

@@ -9,6 +9,7 @@ import { OPED_MAIN_COLUMNS, OPED_SECOND_COLUMNS, type OpEdData, type OpEdMain, t
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import { StoryFillPicker } from '@/components/portal/story-fill-picker';
 import type { Ad } from '@/lib/queries/ads';
+import { AdCopyPicker } from '../ad-copy-picker';
 import { saveOpEd, fetchStoryDetail } from '../actions';
 import { uploadImage } from '../image-upload-client';
 import { HeadlineField } from '../headline-field';
@@ -116,9 +117,7 @@ export function OpEdEditor({
     if (!d) return;
     setSecond({ headline: d.headline, author: d.byline, text: d.body, photo_url: d.hero_photo_url, photo_caption: d.photo_caption, photo_credit: d.photo_credit });
   }
-  function insertAd(id: string) {
-    const a = ads.find((x) => x.id === id);
-    if (!a) return;
+  function insertAd(a: Ad) {
     touch();
     setData((d) => ({
       ...d,
@@ -227,26 +226,8 @@ export function OpEdEditor({
               </button>
             </div>
           ) : (
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 mb-1">+ Insert Ad</label>
-              <select
-                value=""
-                onChange={(e) => e.target.value && insertAd(e.target.value)}
-                className="block w-full max-w-sm rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
-              >
-                <option value="">Choose an ad from the database…</option>
-                {ads
-                  .filter((a) => a.copy_storage_path)
-                  .map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.business_name}
-                      {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
-                    </option>
-                  ))}
-              </select>
-              <p className="mt-1 text-xs text-zinc-500">
-                Only ads with copy uploaded in the Ad Database are listed.
-              </p>
+            <div className="max-w-sm">
+              <AdCopyPicker ads={ads} onPick={insertAd} label="+ Insert Ad" />
             </div>
           )}
         </Section>

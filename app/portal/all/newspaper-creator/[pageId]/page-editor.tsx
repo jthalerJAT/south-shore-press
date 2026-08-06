@@ -8,6 +8,7 @@ import { AD_SIZES, type SlotDef } from '@/lib/newspaper-templates';
 import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/newspaper/layout-engine';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Ad } from '@/lib/queries/ads';
+import { AdCopyPicker } from '../ad-copy-picker';
 import { SectionFlag } from '@/components/newspaper/section-flag';
 import { PageHeader } from '@/components/newspaper/page-header';
 import { ColophonRail } from '@/components/newspaper/colophon-rail';
@@ -747,31 +748,19 @@ function AdCard({
 
         {!d.file_name ? (
           <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-1">Select from the Ad Database</label>
-            <select
-              value=""
-              onChange={(e) => {
-                const ad = ads.find((a) => a.id === e.target.value);
-                if (ad?.copy_storage_path) {
+            <AdCopyPicker
+              ads={ads}
+              label="Select from the Ad Database"
+              onPick={(ad) => {
+                if (ad.copy_storage_path) {
                   onPatch(item.localId, {
                     storage_path: ad.copy_storage_path,
                     file_name: ad.copy_file_name ?? ad.business_name,
+                    ad_size: ad.copy_size ?? undefined,
                   });
                 }
-                e.target.value = '';
               }}
-              className="block w-full rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
-            >
-              <option value="">Choose an ad…</option>
-              {ads
-                .filter((a) => a.copy_storage_path)
-                .map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.business_name}
-                    {a.copy_file_name ? ` — ${a.copy_file_name}` : ''}
-                  </option>
-                ))}
-            </select>
+            />
           </div>
         ) : null}
 

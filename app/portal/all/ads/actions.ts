@@ -4,21 +4,30 @@ import { randomUUID } from 'node:crypto';
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { AD_FILES_BUCKET } from '@/lib/queries/ads';
+import { AD_FILES_BUCKET } from '@/lib/ad-files';
+import type { AdFileKind } from '@/lib/queries/ad-clients';
+
+/**
+ * Server Actions for the Ad Database (clients + files, migration 039).
+ * Editors add clients and files; deleting anything is admin-only.
+ */
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
-// Deleting ads / ad runs is admin-only; editors may add and edit but not delete.
 const ADMIN_ROLES = ['admin', 'master admin'] as const;
 const BASE = '/portal/all/ads';
 
 type Result = { ok: boolean; error?: string };
+
+const VALID_KINDS: ReadonlyArray<AdFileKind> = ['copy', 'insert_order', 'contract'];
+const VALID_SIZES = ['full', 'half', 'third', 'quarter'] as const;
 
 function ext(fileName: string): string {
   const dot = fileName.lastIndexOf('.');
   return dot >= 0 ? fileName.slice(dot).toLowerCase() : '';
 }
 
-/** Signed upload URL for an ad file (copy or insert order) → newspaper-ads. */
+/** Signed upload URL for an ad file → newspaper-ads (same bucket + folder
+ *  layout as v1 so old and new files live side by side). */
 export async function requestAdFileUploadUrl(
   kind: 'copy' | 'insert' | 'contract',
   fileName: string
@@ -71,179 +80,191 @@ export async function verifyAdFileUploaded(path: string): Promise<boolean> {
   return Boolean(data?.some((o) => o.name === name));
 }
 
-export type AdInput = {
+export type ClientInput = {
   business_name: string;
   contact_name?: string;
   contact_phone?: string;
   contact_email?: string;
-  copy_storage_path?: string;
-  copy_file_name?: string;
-  copy_size?: string;
-  insert_order_path?: string;
-  insert_order_file_name?: string;
-  contract_path?: string;
-  contract_file_name?: string;
 };
 
-export async function createAd(
-  input: AdInput
+export type NewFileInput = {
+  kind: AdFileKind;
+  storage_path: string;
+  file_name: string;
+  /** Required for kind 'copy'; ignored otherwise. */
+  copy_size?: string;
+};
+
+function normalizeFile(f: NewFileInput): NewFileInput | null {
+  if (!VALID_KINDS.includes(f.kind)) return null;
+  if (!f.storage_path) return null;
+  if (f.kind === 'copy') {
+    const size = (f.copy_size ?? '').toLowerCase();
+    if (!(VALID_SIZES as readonly string[]).includes(size)) return null;
+    return { ...f, copy_size: size };
+  }
+  return { ...f, copy_size: undefined };
+}
+
+/** Create a client, optionally with initial files (the New Client form's
+ *  uploads). Files with a missing/invalid size on copy are rejected up front
+ *  so nothing half-saves. */
+export async function createAdClient(
+  input: ClientInput,
+  files: NewFileInput[] = []
 ): Promise<{ ok: boolean; error?: string; id?: string }> {
   const user = await requireRole([...EDITOR_ROLES], BASE);
-  if (!input.business_name?.trim()) return { ok: false, error: 'Business name is required.' };
+  const name = input.business_name?.trim();
+  if (!name) return { ok: false, error: 'Business name is required.' };
+
+  const normalized: NewFileInput[] = [];
+  for (const f of files) {
+    const n = normalizeFile(f);
+    if (!n) return { ok: false, error: 'Every uploaded copy needs a valid Copy Size.' };
+    normalized.push(n);
+  }
 
   const admin = createAdminClient();
+
+  // One client per business — creating a duplicate name is almost always a
+  // mistake that scatters the client's files across two folders.
+  const { data: existing } = await admin
+    .from('ad_clients')
+    .select('id, business_name')
+    .ilike('business_name', name);
+  if ((existing ?? []).some((c) => c.business_name.trim().toLowerCase() === name.toLowerCase())) {
+    return { ok: false, error: `A client named "${name}" already exists — open it and add the files there.` };
+  }
+
   const { data, error } = await admin
-    .from('ads')
+    .from('ad_clients')
     .insert({
-      business_name: input.business_name.trim(),
+      business_name: name,
       contact_name: input.contact_name?.trim() || null,
       contact_phone: input.contact_phone?.trim() || null,
       contact_email: input.contact_email?.trim() || null,
-      copy_storage_path: input.copy_storage_path || null,
-      copy_file_name: input.copy_file_name || null,
-      copy_size: input.copy_size || null,
-      insert_order_path: input.insert_order_path || null,
-      insert_order_file_name: input.insert_order_file_name || null,
-      contract_path: input.contract_path || null,
-      contract_file_name: input.contract_file_name || null,
       created_by: user.id,
     })
     .select('id')
     .single();
   if (error || !data) {
-    console.error('[createAd]', error);
-    return { ok: false, error: 'Could not save the ad.' };
+    console.error('[createAdClient]', error);
+    return { ok: false, error: 'Could not create the client.' };
   }
+  const clientId = data.id as string;
+
+  if (normalized.length) {
+    const { error: fErr } = await admin.from('ad_files').insert(
+      normalized.map((f) => ({
+        client_id: clientId,
+        kind: f.kind,
+        storage_path: f.storage_path,
+        file_name: f.file_name || null,
+        copy_size: f.kind === 'copy' ? f.copy_size : null,
+        created_by: user.id,
+      }))
+    );
+    if (fErr) {
+      console.error('[createAdClient] files', fErr);
+      return { ok: false, error: 'Client created, but saving its files failed — open the client and re-add them.', id: clientId };
+    }
+  }
+
   revalidatePath(BASE);
-  return { ok: true, id: data.id as string };
+  return { ok: true, id: clientId };
 }
 
-export async function updateAd(id: string, input: AdInput): Promise<Result> {
+export async function updateAdClient(id: string, input: ClientInput): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   if (!input.business_name?.trim()) return { ok: false, error: 'Business name is required.' };
   const admin = createAdminClient();
   const { error } = await admin
-    .from('ads')
+    .from('ad_clients')
     .update({
       business_name: input.business_name.trim(),
       contact_name: input.contact_name?.trim() || null,
       contact_phone: input.contact_phone?.trim() || null,
       contact_email: input.contact_email?.trim() || null,
-      copy_storage_path: input.copy_storage_path || null,
-      copy_file_name: input.copy_file_name || null,
-      copy_size: input.copy_size || null,
-      insert_order_path: input.insert_order_path || null,
-      insert_order_file_name: input.insert_order_file_name || null,
-      contract_path: input.contract_path || null,
-      contract_file_name: input.contract_file_name || null,
     })
     .eq('id', id);
   if (error) {
-    console.error('[updateAd]', error);
-    return { ok: false, error: 'Could not save the ad.' };
+    console.error('[updateAdClient]', error);
+    return { ok: false, error: 'Could not save the client.' };
   }
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${id}`);
   return { ok: true };
 }
 
-export async function deleteAd(id: string): Promise<Result> {
+/** Admin-only: remove a client, every DB file row (cascade), and the storage
+ *  objects. */
+export async function deleteAdClient(id: string): Promise<Result> {
   await requireRole([...ADMIN_ROLES], BASE);
   const admin = createAdminClient();
 
-  // Gather storage paths (ad copy + every run's insert order) to clean up.
-  const paths: string[] = [];
-  const { data: ad } = await admin
-    .from('ads')
-    .select('copy_storage_path, insert_order_path, contract_path')
-    .eq('id', id)
-    .maybeSingle();
-  if (ad?.copy_storage_path) paths.push(ad.copy_storage_path as string);
-  if (ad?.insert_order_path) paths.push(ad.insert_order_path as string);
-  if (ad?.contract_path) paths.push(ad.contract_path as string);
-  const { data: runs } = await admin.from('ad_runs').select('insert_order_path').eq('ad_id', id);
-  for (const r of runs ?? []) {
-    const p = (r as { insert_order_path: string | null }).insert_order_path;
-    if (p) paths.push(p);
-  }
+  const { data: files } = await admin.from('ad_files').select('storage_path').eq('client_id', id);
+  const paths = (files ?? []).map((f) => (f as { storage_path: string }).storage_path).filter(Boolean);
   if (paths.length) {
     const { error: rmErr } = await admin.storage.from(AD_FILES_BUCKET).remove(paths);
-    if (rmErr) console.error('[deleteAd] storage remove', rmErr);
+    if (rmErr) console.error('[deleteAdClient] storage remove', rmErr);
   }
 
-  const { error } = await admin.from('ads').delete().eq('id', id); // ad_runs cascade
+  const { error } = await admin.from('ad_clients').delete().eq('id', id); // ad_files cascade
   if (error) {
-    console.error('[deleteAd]', error);
-    return { ok: false, error: 'Could not delete the ad.' };
+    console.error('[deleteAdClient]', error);
+    return { ok: false, error: 'Could not delete the client.' };
   }
   revalidatePath(BASE);
   return { ok: true };
 }
 
-export type AdRunInput = {
-  date_started?: string | null;
-  num_weeks?: number | null;
-  price_per_week?: number | null;
-  page_size?: string | null;
-  insert_order_path?: string | null;
-  insert_order_file_name?: string | null;
-  invoiced?: boolean;
-  paid?: boolean;
-};
-
-function runRow(input: AdRunInput) {
-  return {
-    date_started: input.date_started || null,
-    num_weeks: input.num_weeks ?? null,
-    price_per_week: input.price_per_week ?? null,
-    page_size: input.page_size?.trim() || null,
-    insert_order_path: input.insert_order_path || null,
-    insert_order_file_name: input.insert_order_file_name || null,
-    invoiced: Boolean(input.invoiced),
-    paid: Boolean(input.paid),
-  };
-}
-
-export async function addAdRun(adId: string, input: AdRunInput): Promise<Result> {
-  await requireRole([...EDITOR_ROLES], BASE);
-  const admin = createAdminClient();
-  const { error } = await admin.from('ad_runs').insert({ ad_id: adId, ...runRow(input) });
-  if (error) {
-    console.error('[addAdRun]', error);
-    return { ok: false, error: 'Could not add the ad run.' };
+/** Add one uploaded file to an existing client ("+ New" on the client page). */
+export async function addAdClientFile(clientId: string, file: NewFileInput): Promise<Result> {
+  const user = await requireRole([...EDITOR_ROLES], BASE);
+  const n = normalizeFile(file);
+  if (!n) {
+    return {
+      ok: false,
+      error: file.kind === 'copy' ? 'Select a Copy Size before saving.' : 'Invalid file.',
+    };
   }
-  revalidatePath(`${BASE}/${adId}`);
+  const admin = createAdminClient();
+  const { error } = await admin.from('ad_files').insert({
+    client_id: clientId,
+    kind: n.kind,
+    storage_path: n.storage_path,
+    file_name: n.file_name || null,
+    copy_size: n.kind === 'copy' ? n.copy_size : null,
+    created_by: user.id,
+  });
+  if (error) {
+    console.error('[addAdClientFile]', error);
+    return { ok: false, error: 'Could not save the file.' };
+  }
+  revalidatePath(`${BASE}/${clientId}`);
   return { ok: true };
 }
 
-export async function updateAdRun(id: string, adId: string, input: AdRunInput): Promise<Result> {
-  await requireRole([...EDITOR_ROLES], BASE);
-  const admin = createAdminClient();
-  const { error } = await admin.from('ad_runs').update(runRow(input)).eq('id', id);
-  if (error) {
-    console.error('[updateAdRun]', error);
-    return { ok: false, error: 'Could not save the ad run.' };
-  }
-  revalidatePath(`${BASE}/${adId}`);
-  return { ok: true };
-}
-
-export async function deleteAdRun(id: string, adId: string): Promise<Result> {
+/** Admin-only: remove one file (DB row + storage object). */
+export async function deleteAdClientFile(fileId: string, clientId: string): Promise<Result> {
   await requireRole([...ADMIN_ROLES], BASE);
   const admin = createAdminClient();
-  const { data: run } = await admin
-    .from('ad_runs')
-    .select('insert_order_path')
-    .eq('id', id)
+  const { data: file } = await admin
+    .from('ad_files')
+    .select('storage_path')
+    .eq('id', fileId)
     .maybeSingle();
-  if (run?.insert_order_path) {
-    await admin.storage.from(AD_FILES_BUCKET).remove([run.insert_order_path as string]);
+  if (file?.storage_path) {
+    const { error: rmErr } = await admin.storage
+      .from(AD_FILES_BUCKET)
+      .remove([file.storage_path as string]);
+    if (rmErr) console.error('[deleteAdClientFile] storage remove', rmErr);
   }
-  const { error } = await admin.from('ad_runs').delete().eq('id', id);
+  const { error } = await admin.from('ad_files').delete().eq('id', fileId);
   if (error) {
-    console.error('[deleteAdRun]', error);
-    return { ok: false, error: 'Could not delete the ad run.' };
+    console.error('[deleteAdClientFile]', error);
+    return { ok: false, error: 'Could not delete the file.' };
   }
-  revalidatePath(`${BASE}/${adId}`);
+  revalidatePath(`${BASE}/${clientId}`);
   return { ok: true };
 }

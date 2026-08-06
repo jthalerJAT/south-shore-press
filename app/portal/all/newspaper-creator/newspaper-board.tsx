@@ -20,7 +20,7 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Plus } from 'lucide-react';
+import { GripVertical, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { NpPage, NpItemSummary } from '@/lib/queries/newspaper';
@@ -125,6 +125,23 @@ export function NewspaperBoard({
         .includes(needle)
     );
   }, [ads, searchQ]);
+
+  // Accounts view for the Ads tab: client names (alphabetical) → their copies.
+  const [openAdClient, setOpenAdClient] = useState<string | null>(null);
+  const adClients = useMemo(() => {
+    const byName = new Map<string, Ad[]>();
+    for (const a of ads) {
+      const list = byName.get(a.business_name) ?? [];
+      list.push(a);
+      byName.set(a.business_name, list);
+    }
+    return Array.from(byName.entries())
+      .sort(([x], [y]) => x.localeCompare(y, 'en', { sensitivity: 'base' }))
+      .map(([name, copies]) => ({
+        name,
+        copies: copies.sort((a, b) => b.created_at.localeCompare(a.created_at)),
+      }));
+  }, [ads]);
 
   const visibleLegals = useMemo(() => {
     const needle = searchQ.trim().toLowerCase();
@@ -351,8 +368,38 @@ export function NewspaperBoard({
                 <li className="px-3 py-6 text-center text-sm text-zinc-400">
                   No ads found. Add them in the Ad Database.
                 </li>
-              ) : (
+              ) : searchQ.trim() ? (
+                // Searching: flat list of matching copies.
                 visibleAds.map((a) => <AdChipDraggable key={a.id} ad={a} />)
+              ) : (
+                // Browsing: accounts (alphabetical) → expand to that client's copies.
+                adClients.map(({ name, copies }) => {
+                  const open = openAdClient === name;
+                  return (
+                    <li key={name}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenAdClient(open ? null : name)}
+                        className="w-full px-3 py-2 flex items-center gap-1.5 text-left hover:bg-zinc-50 transition-colors"
+                      >
+                        {open ? (
+                          <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                        ) : (
+                          <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                        )}
+                        <span className="text-[13px] font-medium text-zinc-900 truncate">{name}</span>
+                        <span className="ml-auto text-[11px] text-zinc-400">{copies.length}</span>
+                      </button>
+                      {open ? (
+                        <ul>
+                          {copies.map((a) => (
+                            <AdChipDraggable key={a.id} ad={a} indented />
+                          ))}
+                        </ul>
+                      ) : null}
+                    </li>
+                  );
+                })
               )}
             </ul>
           ) : null}
@@ -772,7 +819,22 @@ function StoryChipPresentation({ story, dragging }: { story: EditorStoryRow; dra
   );
 }
 
-function AdChipDraggable({ ad }: { ad: Ad }) {
+function adChipMeta(ad: Ad): string {
+  const size =
+    ad.copy_size === 'full' ? 'Full Page'
+    : ad.copy_size === 'half' ? 'Half Page'
+    : ad.copy_size === 'third' ? '1/3 Page'
+    : ad.copy_size === 'quarter' ? 'Quarter Page'
+    : null;
+  const date = new Date(ad.created_at).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+  return size ? `${size} · ${date}` : date;
+}
+
+function AdChipDraggable({ ad, indented }: { ad: Ad; indented?: boolean }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `ad-${ad.id}`,
     data: { ad },
@@ -784,14 +846,17 @@ function AdChipDraggable({ ad }: { ad: Ad }) {
       {...listeners}
       className={cn(
         'px-3 py-2 cursor-grab active:cursor-grabbing flex items-start gap-2 hover:bg-zinc-50 transition-colors',
+        indented && 'pl-8',
         isDragging && 'opacity-30'
       )}
     >
       <GripVertical className="w-4 h-4 text-zinc-300 mt-0.5 shrink-0" />
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-medium text-zinc-900 truncate">{ad.business_name}</div>
+        <div className="text-[13px] font-medium text-zinc-900 truncate">
+          {indented ? ad.copy_file_name || 'Copy file' : ad.business_name}
+        </div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-          {ad.copy_file_name || (ad.copy_storage_path ? 'Copy on file' : 'No copy')}
+          {indented ? adChipMeta(ad) : `${ad.copy_file_name || 'Copy on file'} — ${adChipMeta(ad)}`}
         </div>
       </div>
     </li>

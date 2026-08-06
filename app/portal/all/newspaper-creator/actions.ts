@@ -206,7 +206,8 @@ export async function addStoryToPage(
   return { ok: true };
 }
 
-/** Board drag: add an ad block (from the Ad Database) to a flow page. */
+/** Board drag: add an ad block (a client's copy file from the Ad Database)
+ *  to a flow page. `adId` is an ad_files id of kind 'copy' (migration 039). */
 export async function addAdToPage(pageId: string, adId: string): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
@@ -218,22 +219,31 @@ export async function addAdToPage(pageId: string, adId: string): Promise<Result>
     .maybeSingle();
   if (!page) return { ok: false, error: 'Page not found.' };
 
-  const { data: ad } = await supabase
-    .from('ads')
+  const { data: copyRow } = await supabase
+    .from('ad_files')
     .select(
-      'business_name, contact_name, contact_phone, contact_email, copy_storage_path, copy_file_name, copy_size'
+      'storage_path, file_name, copy_size, client:ad_clients!ad_files_client_id_fkey(business_name, contact_name, contact_phone, contact_email)'
     )
     .eq('id', adId)
+    .eq('kind', 'copy')
     .maybeSingle();
-  if (!ad) return { ok: false, error: 'Ad not found.' };
-  // Without an uploaded copy file there is nothing to render on the page —
-  // placing it would just look like a silent failure.
-  if (!ad.copy_storage_path) {
-    return {
-      ok: false,
-      error: `"${ad.business_name}" has no copy uploaded yet — add the file on its page in the Ad Database first.`,
-    };
-  }
+  if (!copyRow) return { ok: false, error: 'Ad copy not found.' };
+  // postgrest types the FK join as an array; runtime is one object (HANDOFF).
+  const client = (copyRow as { client?: unknown }).client as {
+    business_name?: string | null;
+    contact_name?: string | null;
+    contact_phone?: string | null;
+    contact_email?: string | null;
+  } | null;
+  const ad = {
+    business_name: client?.business_name ?? null,
+    contact_name: client?.contact_name ?? null,
+    contact_phone: client?.contact_phone ?? null,
+    contact_email: client?.contact_email ?? null,
+    copy_storage_path: (copyRow as { storage_path: string }).storage_path,
+    copy_file_name: (copyRow as { file_name: string | null }).file_name,
+    copy_size: (copyRow as { copy_size: string | null }).copy_size,
+  };
 
   // The ad's own Copy Size drives how big it lands on the page (default
   // quarter when unset). Editors can still override per-placement.

@@ -39,12 +39,7 @@ export default async function AdPickerPage({ params }: { params: { pageId: strin
     >
       <AdPicker
         pageId={params.pageId}
-        ads={ads.map((a) => ({
-          id: a.id,
-          business_name: a.business_name,
-          copy_file_name: a.copy_file_name,
-          copy_storage_path: a.copy_storage_path,
-        }))}
+        ads={ads}
         initialData={normalizeFullAd(page.template_data)}
       />
     </PortalShell>

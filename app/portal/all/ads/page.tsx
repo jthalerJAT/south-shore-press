@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { requireRole } from '@/lib/auth';
+import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { getAds } from '@/lib/queries/ads';
-import { AdList } from './ad-list';
+import { getAdClients } from '@/lib/queries/ad-clients';
+import { ClientList } from './client-list';
 
 export const metadata: Metadata = {
   title: 'Ad Database',
@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdDatabasePage() {
   const user = await requireRole(['editor', 'admin', 'master admin'], '/portal/all/ads');
-  const ads = await getAds();
+  const clients = await getAdClients();
 
   return (
     <PortalShell
@@ -23,7 +23,7 @@ export default async function AdDatabasePage() {
       backLink={{ href: '/portal/all', label: 'Editor Portal' }}
       hideTabs
     >
-      <AdList ads={ads} />
+      <ClientList clients={clients} isAdmin={canManageCredentials(user)} />
     </PortalShell>
   );
 }

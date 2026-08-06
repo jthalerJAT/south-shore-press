@@ -68,16 +68,7 @@ export default async function NewspaperPageEditorPage({
             pageNumber={ordinal}
             dateLabel={issueDate}
             initialData={normalizeFullAd(page.template_data)}
-            ads={ads.map((a) => ({
-              id: a.id,
-              business_name: a.business_name,
-              contact_name: a.contact_name,
-              contact_phone: a.contact_phone,
-              contact_email: a.contact_email,
-              copy_storage_path: a.copy_storage_path,
-              copy_file_name: a.copy_file_name,
-              copy_size: a.copy_size,
-            }))}
+            ads={ads}
           />
         </PortalShell>
       );

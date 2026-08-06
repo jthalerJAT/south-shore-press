@@ -41,7 +41,10 @@ create policy "story_audit_read_editorial" on public.story_audit
       select 1 from public.profiles p
       where p.id = auth.uid()
         and (
-          p.role in ('editor', 'admin', 'master admin')
+          -- role is an enum whose spelling varies by environment
+          -- ('master_admin' vs 'master admin') — compare as normalized text,
+          -- same pattern as migrations 006/016/036.
+          replace(lower(p.role::text), '_', ' ') in ('editor', 'admin', 'master admin')
           or p.roles && array['editor', 'admin', 'master admin']::text[]
         )
     )

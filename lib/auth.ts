@@ -22,6 +22,21 @@ export type UserRole =
   | 'master admin';
 
 /**
+ * CUSTOMER credentials (Ad Portal / Legal Portal). These live in
+ * `profiles.roles[]` alongside the editorial roles but are deliberately NOT
+ * part of `UserRole`: the legacy `role` enum column doesn't know them, and
+ * pickHighestRole / requireRole / RLS must never see them as editorial
+ * access. A customer's legacy role stays 'reader'.
+ */
+export type CustomerRole = 'advertiser' | 'legal';
+
+export function normalizeCustomerRole(raw: unknown): CustomerRole | null {
+  const normalized = String(raw ?? '').toLowerCase().replace(/_/g, ' ').trim();
+  if (normalized === 'advertiser' || normalized === 'legal') return normalized;
+  return null;
+}
+
+/**
  * Roles allowed to edit any story (not just their own), publish,
  * unpublish, downgrade, and view the All Stories table. Add new
  * elevated-permission roles here in one place — the AuthChip,
@@ -48,6 +63,9 @@ export type AuthenticatedUser = {
   /** Full set of roles assigned via the Credentials page. Empty if the
    *  user has no editor-tier permissions. */
   roles: UserRole[];
+  /** Customer credentials (advertiser / legal) — gate the Ad Portal and
+   *  Legal Portal. Independent of the editorial hierarchy. */
+  customerRoles: CustomerRole[];
 };
 
 /** Priority order for picking the "primary" single role from a roles
@@ -181,6 +199,14 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     .map(normalizeRole)
     .filter((r): r is UserRole => r !== null);
 
+  const customerRoles: CustomerRole[] = Array.from(
+    new Set(
+      rawArray
+        .map(normalizeCustomerRole)
+        .filter((r): r is CustomerRole => r !== null)
+    )
+  );
+
   if (roles.length === 0) {
     const single = normalizeRole(profile.role);
     if (single) roles = [single];
@@ -197,7 +223,21 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     displayName: profile.display_name,
     role,
     roles,
+    customerRoles,
   };
+}
+
+/** Gate a customer portal: signed-in AND holding the given customer
+ *  credential. Readers without it land on /account. */
+export async function requireCustomerRole(
+  kind: CustomerRole,
+  returnTo: string
+): Promise<AuthenticatedUser> {
+  const user = await requireUser(returnTo);
+  if (!user.customerRoles.includes(kind)) {
+    redirect('/account?denied=1');
+  }
+  return user;
 }
 
 /** Redirect to /signin if not authenticated; return the user otherwise.

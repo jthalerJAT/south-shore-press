@@ -11,7 +11,9 @@ import {
   isMasterAdmin,
   pickHighestRole,
   normalizeRole,
+  normalizeCustomerRole,
   type UserRole,
+  type CustomerRole,
 } from '@/lib/auth';
 
 /**
@@ -37,9 +39,16 @@ const VALID_GRANTABLE_ROLES: ReadonlyArray<UserRole> = [
 
 type Result = { error: string | null };
 
+/** How to link a user being granted the Advertiser credential to an Ad
+ *  Database client file: pick an existing one, or create a new file. */
+export type AdvertiserLink =
+  | { clientId: string }
+  | { newClientName: string };
+
 export async function setUserRolesAction(
   targetUserId: string,
-  newRoles: string[]
+  newRoles: string[],
+  advertiserLink?: AdvertiserLink
 ): Promise<Result> {
   const me = await getCurrentUser();
   if (!me) return { error: 'Not signed in.' };
@@ -58,7 +67,7 @@ export async function setUserRolesAction(
   //   - diff what's actually changing for per-role permission checks
   const { data: target, error: loadErr } = await supabase
     .from('profiles')
-    .select('id, roles')
+    .select('id, roles, ad_client_id, display_name')
     .eq('id', targetUserId)
     .maybeSingle();
   if (loadErr || !target) {
@@ -82,7 +91,9 @@ export async function setUserRolesAction(
     return { error: 'Only master admin can modify another admin.' };
   }
 
-  // Whitelist incoming role values to {admin, editor, journalist}.
+  // Whitelist incoming role values to {admin, editor, journalist}; customer
+  // credentials (advertiser / legal) are whitelisted separately — they carry
+  // no editorial power and any admin may toggle them.
   const granted = Array.from(
     new Set(
       newRoles
@@ -90,6 +101,13 @@ export async function setUserRolesAction(
         .filter((r): r is UserRole =>
           r !== null && VALID_GRANTABLE_ROLES.includes(r)
         )
+    )
+  );
+  const customerGranted = Array.from(
+    new Set(
+      newRoles
+        .map((r) => normalizeCustomerRole(r))
+        .filter((r): r is CustomerRole => r !== null)
     )
   );
 
@@ -119,25 +137,59 @@ export async function setUserRolesAction(
   // access silently falls back to the legacy column (2026-07-16 policy;
   // the drift that let Bob Chartuk keep publishing). Removal from the
   // system entirely is deleteUserAction, not an empty role set.
-  const finalRoles: UserRole[] = [
+  const finalRoles: string[] = [
     ...granted,
+    ...customerGranted,
     ...(wasMasterAdmin ? (['master admin'] as UserRole[]) : []),
     'reader',
   ];
 
-  // Sync the legacy single-role column to the highest-privilege role, which
-  // `getCurrentUser` falls back to whenever `roles` is empty (and which v1's
-  // RLS still reads). When every role is unchecked the user has NO editorial
-  // credentials, so this MUST be 'reader' — the no-access baseline. It used to
-  // fall back to 'journalist' (only to avoid writing NULL into a possibly
-  // NOT NULL column), which silently demoted de-credentialed users to
-  // journalist instead of revoking them — and journalists may publish their
-  // own stories, so they kept publishing. 'reader' has no portal access.
-  const primaryRole: UserRole = pickHighestRole(finalRoles) ?? 'reader';
+  // Sync the legacy single-role column to the highest-privilege EDITORIAL
+  // role, which `getCurrentUser` falls back to whenever `roles` is empty (and
+  // which v1's RLS still reads). Customer credentials never reach this column
+  // — the enum doesn't know them (22P02) and they carry no editorial power.
+  // When every editorial role is unchecked this MUST be 'reader' — the
+  // no-access baseline (the pre-56fbb0f 'journalist' fallback let
+  // de-credentialed users keep publishing).
+  const primaryRole: UserRole =
+    pickHighestRole(finalRoles.filter((r): r is UserRole => normalizeRole(r) !== null) as UserRole[]) ?? 'reader';
+
+  // "Link User to Advertiser File": when the Advertiser credential is being
+  // granted, the account must point at an Ad Database client file so their
+  // uploads land in the right place. Accept an existing file or create one.
+  let adClientId: string | null = (target as { ad_client_id?: string | null }).ad_client_id ?? null;
+  const targetCustomerRoles = (Array.isArray(target.roles) ? target.roles : [])
+    .map(normalizeCustomerRole)
+    .filter((r): r is CustomerRole => r !== null);
+  const gainingAdvertiser =
+    customerGranted.includes('advertiser') && !targetCustomerRoles.includes('advertiser');
+  if (customerGranted.includes('advertiser') && !adClientId) {
+    if (!advertiserLink) {
+      if (gainingAdvertiser) {
+        return { error: 'Link this user to an Advertiser file first (choose an existing client or create a new one).' };
+      }
+    } else if ('clientId' in advertiserLink && advertiserLink.clientId) {
+      adClientId = advertiserLink.clientId;
+    } else if ('newClientName' in advertiserLink && advertiserLink.newClientName.trim()) {
+      const admin = createAdminClient();
+      const { data: created, error: cErr } = await admin
+        .from('ad_clients')
+        .insert({ business_name: advertiserLink.newClientName.trim(), created_by: me.id })
+        .select('id')
+        .single();
+      if (cErr || !created) {
+        console.error('[setUserRolesAction] create advertiser file', cErr);
+        return { error: 'Could not create the new advertiser file.' };
+      }
+      adClientId = created.id as string;
+    } else {
+      return { error: 'Choose an advertiser file or enter a name for a new one.' };
+    }
+  }
 
   const { error: updErr } = await supabase
     .from('profiles')
-    .update({ roles: finalRoles, role: primaryRole })
+    .update({ roles: finalRoles, role: primaryRole, ad_client_id: adClientId })
     .eq('id', targetUserId);
 
   if (updErr) {

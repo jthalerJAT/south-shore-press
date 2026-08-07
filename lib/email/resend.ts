@@ -43,6 +43,43 @@ function esc(s: string | null | undefined): string {
     .replace(/>/g, '&gt;');
 }
 
+/** Notify the legals desk that a customer submitted a new legal through the
+ *  Legal Portal. Returns ok:false (never throws) — the save is authoritative. */
+export async function sendCustomerLegalEmail(
+  params: { customerName: string; lNumber: string; legalDatabaseUrl: string },
+  recipients: string[]
+): Promise<{ ok: boolean; error?: string }> {
+  const resend = getResend();
+  if (!resend) return { ok: false, error: 'email-not-configured' };
+  if (recipients.length === 0) return { ok: false, error: 'no-recipients' };
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;font-size:14px;color:#18181b">
+      <h2 style="color:#c8102e;margin:0 0 12px">New Legal Uploaded</h2>
+      <p style="margin:0 0 8px">
+        Customer <strong>${esc(params.customerName)}</strong> has uploaded a new legal
+        (<strong>${esc(params.lNumber)}</strong>).
+      </p>
+      <p style="margin:0">
+        It can be found in the legal portal
+        <a href="${esc(params.legalDatabaseUrl)}" style="color:#c8102e">here</a>.
+      </p>
+    </div>`;
+
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to: recipients,
+      subject: `New Legal Uploaded — ${params.customerName} (${params.lNumber})`,
+      html,
+    });
+    return { ok: true };
+  } catch (err) {
+    console.error('[resend] customer-legal email failed', err);
+    return { ok: false, error: 'send-failed' };
+  }
+}
+
 /** Email a notarized-copy request to the given recipients. Returns ok:false
  *  (never throws) so the caller can still report success on the saved row. */
 export async function sendNotarizedCopyRequestEmail(

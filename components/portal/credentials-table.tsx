@@ -26,17 +26,31 @@ import type { UserRole } from '@/lib/auth';
  *   own Admin role
  */
 
-type RoleKey = 'admin' | 'editor' | 'journalist';
+type RoleKey = 'admin' | 'editor' | 'journalist' | 'advertiser' | 'legal';
 type SortKey = 'first' | 'last' | 'email' | RoleKey;
 type SortDir = 'asc' | 'desc';
 
-const ROLE_KEYS: ReadonlyArray<RoleKey> = ['admin', 'editor', 'journalist'];
+const ROLE_KEYS: ReadonlyArray<RoleKey> = [
+  'admin',
+  'editor',
+  'journalist',
+  'advertiser',
+  'legal',
+];
+/** Customer credentials — gate the Ad / Legal portals, no editorial power. */
+const CUSTOMER_KEYS: ReadonlyArray<RoleKey> = ['advertiser', 'legal'];
 
 const ROLE_LABELS: Record<RoleKey, string> = {
   admin: 'Admin',
   editor: 'Editor',
   journalist: 'Journalist',
+  advertiser: 'Advertiser',
+  legal: 'Legal',
 };
+
+function isRoleKey(n: string): n is RoleKey {
+  return (ROLE_KEYS as ReadonlyArray<string>).includes(n);
+}
 
 function splitName(displayName: string | null): {
   first: string;
@@ -64,12 +78,15 @@ export function CredentialsTable({
   initialProfiles,
   currentUserId,
   currentUserRoles,
+  adClients = [],
 }: {
   initialProfiles: ProfileForCredentials[];
   currentUserId: string;
   /** Viewer's roles — drives the hierarchy locks (master admin sees
    *  more rows as editable than a regular admin does). */
   currentUserRoles: UserRole[];
+  /** Ad Database client files — the "Link User to Advertiser File" options. */
+  adClients?: Array<{ id: string; business_name: string }>;
 }) {
   const viewerIsMaster = currentUserRoles.includes('master admin');
   // Draft state: per-profile-id Set of currently-checked roles. Local
@@ -81,9 +98,7 @@ export function CredentialsTable({
       const granted = new Set<RoleKey>();
       for (const r of p.roles ?? []) {
         const n = normalize(r);
-        if (n === 'admin' || n === 'editor' || n === 'journalist') {
-          granted.add(n as RoleKey);
-        }
+        if (isRoleKey(n)) granted.add(n);
       }
       m.set(p.id, granted);
     }
@@ -122,16 +137,17 @@ export function CredentialsTable({
       const originalRoles = new Set<RoleKey>();
       for (const r of p.roles ?? []) {
         const n = normalize(r);
-        if (n === 'admin' || n === 'editor' || n === 'journalist') {
-          originalRoles.add(n as RoleKey);
-        }
+        if (isRoleKey(n)) originalRoles.add(n);
       }
 
-      // Per-role disabled map
+      // Per-role disabled map. Customer credentials (advertiser / legal)
+      // are toggleable by any admin — only the row-level locks apply.
       const roleDisabled: Record<RoleKey, boolean> = {
         admin: rowLocked || !viewerIsMaster,
         editor: rowLocked,
         journalist: rowLocked,
+        advertiser: rowLocked,
+        legal: rowLocked,
       };
 
       // Badge to show next to the email. Lock badges win when a row is
@@ -277,13 +293,37 @@ export function CredentialsTable({
     return sorted;
   }, [enriched, searchQ, sortKey, sortDir, draft]);
 
-  function applyChanges() {
-    setConfirmOpen(false);
+  // "Link User to Advertiser File" flow: users GAINING the Advertiser
+  // credential without an existing linked ad_client must be linked (existing
+  // file or a new one) before the batch saves. Queue them after confirm.
+  const [linkQueue, setLinkQueue] = useState<Array<{ id: string; label: string }>>([]);
+  const [links, setLinks] = useState<Map<string, { clientId?: string; newClientName?: string }>>(
+    new Map()
+  );
+
+  function pendingAdvertiserLinks() {
+    return changes.filter((c) => {
+      if (!c.gained.includes('advertiser')) return false;
+      const profile = enriched.find((p) => p.id === c.id);
+      return !profile?.ad_client_id;
+    });
+  }
+
+  function executeChanges(collected: Map<string, { clientId?: string; newClientName?: string }>) {
     setError(null);
     startTransition(async () => {
       const errors: string[] = [];
       for (const change of changes) {
-        const res = await setUserRolesAction(change.id, change.finalRoles);
+        const link = collected.get(change.id);
+        const res = await setUserRolesAction(
+          change.id,
+          change.finalRoles,
+          link && (link.clientId || link.newClientName)
+            ? link.clientId
+              ? { clientId: link.clientId }
+              : { newClientName: link.newClientName! }
+            : undefined
+        );
         if (res.error) {
           errors.push(`${change.label}: ${res.error}`);
         }
@@ -291,12 +331,35 @@ export function CredentialsTable({
       if (errors.length > 0) {
         setError(errors.join(' · '));
       }
+      router.refresh();
       // Note: we don't need to update local state here because the
       // page will be revalidated and the new initialProfiles will
       // flow through on the next render. The user sees the saved
       // state immediately because the optimistic toggle already
       // updated local state.
     });
+  }
+
+  function applyChanges() {
+    setConfirmOpen(false);
+    const needing = pendingAdvertiserLinks();
+    if (needing.length > 0) {
+      setLinks(new Map());
+      setLinkQueue(needing.map((c) => ({ id: c.id, label: c.label })));
+      return; // resumes in handleLinkSubmit once every user is linked
+    }
+    executeChanges(new Map());
+  }
+
+  function handleLinkSubmit(link: { clientId?: string; newClientName?: string }) {
+    const [current, ...rest] = linkQueue;
+    const nextLinks = new Map(links);
+    nextLinks.set(current.id, link);
+    setLinks(nextLinks);
+    setLinkQueue(rest);
+    if (rest.length === 0) {
+      executeChanges(nextLinks);
+    }
   }
 
   function applyDelete() {
@@ -412,7 +475,7 @@ export function CredentialsTable({
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={10}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     No users match.
@@ -539,6 +602,111 @@ export function CredentialsTable({
           onConfirm={applyDelete}
         />
       ) : null}
+
+      {/* Link-to-advertiser-file modal (one per user gaining Advertiser) */}
+      {linkQueue.length > 0 ? (
+        <LinkAdvertiserModal
+          key={linkQueue[0].id}
+          userLabel={linkQueue[0].label}
+          adClients={adClients}
+          onCancel={() => {
+            setLinkQueue([]);
+            setError('Save cancelled — advertiser credential requires a linked file.');
+          }}
+          onSubmit={handleLinkSubmit}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function LinkAdvertiserModal({
+  userLabel,
+  adClients,
+  onCancel,
+  onSubmit,
+}: {
+  userLabel: string;
+  adClients: Array<{ id: string; business_name: string }>;
+  onCancel: () => void;
+  onSubmit: (link: { clientId?: string; newClientName?: string }) => void;
+}) {
+  const [mode, setMode] = useState<'existing' | 'new'>('existing');
+  const [clientId, setClientId] = useState('');
+  const [newName, setNewName] = useState('');
+  const canSubmit = mode === 'existing' ? Boolean(clientId) : Boolean(newName.trim());
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+      role="dialog"
+      aria-modal="true"
+    >
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden">
+        <div className="px-6 py-4 border-b border-zinc-200">
+          <h2 className="font-headline text-xl font-bold text-zinc-900">
+            Link User to Advertiser File
+          </h2>
+          <p className="mt-1 text-sm text-zinc-600">
+            <span className="font-medium">{userLabel}</span> is being granted the Advertiser
+            credential. Their uploads will be filed under the Ad Database client you choose.
+          </p>
+        </div>
+        <div className="px-6 py-4 space-y-3">
+          <label className="flex items-center gap-2 text-sm text-zinc-800">
+            <input
+              type="radio"
+              checked={mode === 'existing'}
+              onChange={() => setMode('existing')}
+            />
+            Select an existing advertiser file
+          </label>
+          {mode === 'existing' ? (
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+            >
+              <option value="">Choose a client…</option>
+              {adClients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.business_name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          <label className="flex items-center gap-2 text-sm text-zinc-800">
+            <input type="radio" checked={mode === 'new'} onChange={() => setMode('new')} />
+            Create a new advertiser file
+          </label>
+          {mode === 'new' ? (
+            <input
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="Business name"
+              className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            />
+          ) : null}
+        </div>
+        <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-end gap-3 bg-zinc-50">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-white rounded transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={!canSubmit}
+            onClick={() =>
+              onSubmit(mode === 'existing' ? { clientId } : { newClientName: newName.trim() })
+            }
+            className="px-5 py-2 text-sm font-bold uppercase tracking-widest text-white bg-brand-red hover:bg-brand-red-dark disabled:opacity-50 rounded transition-colors"
+          >
+            Link &amp; Save
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

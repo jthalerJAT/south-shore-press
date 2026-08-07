@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight } from 'lucide-react';
+import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale } from 'lucide-react';
 import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
@@ -74,6 +74,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Upload and manage the weekly legal-notice PDFs shown on the public Legals page.',
       icon: FileText,
+    },
+    {
+      href: '/portal/all/legal-database',
+      title: 'Legal Database',
+      description:
+        'Every legal uploaded by customers through the Legal Portal — searchable, with L#, run dates, and notary flags.',
+      icon: Scale,
     },
     {
       href: '/portal/all/classifieds',

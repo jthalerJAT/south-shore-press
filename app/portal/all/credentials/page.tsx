@@ -3,6 +3,7 @@ import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { CredentialsTable } from '@/components/portal/credentials-table';
 import { getAllProfiles } from '@/lib/queries/profiles';
+import { getAdClients } from '@/lib/queries/ad-clients';
 
 export const metadata: Metadata = {
   title: 'Credentials',
@@ -26,7 +27,7 @@ export default async function CredentialsPage() {
     ['admin', 'master admin'],
     '/portal/all/credentials'
   );
-  const profiles = await getAllProfiles();
+  const [profiles, adClients] = await Promise.all([getAllProfiles(), getAdClients()]);
 
   return (
     <PortalShell
@@ -40,6 +41,7 @@ export default async function CredentialsPage() {
         initialProfiles={profiles}
         currentUserId={user.id}
         currentUserRoles={user.roles}
+        adClients={adClients.map((c) => ({ id: c.id, business_name: c.business_name }))}
       />
     </PortalShell>
   );

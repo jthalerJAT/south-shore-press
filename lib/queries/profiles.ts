@@ -20,6 +20,8 @@ export type ProfileForCredentials = {
    *  drift (Bob Chartuk kept publishing for days while his row read
    *  READER, 2026-07-15). */
   role: string | null;
+  /** Linked Ad Database client file (advertiser credential). */
+  ad_client_id: string | null;
 };
 
 /** Every profile in the system, sorted by email for stable ordering.
@@ -29,11 +31,19 @@ export async function getAllProfiles(): Promise<ProfileForCredentials[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, display_name, roles, role')
+    .select('id, email, display_name, roles, role, ad_client_id')
     .order('email', { ascending: true });
   if (error) {
-    console.error('[getAllProfiles]', error);
-    return [];
+    // Pre-migration-040 fallback (ad_client_id doesn't exist yet).
+    const retry = await supabase
+      .from('profiles')
+      .select('id, email, display_name, roles, role')
+      .order('email', { ascending: true });
+    if (retry.error) {
+      console.error('[getAllProfiles]', error);
+      return [];
+    }
+    return (retry.data ?? []).map((p) => ({ ...p, ad_client_id: null })) as ProfileForCredentials[];
   }
   return (data ?? []) as ProfileForCredentials[];
 }

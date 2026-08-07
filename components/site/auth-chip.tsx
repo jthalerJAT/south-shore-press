@@ -10,6 +10,7 @@ type User = {
   email: string;
   displayName: string | null;
   role: 'reader' | 'journalist' | 'editor' | 'admin' | 'master admin';
+  customerRoles?: Array<'advertiser' | 'legal'>;
 };
 
 /**
@@ -92,6 +93,10 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
     user.role === 'editor' ||
     user.role === 'admin' ||
     user.role === 'master admin';
+  // Customer portals — advertiser / legal credentials, granted on the
+  // Credentials page. Shown where an admin sees the Editor Portal link.
+  const isAdvertiser = user.customerRoles?.includes('advertiser') ?? false;
+  const isLegalCustomer = user.customerRoles?.includes('legal') ?? false;
   const firstName =
     user.displayName?.split(/\s+/)[0] ?? user.email.split('@')[0];
 
@@ -115,6 +120,22 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
             className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-zinc-900 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
           >
             Editor Portal
+          </Link>
+        ) : null}
+        {isAdvertiser ? (
+          <Link
+            href="/ad-portal"
+            className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-zinc-900 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+          >
+            Ad Portal
+          </Link>
+        ) : null}
+        {isLegalCustomer ? (
+          <Link
+            href="/legal-portal"
+            className="block w-full text-center px-4 py-2 text-sm font-bold uppercase tracking-wider text-zinc-900 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+          >
+            Legal Portal
           </Link>
         ) : null}
         <Link
@@ -144,6 +165,16 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
           className="hover:text-brand-red transition-colors"
         >
           Editor Portal
+        </Link>
+      ) : null}
+      {isAdvertiser ? (
+        <Link href="/ad-portal" className="hover:text-brand-red transition-colors">
+          Ad Portal
+        </Link>
+      ) : null}
+      {isLegalCustomer ? (
+        <Link href="/legal-portal" className="hover:text-brand-red transition-colors">
+          Legal Portal
         </Link>
       ) : null}
       <Link

@@ -95,8 +95,10 @@ export function AuthChip({ variant = 'desktop' }: { variant?: 'desktop' | 'mobil
     user.role === 'master admin';
   // Customer portals — advertiser / legal credentials, granted on the
   // Credentials page. Shown where an admin sees the Editor Portal link.
-  const isAdvertiser = user.customerRoles?.includes('advertiser') ?? false;
-  const isLegalCustomer = user.customerRoles?.includes('legal') ?? false;
+  // Admin-tier users always see both portals (oversight access).
+  const isAdminTier = user.role === 'admin' || user.role === 'master admin';
+  const isAdvertiser = isAdminTier || (user.customerRoles?.includes('advertiser') ?? false);
+  const isLegalCustomer = isAdminTier || (user.customerRoles?.includes('legal') ?? false);
   const firstName =
     user.displayName?.split(/\s+/)[0] ?? user.email.split('@')[0];
 

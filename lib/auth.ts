@@ -228,13 +228,15 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
 }
 
 /** Gate a customer portal: signed-in AND holding the given customer
- *  credential. Readers without it land on /account. */
+ *  credential — or admin-tier (admins and master admins oversee both
+ *  portals without needing the credential). Others land on /account. */
 export async function requireCustomerRole(
   kind: CustomerRole,
   returnTo: string
 ): Promise<AuthenticatedUser> {
   const user = await requireUser(returnTo);
-  if (!user.customerRoles.includes(kind)) {
+  const isAdminTier = user.roles.some((r) => r === 'admin' || r === 'master admin');
+  if (!user.customerRoles.includes(kind) && !isAdminTier) {
     redirect('/account?denied=1');
   }
   return user;

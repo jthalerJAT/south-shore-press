@@ -536,9 +536,10 @@ export function CredentialsTable({
                             <RoleCheckbox
                               checked={
                                 cellDisabled
-                                  ? p.master ||
-                                    p.originalRoles.has(rk) ||
-                                    false
+                                  ? // Master admin implies every EDITORIAL role;
+                                    // customer credentials show their true state.
+                                    (p.master && !CUSTOMER_KEYS.includes(rk)) ||
+                                    p.originalRoles.has(rk)
                                   : currentRoles.has(rk)
                               }
                               disabled={cellDisabled}

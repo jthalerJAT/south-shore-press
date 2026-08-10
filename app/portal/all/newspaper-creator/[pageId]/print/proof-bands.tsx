@@ -15,7 +15,7 @@ import {
   MIN_COLUMNS,
   MAX_COLUMNS,
 } from '@/lib/newspaper/layout-engine';
-import { useComputedBands, mergeQuarterAds, type BandInput } from '@/lib/newspaper/use-bands';
+import { useComputedBands, mergeQuarterAds, mergeThirdAds, type BandInput } from '@/lib/newspaper/use-bands';
 import { BandRenderer } from '@/components/newspaper/band-renderer';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 
@@ -89,32 +89,41 @@ export function ProofBands({
     [items, photoScale, columns]
   );
   // Quarter ads fold into the story above them, anchored to the page's
-  // exterior corner (even = left, odd = right).
+  // exterior corner (even = left, odd = right). Third ads move to the end of
+  // the stack — a fixed full-width strip pinned to the page bottom.
   const exteriorSide: 'left' | 'right' =
     pageOrdinal != null && pageOrdinal % 2 === 0 ? 'left' : 'right';
   const merged = useMemo(
-    () => mergeQuarterAds(rawInputs, exteriorSide),
+    () => mergeQuarterAds(mergeThirdAds(rawInputs), exteriorSide),
     [rawInputs, exteriorSide]
   );
 
-  // A corner-ad band must END at the page bottom (the ad is pinned to the
-  // band's bottom edge). The call sites give this component the full
-  // remaining page height via flex; measure it and stretch the corner band's
-  // body until the stack fills it. When the parent doesn't stretch us
-  // (legacy layouts), clientHeight equals the content height and the delta
-  // is ~0 — a safe no-op.
+  // Bottom pinning: the corner-ad band must END at the page bottom (the ad
+  // rides the band's bottom edge), and a trailing third-ad strip must LAND on
+  // the page bottom (so the story above stretches to meet it). The call sites
+  // give this component the full remaining page height via flex; measure it
+  // and stretch the pinned band's body until the stack fills it. When the
+  // parent doesn't stretch us (legacy layouts), clientHeight equals the
+  // content height and the delta is ~0 — a safe no-op.
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [stretchPx, setStretchPx] = useState(0);
   const gapPx = Math.max(4, Math.round(14 * spaceScale));
   const cornerBand = merged.find((it) => it.cornerAd);
-  const cornerBandId = cornerBand ? cornerBand.id : null;
+  const trailingThird =
+    merged.length > 0 &&
+    merged[merged.length - 1].type === 'ad' &&
+    merged[merged.length - 1].ad?.size === 'third';
+  const stretchBand =
+    cornerBand ??
+    (trailingThird ? [...merged].reverse().find((it) => it.type === 'story') : undefined);
+  const stretchBandId = stretchBand ? stretchBand.id : null;
 
   const inputs = useMemo(
     () =>
-      cornerBandId && stretchPx > 0
-        ? merged.map((it) => (it.id === cornerBandId ? { ...it, stretchPx } : it))
+      stretchBandId && stretchPx > 0
+        ? merged.map((it) => (it.id === stretchBandId ? { ...it, stretchPx } : it))
         : merged,
-    [merged, cornerBandId, stretchPx]
+    [merged, stretchBandId, stretchPx]
   );
   const { computed, ready } = useComputedBands(inputs, contentWidthPx);
   const byId = useMemo(() => Object.fromEntries(computed.map((c) => [c.id, c])), [computed]);
@@ -132,7 +141,7 @@ export function ProofBands({
   }, [computed, ready, onTextOverflow]);
 
   useLayoutEffect(() => {
-    if (!cornerBandId || !ready) return;
+    if (!stretchBandId || !ready) return;
     const root = rootRef.current;
     if (!root) return;
     const kids = Array.from(root.children) as HTMLElement[];
@@ -145,7 +154,7 @@ export function ProofBands({
     } else if (delta < -4 && stretchPx > 0) {
       setStretchPx((s) => Math.max(0, s + delta));
     }
-  }, [cornerBandId, ready, computed, gapPx, stretchPx]);
+  }, [stretchBandId, ready, computed, gapPx, stretchPx]);
 
   return (
     // Tighter inter-story spacing (was a loose 24px gap); a thin rule + small

@@ -189,12 +189,9 @@ export function BandRenderer({
             runs already flow around. */}
         {geometry.cornerAd
           ? (() => {
-              const rects = columnRects(geometry.contentWidthPx, geometry.columns, geometry.gapPx);
-              const first = rects[geometry.cornerAd.colStart0];
-              const last = rects[geometry.cornerAd.colStart0 + geometry.cornerAd.colSpan - 1];
-              const left = first.x;
-              const width = last.x + last.w - left;
-              const height = geometry.cornerAd.heightPx;
+              // FIXED pixel rect — the creative never resizes with columns,
+              // width, or the fit levers; text exclusion is column-granular.
+              const { leftPx: left, widthPx: width, heightPx: height } = geometry.cornerAd;
               const top = geometry.bodyHeightPx - height;
               const src =
                 cornerAdData?.storage_path && adPublicUrl ? adPublicUrl(cornerAdData.storage_path) : null;

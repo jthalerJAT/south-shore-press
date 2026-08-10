@@ -97,7 +97,8 @@ export type StoredLayout = StoredStoryLayout | StoredAdLayout;
 
 /** Ad heights as a fraction of page content height (the text area, excluding
  *  the running head) — a full-page band fills it, the others are proportionate
- *  fractions of that. */
+ *  fractions of that. Quarter and third ads DO NOT use this anymore: they have
+ *  FIXED pixel sizes (below) per publisher direction. */
 export const AD_HEIGHT_FRAC: Record<AdSizeValue, number> = {
   full: 0.92,
   half: 0.46,
@@ -105,16 +106,39 @@ export const AD_HEIGHT_FRAC: Record<AdSizeValue, number> = {
   quarter: 0.23,
 };
 
-/** A QUARTER-page ad renders as a bottom-corner rect (half the columns wide ×
- *  half the content height — measured off the printed template, p4 of the
- *  2026-06-24 proof: ad 356×512pt on a 720×1008pt content area) with the
- *  story's text wrapping the open side, instead of a full-width band. */
-export const CORNER_QUARTER_HEIGHT_FRAC = 0.5;
+// ── Fixed ad sizes (publisher direction 2026-08-10) ─────────────────────────
+// Quarter- and third-page ads are ALWAYS exactly the same size — they never
+// fluctuate with the page's spacing/photo/columns fit levers. Sized off the
+// PRINTABLE area (content box minus the running head and the section flag),
+// slightly smaller than the exact 1/4 and 1/3 fractions, matching the printed
+// precedent (e.g. 356×504pt quarter ads on the 720×1008pt content of the
+// 2026-06-17 / 2026-02-25 issues).
+/** Running PageHeader height (text row + divider + margin) at print scale. */
+export const RUNNING_HEAD_H_PX = 36;
+/** SectionFlag height (navy parallelogram + margin) at print scale. */
+export const SECTION_FLAG_H_PX = 44;
+/** The printable story area of an interior page. */
+export const PRINTABLE_H_PX = CONTENT_H_PX - RUNNING_HEAD_H_PX - SECTION_FLAG_H_PX;
+/** Quarter-page ad: a hair under half the width × half the printable height. */
+export const QUARTER_AD_W_PX = Math.round(CONTENT_W_PX * 0.5 * 0.95); // 456
+export const QUARTER_AD_H_PX = Math.round((PRINTABLE_H_PX / 2) * 0.95); // ~600
+/** Third-page ad: a full-width strip a hair under a third of the printable
+ *  height, pinned to the page bottom. */
+export const THIRD_AD_H_PX = Math.round((PRINTABLE_H_PX / 3) * 0.95); // ~400
 
-/** Bottom-anchored corner-ad exclusion inside a story band: spans whole
- *  columns like the photo rect, but pinned to the band's bottom edge so it
- *  lands in the page corner regardless of the band's resolved height. */
-export type CornerAd = { colStart0: number; colSpan: number; heightPx: number };
+/** Bottom-anchored corner-ad exclusion inside a story band: the creative
+ *  renders at an EXACT fixed pixel rect (leftPx/widthPx/heightPx — never
+ *  fluctuates), pinned to the band's bottom edge so it lands in the page
+ *  corner. colStart0/colSpan are the columns the rect overlaps — the text
+ *  runs exclude whole columns, so a sliver of white may sit between the ad
+ *  edge and the next column, exactly like the printed paper. */
+export type CornerAd = {
+  leftPx: number;
+  widthPx: number;
+  heightPx: number;
+  colStart0: number;
+  colSpan: number;
+};
 
 // ── Defaults + normalisation (raw jsonb → fully-populated typed layout) ────
 export function defaultStoryLayout(

@@ -12,7 +12,9 @@ import {
   CONTENT_W_PX,
   CONTENT_H_PX,
   COLUMN_GAP_PX,
-  CORNER_QUARTER_HEIGHT_FRAC,
+  QUARTER_AD_W_PX,
+  QUARTER_AD_H_PX,
+  THIRD_AD_H_PX,
   estimateBodyHeight,
   layoutBand,
   photoRectPx,
@@ -27,11 +29,10 @@ import { createMeasurer, whenFontsReady } from './measurer';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 
 /** A quarter-page ad folded into the story band above it: renders in the
- *  band's bottom exterior corner with the text wrapping the open side. */
+ *  band's bottom exterior corner at the FIXED quarter-ad size with the text
+ *  wrapping the open side. */
 export type CornerAdInput = {
   side: 'left' | 'right';
-  /** Ad rect height as a fraction of page content height. */
-  heightFrac: number;
   data: NpAdData;
 };
 
@@ -80,10 +81,17 @@ export function mergeQuarterAds(inputs: BandInput[], exteriorSide: 'left' | 'rig
   if (storyIdx === -1) return inputs;
   const ad = inputs[adIdx];
   return rest.map((it, i) =>
-    i === storyIdx
-      ? { ...it, cornerAd: { side: exteriorSide, heightFrac: CORNER_QUARTER_HEIGHT_FRAC, data: ad.data } }
-      : it
+    i === storyIdx ? { ...it, cornerAd: { side: exteriorSide, data: ad.data } } : it
   );
+}
+
+/** A THIRD-page ad is a fixed-size full-width strip pinned to the PAGE BOTTOM:
+ *  move the first third ad to the end of the stack — ProofBands then stretches
+ *  the last story band so the strip's bottom edge lands on the page bottom. */
+export function mergeThirdAds(inputs: BandInput[]): BandInput[] {
+  const i = inputs.findIndex((it) => it.type === 'ad' && it.ad?.size === 'third');
+  if (i === -1 || i === inputs.length - 1) return inputs;
+  return [...inputs.filter((_, j) => j !== i), inputs[i]];
 }
 
 /** If the photo's columns intersect the corner ad's columns, shift the photo
@@ -110,12 +118,31 @@ function shiftPhotoClearOfAd(
   return { ...photo, colStart0, colSpan, left, width };
 }
 
-/** Resolve a story band's corner ad to whole columns on its anchored side. */
-function cornerAdRect(input: BandInput, columns: number): CornerAd | null {
+/** Resolve a story band's corner ad: the creative gets the FIXED quarter-ad
+ *  pixel rect anchored to the exterior side; the text-exclusion columns are
+ *  whichever columns that rect overlaps. Size never varies with column count,
+ *  content width, or the page fit levers. */
+function cornerAdRect(input: BandInput, columns: number, contentWidthPx: number): CornerAd | null {
   if (!input.cornerAd) return null;
-  const colSpan = Math.max(1, Math.round(columns / 2));
-  const colStart0 = input.cornerAd.side === 'left' ? 0 : columns - colSpan;
-  return { colStart0, colSpan, heightPx: input.cornerAd.heightFrac * CONTENT_H_PX };
+  const widthPx = Math.min(QUARTER_AD_W_PX, contentWidthPx);
+  const heightPx = QUARTER_AD_H_PX;
+  const leftPx = input.cornerAd.side === 'left' ? 0 : contentWidthPx - widthPx;
+  const colW = (contentWidthPx - (columns - 1) * COLUMN_GAP_PX) / columns;
+  let colStart0 = columns;
+  let colEnd = -1;
+  for (let c = 0; c < columns; c++) {
+    const l = c * (colW + COLUMN_GAP_PX);
+    const r = l + colW;
+    if (r > leftPx + 0.5 && l < leftPx + widthPx - 0.5) {
+      colStart0 = Math.min(colStart0, c);
+      colEnd = Math.max(colEnd, c);
+    }
+  }
+  if (colEnd < colStart0) {
+    colStart0 = input.cornerAd.side === 'left' ? 0 : columns - 1;
+    colEnd = colStart0;
+  }
+  return { leftPx, widthPx, heightPx, colStart0, colSpan: colEnd - colStart0 + 1 };
 }
 
 export type ComputedBand = {
@@ -131,7 +158,7 @@ function computeStory(
   measurer: Measurer
 ): ComputedBand {
   const layout = input.story!;
-  const cornerAd = cornerAdRect(input, layout.column_count);
+  const cornerAd = cornerAdRect(input, layout.column_count, contentWidthPx);
   let photo =
     layout.photo && input.data.hero_photo_url
       ? photoRectPx(layout.photo, contentWidthPx, layout.column_count, COLUMN_GAP_PX)
@@ -159,7 +186,7 @@ function computeStory(
  *  re-computes with the real measurer on mount. */
 function computeStorySsr(input: BandInput, contentWidthPx: number): ComputedBand {
   const layout = input.story!;
-  const cornerAd = cornerAdRect(input, layout.column_count);
+  const cornerAd = cornerAdRect(input, layout.column_count, contentWidthPx);
   let photo =
     layout.photo && input.data.hero_photo_url
       ? photoRectPx(layout.photo, contentWidthPx, layout.column_count, COLUMN_GAP_PX)
@@ -183,7 +210,17 @@ function computeStorySsr(input: BandInput, contentWidthPx: number): ComputedBand
 }
 
 function computeAd(input: BandInput, contentWidthPx: number): ComputedBand {
-  const adHeightPx = (input.ad?.height ?? 0.23) * CONTENT_H_PX;
+  // Quarter and third ads are FIXED sizes — the stored height fraction is
+  // ignored so they can never fluctuate with the page's fit levers. (A
+  // standalone quarter band only occurs on a story-less page; it still gets
+  // the fixed height.) Half/full keep the stored-fraction behavior.
+  const size = input.ad?.size;
+  const adHeightPx =
+    size === 'third'
+      ? THIRD_AD_H_PX
+      : size === 'quarter'
+      ? QUARTER_AD_H_PX
+      : (input.ad?.height ?? 0.23) * CONTENT_H_PX;
   return {
     id: input.id,
     geometry: { contentWidthPx, bodyHeightPx: adHeightPx, columns: 1, gapPx: COLUMN_GAP_PX, photo: null },
@@ -202,7 +239,7 @@ function signature(inputs: BandInput[]): string {
       i.data.hero_photo_url ?? '',
       i.story ? [i.story.column_count, i.story.band_height, i.story.photo] : null,
       i.ad ? [i.ad.size, i.ad.height] : null,
-      i.cornerAd ? [i.cornerAd.side, i.cornerAd.heightFrac, i.cornerAd.data.storage_path ?? ''] : null,
+      i.cornerAd ? [i.cornerAd.side, i.cornerAd.data.storage_path ?? ''] : null,
       i.stretchPx ?? 0,
     ])
   );

@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Editorial Mission',
   description:
-    'The stated mission of the South Shore Press: widening the scope of political, community, and economic information available to the public we serve.',
+    'The stated mission of the South Shore Press: offering the broadest scope of political, community, and economic information available to the public we serve.',
 };
 
 export default function EditorialMissionPage() {
@@ -17,9 +17,9 @@ export default function EditorialMissionPage() {
 
       <div className="space-y-6 text-[17px] leading-relaxed text-zinc-700">
         <p>
-          It is the stated mission of the South Shore Press to widen the scope of
-          political, community, and economic information available to the public
-          we serve. We will expose hypocrisy and corruption, and provide analysis
+          It is the stated mission of the South Shore Press to offer the
+          broadest scope of political, community, and economic information
+          available to the public we serve. We will expose hypocrisy and corruption, and provide analysis
           uninhibited by political constraint.
         </p>
 

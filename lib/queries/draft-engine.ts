@@ -38,6 +38,9 @@ export type Writer = {
   name: string;
   desk: string | null;
   persona: string | null;
+  /** LLM that drafts for this byline (e.g. 'claude-sonnet-5', 'grok-4');
+   *  null = engine default. */
+  model: string | null;
 };
 
 const CANDIDATE_COLS =
@@ -90,11 +93,16 @@ export async function getWriters(): Promise<Writer[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('writers')
-    .select('id, name, desk, persona')
+    .select('id, name, desk, persona, model')
     .order('name');
   if (error) {
-    console.error('[getWriters]', error);
-    return [];
+    // Pre-migration-042 fallback (model column doesn't exist yet).
+    const retry = await supabase.from('writers').select('id, name, desk, persona').order('name');
+    if (retry.error) {
+      console.error('[getWriters]', error);
+      return [];
+    }
+    return (retry.data ?? []).map((w) => ({ ...w, model: null })) as Writer[];
   }
   return (data ?? []) as Writer[];
 }

@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { claudeComplete, isClaudeEnabled } from '@/lib/claude';
+import { llmComplete, isModelEnabled, DEFAULT_MODEL } from '@/lib/llm';
 import { SITE_SECTIONS } from '@/lib/site-config';
 
 /**
@@ -91,9 +91,6 @@ export async function generateArticle(
   }
 ): Promise<Result> {
   const user = await requireRole([...EDITOR_ROLES], BASE);
-  if (!isClaudeEnabled()) {
-    return { ok: false, error: 'The draft engine is not configured (ANTHROPIC_API_KEY missing).' };
-  }
   const included = input.facts.filter((f) => f.include && f.fact.trim());
   if (included.length === 0) {
     return { ok: false, error: 'Include at least one fact.' };
@@ -112,11 +109,29 @@ export async function generateArticle(
     return { ok: false, error: 'Candidate not found (it may already be drafted).' };
   }
 
-  const { data: writer } = await admin
+  let { data: writer } = await admin
     .from('writers')
-    .select('persona')
+    .select('persona, model')
     .eq('name', input.byline.trim())
     .maybeSingle();
+  if (!writer) {
+    // Pre-migration-042 fallback (model column doesn't exist yet).
+    const retry = await admin
+      .from('writers')
+      .select('persona')
+      .eq('name', input.byline.trim())
+      .maybeSingle();
+    writer = retry.data ? { ...retry.data, model: null } : null;
+  }
+
+  // The writer profile chooses the LLM (writers.model, e.g. 'grok-4' or
+  // 'claude-sonnet-5'); unset falls back to the engine default.
+  const model =
+    (writer as { model?: string | null } | null)?.model?.trim() || DEFAULT_MODEL;
+  const modelGate = isModelEnabled(model);
+  if (!modelGate.ok) {
+    return { ok: false, error: modelGate.error };
+  }
 
   const isRevision = Boolean(input.extraInstructions?.trim() && candidate.article_body);
   const prompt = buildPrompt({
@@ -135,7 +150,7 @@ export async function generateArticle(
       : null,
   });
 
-  const res = await claudeComplete({ system: prompt.system, user: prompt.user });
+  const res = await llmComplete({ model, system: prompt.system, user: prompt.user });
   if (!res.ok) return { ok: false, error: res.error };
   const article = parseArticle(res.text);
   if (!article) {

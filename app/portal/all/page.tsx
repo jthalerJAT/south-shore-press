@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale } from 'lucide-react';
+import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale, Sparkles } from 'lucide-react';
 import { requireRole, canManageCredentials } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
@@ -60,6 +60,13 @@ export default async function EditorPortalLandingPage() {
         'Pin stories to specific slots on the homepage and section pages.',
       icon: LayoutGrid,
       badge: 'Coming soon',
+    },
+    {
+      href: '/portal/all/story-draft-engine',
+      title: 'Story Draft Engine',
+      description:
+        'Dual-sourced story candidates from the news desks — pick the facts, add your angle, and generate the article.',
+      icon: Sparkles,
     },
     {
       href: '/portal/all/edit-stories',

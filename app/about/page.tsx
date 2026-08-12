@@ -47,7 +47,7 @@ export default function AboutPage() {
           Across the country, local newspapers have closed their doors or cut
           their newsrooms to the point where they can no longer cover the
           communities that depend on them. We reject that fate. The South Shore
-          Press is committed to investing in real journalism — in reporters, in
+          Press is committed to investing in journalism — in reporters, in
           resources, and in the hard work of covering our region with the depth
           it deserves — so that the communities we serve are never left in the
           dark.

@@ -82,6 +82,7 @@ export function SiteFooter() {
             title="Company"
             links={[
               { href: '/about', label: 'About Us' },
+              { href: '/editorial-mission', label: 'Editorial Mission' },
               { href: '/contact', label: 'Contact' },
               { href: '/advertise', label: 'Advertise' },
               { href: '/subscribe', label: 'Subscribe' },

@@ -185,7 +185,9 @@ function bestTier(tiers: PlanTier[]): PlanTier | null {
 async function recomputeProfileAggregate(admin: Admin, userId: string) {
   const { data: orders } = await admin
     .from('subscription_orders')
-    .select('plan_tier, status, started_at, current_period_end, stripe_subscription_id')
+    .select(
+      'plan_tier, status, started_at, current_period_end, stripe_subscription_id, created_at, delivery_first_name, delivery_last_name, delivery_company, delivery_address_1, delivery_address_2, delivery_city, delivery_state, delivery_zip, delivery_email, delivery_phone'
+    )
     .eq('user_id', userId);
 
   const rows = (orders ?? []) as Array<{
@@ -194,6 +196,17 @@ async function recomputeProfileAggregate(admin: Admin, userId: string) {
     started_at: string | null;
     current_period_end: string | null;
     stripe_subscription_id: string | null;
+    created_at: string;
+    delivery_first_name: string | null;
+    delivery_last_name: string | null;
+    delivery_company: string | null;
+    delivery_address_1: string | null;
+    delivery_address_2: string | null;
+    delivery_city: string | null;
+    delivery_state: string | null;
+    delivery_zip: string | null;
+    delivery_email: string | null;
+    delivery_phone: string | null;
   }>;
   const activeRows = rows.filter((o) => o.status === 'active');
   const activeTiers = activeRows.map((o) => o.plan_tier);
@@ -233,6 +246,23 @@ async function recomputeProfileAggregate(admin: Admin, userId: string) {
     if (starts.length) patch.subscription_start = starts[0].slice(0, 10);
     if (ends.length) patch.subscription_end = ends[ends.length - 1].slice(0, 10);
     if (best?.stripe_subscription_id) patch.stripe_subscription_id = best.stripe_subscription_id;
+
+    // The DELIVERY ADDRESS from the most recent active order is the mailing
+    // address for the print list. Accounts created at signup (before any
+    // purchase) carry no address, so without this the paid-subscriber list
+    // showed active print subscribers with blank addresses (2026-08-16).
+    const latest = [...activeRows].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    if (latest?.delivery_address_1) {
+      patch.first_name = latest.delivery_first_name;
+      patch.last_name = latest.delivery_last_name;
+      patch.company = latest.delivery_company;
+      patch.address_1 = latest.delivery_address_1;
+      patch.address_2 = latest.delivery_address_2;
+      patch.city = latest.delivery_city;
+      patch.state = latest.delivery_state;
+      patch.zip = latest.delivery_zip;
+      if (latest.delivery_phone) patch.phone = latest.delivery_phone;
+    }
     const { error: acctErr } = await admin.from('accounts').update(patch).eq('user_id', userId);
     if (acctErr) console.error('[stripe webhook] account sync failed', acctErr);
   } else if (status === 'canceled') {

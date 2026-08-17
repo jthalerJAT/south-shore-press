@@ -15,6 +15,15 @@ import { SITE_SECTIONS } from '@/lib/site-config';
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 const BASE = '/portal/all/story-draft-engine';
 
+/** House length for an engine-built article (body only, excluding headline
+ *  and subhead). Below MIN the draft is retried once with a length nudge. */
+const TARGET_WORDS_MIN = 500;
+const TARGET_WORDS_MAX = 700;
+
+function wordCount(text: string): number {
+  return (text.trim().match(/\S+/g) ?? []).length;
+}
+
 type Result = { ok: boolean; error?: string };
 
 export type FactChoice = {
@@ -33,6 +42,8 @@ function buildPrompt(params: {
   facts: FactChoice[];
   extraInstructions?: string;
   priorArticle?: { headline: string; body: string } | null;
+  /** Set on the retry after a too-short first draft. */
+  lengthNudge?: { priorWords: number } | null;
 }): { system: string; user: string } {
   const system = `${params.persona}
 
@@ -40,6 +51,7 @@ You draft newspaper copy for a human editor. Hard rules:
 - Use ONLY the facts provided. Never add facts, numbers, names, or quotes from memory.
 - Weave the editor's angle notes into the story faithfully — they carry the editor's voice and framing and take precedence over neutrality.
 - Inverted pyramid, AP style. No headline puns unless the angle notes ask.
+- LENGTH: the body MUST run ${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words. This is a full-length print article, not a brief. Reach that length by developing every provided fact fully — give each its own paragraph or more, explain what it means and why it matters to readers, connect facts to one another, and expand the editor's angle notes into full context and analysis. Do NOT pad with generalities, and do NOT reach length by inventing anything not in the fact list. Never return a body under ${TARGET_WORDS_MIN} words.
 - Return STRICT JSON, nothing else: {"headline": "...", "subline": "...", "body": "..."}
 - body: plain text paragraphs separated by blank lines. No markdown, no citations.`;
 
@@ -59,6 +71,10 @@ You draft newspaper copy for a human editor. Hard rules:
     user += `The editor wants it revised. Apply these instructions to the draft above (keep everything else intact):\n${params.extraInstructions ?? ''}\n`;
   } else if (params.extraInstructions?.trim()) {
     user += `\nAdditional instructions from the editor:\n${params.extraInstructions.trim()}\n`;
+  }
+  user += `\nTarget body length: ${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words.`;
+  if (params.lengthNudge) {
+    user += `\nYOUR PREVIOUS ATTEMPT WAS ONLY ${params.lengthNudge.priorWords} WORDS — far too short. Rewrite at full length (${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words) by developing each fact and angle note in depth. Do not add outside facts.`;
   }
   user += `\nReturn the JSON now.`;
   return { system, user };
@@ -134,7 +150,7 @@ export async function generateArticle(
   }
 
   const isRevision = Boolean(input.extraInstructions?.trim() && candidate.article_body);
-  const prompt = buildPrompt({
+  const promptBase = {
     persona:
       (writer as { persona?: string | null } | null)?.persona ??
       'You are a newspaper reporter. AP style, inverted pyramid.',
@@ -148,14 +164,32 @@ export async function generateArticle(
           body: (candidate.article_body as string) ?? '',
         }
       : null,
-  });
+  };
 
-  const res = await llmComplete({ model, system: prompt.system, user: prompt.user });
-  if (!res.ok) return { ok: false, error: res.error };
-  const article = parseArticle(res.text);
-  if (!article) {
-    console.error('[generateArticle] unparseable output', res.text.slice(0, 300));
-    return { ok: false, error: 'The model returned an unusable draft — try again.' };
+  const draftOnce = async (lengthNudge: { priorWords: number } | null) => {
+    const prompt = buildPrompt({ ...promptBase, lengthNudge });
+    const res = await llmComplete({ model, system: prompt.system, user: prompt.user, maxTokens: 6000 });
+    if (!res.ok) return { error: res.error } as const;
+    const article = parseArticle(res.text);
+    if (!article) {
+      console.error('[generateArticle] unparseable output', res.text.slice(0, 300));
+      return { error: 'The model returned an unusable draft — try again.' } as const;
+    }
+    return { article } as const;
+  };
+
+  // House length is 500–700 words. If the first pass comes in short, retry
+  // once with an explicit nudge and keep whichever draft is longer.
+  let first = await draftOnce(null);
+  if ('error' in first) return { ok: false, error: first.error };
+  let article = first.article;
+  const firstWords = wordCount(article.body);
+  if (firstWords < TARGET_WORDS_MIN) {
+    console.warn(`[generateArticle] draft was ${firstWords} words (< ${TARGET_WORDS_MIN}); retrying with length nudge`);
+    const second = await draftOnce({ priorWords: firstWords });
+    if (!('error' in second) && wordCount(second.article.body) > firstWords) {
+      article = second.article;
+    }
   }
 
   // Persist any editor-typed facts so the record shows the full human fact set.

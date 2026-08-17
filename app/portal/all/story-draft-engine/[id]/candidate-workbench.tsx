@@ -241,7 +241,18 @@ export function CandidateWorkbench({
             {candidate.article_subline ? (
               <p className="mt-1 text-sm text-zinc-600 italic">{candidate.article_subline}</p>
             ) : null}
-            <p className="mt-1 text-xs text-zinc-500">By {candidate.byline}</p>
+            <p className="mt-1 text-xs text-zinc-500">
+              By {candidate.byline}
+              {(() => {
+                const words = (candidate.article_body.trim().match(/\S+/g) ?? []).length;
+                const inRange = words >= 500 && words <= 700;
+                return (
+                  <span className={`ml-3 ${inRange ? 'text-zinc-500' : 'text-amber-700 font-semibold'}`}>
+                    · {words} words{inRange ? '' : ' (target 500–700)'}
+                  </span>
+                );
+              })()}
+            </p>
             <div className="mt-4 space-y-3 text-sm text-zinc-800 leading-relaxed max-h-[55vh] overflow-y-auto ssp-scroll">
               {candidate.article_body.split(/\n{2,}/).map((p, i) => (
                 <p key={i}>{p}</p>

@@ -32,10 +32,10 @@ type IngestBody = {
 const EXTRACT_SYSTEM = `You decompose a news article into its atomic facts for an editor's story-building tool.
 
 Rules:
-- Extract 6-14 facts. One factual claim per fact, stated neutrally in your own words.
+- Extract 10-20 facts. One factual claim per fact, stated neutrally in your own words. Be thorough — the editor will rebuild a full 500-700 word article from this list, so capture every distinct fact, figure, date, name, quote, and piece of context the article contains, not just the headline points.
 - Use ONLY what the article says. No outside knowledge, no speculation.
 - Attributed statements stay attributed ("Supervisor Romaine said ...").
-- Also write a 1-2 sentence neutral summary of the subject.
+- Also write a 2-3 sentence neutral summary of the subject and its background.
 
 Return STRICT JSON, nothing else:
 {"summary": "...", "facts": [{"fact": "..."}]}`;
@@ -104,7 +104,7 @@ export async function POST(req: Request) {
       const res = await llmComplete({
         system: EXTRACT_SYSTEM,
         user: `HEADLINE: ${headline}\n${subline ? `SUBHEAD: ${subline}\n` : ''}\nARTICLE:\n${body}\n\nReturn the JSON now.`,
-        maxTokens: 3000,
+        maxTokens: 4000,
       });
       if (res.ok) {
         const cleaned = res.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');

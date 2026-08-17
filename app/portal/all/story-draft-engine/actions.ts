@@ -24,6 +24,28 @@ function wordCount(text: string): number {
   return (text.trim().match(/\S+/g) ?? []).length;
 }
 
+/** Strip source-document meta-phrasing that leaks in from fact extraction
+ *  ("The article suggests that X" → "X"), so the drafting model never sees a
+ *  "source" to refer to. Candidates extracted before this fix still carry
+ *  such phrasing, so this runs at prompt-build time rather than only at ingest. */
+function cleanFact(fact: string): string {
+  let f = fact.trim();
+  // Only verbs whose remainder is a complete clause are stripped ("The
+  // article suggests X" → "X"). Object-taking verbs ("compares X to Y",
+  // "raises the question of…") are left alone — the drafting prompt tells the
+  // model to restate those in its own voice — because stripping them would
+  // leave a fragment.
+  const lead =
+    /^(?:the|this|that)\s+(?:article|report|piece|story|source|column|coverage|analysis)\s+(?:also\s+|further\s+|then\s+)?(?:says|said|states|stated|notes|noted|reports|reported|suggests|suggested|argues|argued|points out|pointed out|observes|observed|concludes|concluded|adds|added|contends|contended|warns|warned|indicates|indicated|claims|claimed|finds|found|shows|showed)\s+(?:that\s+)?(?=[a-z])/i;
+  const trailing = /,?\s+(?:according to|per)\s+the\s+(?:article|report|piece|story|source)\.?$/i;
+  f = f.replace(lead, '').replace(trailing, '.');
+  if (f !== fact.trim()) {
+    f = f.charAt(0).toUpperCase() + f.slice(1);
+    if (!/[.!?"]$/.test(f)) f += '.';
+  }
+  return f;
+}
+
 type Result = { ok: boolean; error?: string };
 
 export type FactChoice = {
@@ -47,25 +69,33 @@ function buildPrompt(params: {
 }): { system: string; user: string } {
   const system = `${params.persona}
 
-You draft newspaper copy for a human editor. Hard rules:
-- Use ONLY the facts provided. Never add facts, numbers, names, or quotes from memory.
-- Weave the editor's angle notes into the story faithfully — they carry the editor's voice and framing and take precedence over neutrality.
-- Inverted pyramid, AP style. No headline puns unless the angle notes ask.
-- LENGTH: the body MUST run ${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words. This is a full-length print article, not a brief. Reach that length by developing every provided fact fully — give each its own paragraph or more, explain what it means and why it matters to readers, connect facts to one another, and expand the editor's angle notes into full context and analysis. Do NOT pad with generalities, and do NOT reach length by inventing anything not in the fact list. Never return a body under ${TARGET_WORDS_MIN} words.
+You are writing a finished, publication-ready article for The South Shore Press, a local community newspaper on Long Island's South Shore. You write it in the voice, perspective, and priorities of the author profile above — that lens shapes what you lead with, what you emphasize, and how you frame significance for local readers.
+
+WHAT YOU ARE GIVEN: a headline, background, and a list of facts the reporter has gathered, some with the editor's angle notes. The fact list is your RAW MATERIAL — it is NOT an outline. Do not walk through it item by item, and do not write one paragraph per fact.
+
+HOW TO WRITE IT:
+- Write ONE cohesive news article with a real structure: a strong lede that captures the story, a nut graf that tells readers why it matters, then a body that develops the story in a logical order with transitions carrying the reader from one idea to the next, and a close that lands.
+- Combine, reorder, and connect facts freely so the piece reads as reporting, not a summary. Several facts may belong in one paragraph; one important fact may deserve several.
+- Bring it home: wherever the material allows, make clear what this means for South Shore / Long Island readers, businesses, and local institutions.
+- The reader must never sense a source document behind the piece. NEVER write "the article," "the report," "the source," "the piece," or "according to the article." State facts directly as things you know. If a fact is phrased like "The article suggests X," write it as X in your own reporting voice (attributed to a named person or institution only if the fact names one).
+- Use ONLY the facts provided. Never add facts, figures, names, dates, or quotes from memory. Analysis and framing may come from you and from the editor's angle notes; new factual claims may not.
+- Weave the editor's angle notes in faithfully — they carry the editor's framing and take precedence over neutrality.
+- AP style. Third person, past tense for events. Headline: clear and specific, no puns unless the angle notes ask.
+- LENGTH: the body MUST run ${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words — a full-length print article. Reach it through depth of reporting: context, significance, connections between facts, and local relevance — never through padding, repetition, or invented facts. Never return a body under ${TARGET_WORDS_MIN} words.
 - Return STRICT JSON, nothing else: {"headline": "...", "subline": "...", "body": "..."}
-- body: plain text paragraphs separated by blank lines. No markdown, no citations.`;
+- body: plain text paragraphs separated by blank lines. No markdown, no citations, no bullet points, no section labels.`;
 
   const factLines = params.facts
     .filter((f) => f.include)
     .map((f, i) => {
       const angle = f.angle?.trim();
-      return `${i + 1}. FACT: ${f.fact}${angle ? `\n   EDITOR'S ANGLE: ${angle}` : ''}`;
+      return `${i + 1}. ${cleanFact(f.fact)}${angle ? `\n   EDITOR'S ANGLE: ${angle}` : ''}`;
     })
     .join('\n');
 
   let user = `Subject: ${params.headline}\n`;
   if (params.summary) user += `Background: ${params.summary}\n`;
-  user += `\nFacts to include (with the editor's angle notes):\n${factLines}\n`;
+  user += `\nReporter's gathered facts (raw material — reorganize freely into a cohesive article; do not go item by item):\n${factLines}\n`;
   if (params.priorArticle) {
     user += `\nYou previously drafted this article:\nHEADLINE: ${params.priorArticle.headline}\n---\n${params.priorArticle.body}\n---\n`;
     user += `The editor wants it revised. Apply these instructions to the draft above (keep everything else intact):\n${params.extraInstructions ?? ''}\n`;
@@ -74,7 +104,7 @@ You draft newspaper copy for a human editor. Hard rules:
   }
   user += `\nTarget body length: ${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words.`;
   if (params.lengthNudge) {
-    user += `\nYOUR PREVIOUS ATTEMPT WAS ONLY ${params.lengthNudge.priorWords} WORDS — far too short. Rewrite at full length (${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words) by developing each fact and angle note in depth. Do not add outside facts.`;
+    user += `\nYOUR PREVIOUS ATTEMPT WAS ONLY ${params.lengthNudge.priorWords} WORDS — far too short. Rewrite as a full-length, cohesive article (${TARGET_WORDS_MIN}–${TARGET_WORDS_MAX} words) with more context, significance, and local relevance drawn from the material. Do not add outside facts, and do not go fact by fact.`;
   }
   user += `\nReturn the JSON now.`;
   return { system, user };

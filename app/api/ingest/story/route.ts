@@ -34,7 +34,8 @@ const EXTRACT_SYSTEM = `You decompose a news article into its atomic facts for a
 Rules:
 - Extract 10-20 facts. One factual claim per fact, stated neutrally in your own words. Be thorough — the editor will rebuild a full 500-700 word article from this list, so capture every distinct fact, figure, date, name, quote, and piece of context the article contains, not just the headline points.
 - Use ONLY what the article says. No outside knowledge, no speculation.
-- Attributed statements stay attributed ("Supervisor Romaine said ...").
+- Attributed statements stay attributed to the PERSON or INSTITUTION quoted ("Supervisor Romaine said ...").
+- NEVER refer to the article itself. Do not write "the article says/suggests/compares/raises", "the report notes", "according to the piece", etc. State each fact directly as a standalone claim. If the article offers its own analysis or opinion, phrase it as the claim itself (e.g. "The drone tariffs parallel the CHIPS Act approach of pairing trade tools with public support"), not as something the article does.
 - Also write a 2-3 sentence neutral summary of the subject and its background.
 
 Return STRICT JSON, nothing else:

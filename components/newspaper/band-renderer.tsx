@@ -59,6 +59,10 @@ export type BandRenderProps = {
 
 /** Height reserved at the bottom of the photo rect for the caption/credit row. */
 const PHOTO_CAPTION_STRIP = 16;
+/** Every in-page ad (quarter / third / half) prints inside a thin black rule
+ *  so the reader can see exactly where the ad ends. Drawn INSIDE the ad's
+ *  fixed rect (border-box) so the ad's size and pinning never change. */
+const AD_BORDER: CSSProperties = { border: '1px solid #000', boxSizing: 'border-box', background: '#fff' };
 /** Navy used for interior-page story headlines, matching the printed paper. */
 const HEADLINE_NAVY = '#1e3a8a';
 /** The printed paper's headline face (Proxima Nova Bold → Montserrat substitute). */
@@ -196,13 +200,13 @@ export function BandRenderer({
               const src =
                 cornerAdData?.storage_path && adPublicUrl ? adPublicUrl(cornerAdData.storage_path) : null;
               return (
-                <div style={{ position: 'absolute', left, top, width, height }}>
+                <div style={{ position: 'absolute', left, top, width, height, ...(src ? AD_BORDER : null) }}>
                   {src ? (
                     <AdCopyView
                       src={src}
                       fileName={cornerAdData?.file_name}
                       storagePath={cornerAdData?.storage_path}
-                      style={{ width: '100%', height: '100%', objectFit: 'fill' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
                     />
                   ) : editing ? (
                     <div className="w-full h-full border-2 border-dashed border-zinc-300 flex items-center justify-center text-sm text-zinc-400">
@@ -285,12 +289,12 @@ function AdBand({
         </div>
       ) : null}
       {src ? (
-        <div className={editing ? 'border border-zinc-200' : undefined} style={{ width, height }}>
+        <div style={{ width, height, ...AD_BORDER }}>
           <AdCopyView
             src={src}
             fileName={data.file_name}
             storagePath={data.storage_path}
-            style={{ width: '100%', height: '100%', objectFit: 'fill' }}
+            style={{ width: '100%', height: '100%', objectFit: 'fill', display: 'block' }}
           />
         </div>
       ) : editing ? (

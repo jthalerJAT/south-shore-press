@@ -244,7 +244,16 @@ export function normalizeAdLayout(
 // ── Px geometry ────────────────────────────────────────────────────────────
 export type ColumnRect = { x: number; w: number };
 export type PhotoRectPx = { left: number; top: number; width: number; height: number; colStart0: number; colSpan: number };
-export type ColumnRun = { colIdx: number; topPx: number; heightPx: number };
+export type ColumnRun = {
+  colIdx: number;
+  topPx: number;
+  heightPx: number;
+  /** Runaround override: when a corner ad only PARTLY covers this column, the
+   *  segment beside the ad narrows to the ad edge (minus the gutter) instead
+   *  of the whole column being dropped. Absent → the column's normal x/w. */
+  xPx?: number;
+  wPx?: number;
+};
 export type RunSlice = ColumnRun & {
   x: number;
   w: number;
@@ -324,26 +333,73 @@ function clampInt(n: number, lo: number, hi: number): number {
  */
 export function computeRuns(geo: BandGeometry): ColumnRun[] {
   const runs: ColumnRun[] = [];
-  const { photo, columns, bodyHeightPx } = geo;
+  const { photo, columns, bodyHeightPx, gapPx } = geo;
   const ad = geo.cornerAd ?? null;
+  const rects = columnRects(geo.contentWidthPx, columns, gapPx);
+  const adTop = ad ? bodyHeightPx - ad.heightPx : 0;
   for (let c = 0; c < columns; c++) {
     const blocked: Array<[number, number]> = [];
     if (photo && c >= photo.colStart0 && c < photo.colStart0 + photo.colSpan) {
       blocked.push([photo.top, photo.top + photo.height]);
     }
+    // Corner ad: a column the ad only PARTLY covers keeps a narrowed run
+    // beside the ad (text runs up to the ad edge minus the gutter); a column
+    // the ad substantially covers is blocked for the ad's height.
+    let runaround: { xPx: number; wPx: number } | null = null;
     if (ad && c >= ad.colStart0 && c < ad.colStart0 + ad.colSpan) {
-      blocked.push([bodyHeightPx - ad.heightPx, bodyHeightPx]);
+      runaround = cornerAdRunaround(rects[c], ad, gapPx);
+      if (!runaround) blocked.push([adTop, bodyHeightPx]);
     }
     blocked.sort((a, b) => a[0] - b[0]);
+
+    // Emit the column's open segments; any segment (or part of one) that lies
+    // beside the ad takes the runaround width.
+    const emit = (top: number, bottom: number) => {
+      if (bottom - top < MIN_RUN_PX) return;
+      if (runaround && bottom > adTop) {
+        if (top < adTop) {
+          if (adTop - top >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: top, heightPx: adTop - top });
+          top = adTop;
+        }
+        if (bottom - top >= MIN_RUN_PX) {
+          runs.push({ colIdx: c, topPx: top, heightPx: bottom - top, ...runaround });
+        }
+        return;
+      }
+      runs.push({ colIdx: c, topPx: top, heightPx: bottom - top });
+    };
+
     let cursor = 0;
     for (const [top, bottom] of blocked) {
-      if (top - cursor >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: cursor, heightPx: top - cursor });
+      emit(cursor, top);
       cursor = Math.max(cursor, bottom);
     }
-    const tailH = bodyHeightPx - cursor;
-    if (tailH >= MIN_RUN_PX) runs.push({ colIdx: c, topPx: cursor, heightPx: tailH });
+    emit(cursor, bodyHeightPx);
   }
   return runs;
+}
+
+/** Narrowest runaround column we'll set beside a corner ad (px). Below this
+ *  the column is dropped for the ad's height instead — a sliver of a few
+ *  characters per line reads worse than white space. */
+export const MIN_RUNAROUND_W_PX = 60;
+
+/** The open strip of column `rect` beside the corner ad, or null if the ad
+ *  covers (nearly) all of it. Text keeps one gutter's clearance from the ad. */
+function cornerAdRunaround(
+  rect: ColumnRect,
+  ad: CornerAd,
+  gapPx: number
+): { xPx: number; wPx: number } | null {
+  const adLeft = ad.leftPx;
+  const adRight = ad.leftPx + ad.widthPx;
+  const colRight = rect.x + rect.w;
+  const anchoredLeft = adLeft <= 1;
+  const openLeft = anchoredLeft ? Math.max(rect.x, adRight + gapPx) : rect.x;
+  const openRight = anchoredLeft ? colRight : Math.min(colRight, adLeft - gapPx);
+  const w = openRight - openLeft;
+  if (w < MIN_RUNAROUND_W_PX) return null;
+  return { xPx: openLeft, wPx: w };
 }
 
 // ── Text flow ───────────────────────────────────────────────────────────────
@@ -399,7 +455,10 @@ export function layoutBand(body: string | undefined, geo: BandGeometry, measurer
   let cursor = 0;
 
   for (const run of runs) {
-    const rect = rects[run.colIdx];
+    const col = rects[run.colIdx];
+    // Runaround segments (beside a corner ad) carry their own x/w.
+    const rect: ColumnRect =
+      run.xPx != null && run.wPx != null ? { x: run.xPx, w: run.wPx } : col;
     // Does this run start a fresh paragraph, or continue one from the previous
     // column? (Continuations must not be indented.)
     const startsParagraph =
@@ -487,7 +546,17 @@ export function estimateBodyHeight(
   );
   const photoH = geo.photo ? geo.photo.height : 0;
   const photoSpan = geo.photo ? geo.photo.colSpan : 0;
-  const adSpan = geo.cornerAd ? geo.cornerAd.colSpan : 0;
+  // Effective columns lost to the ad: a partly-covered column keeps its
+  // runaround strip, so count only the covered fraction.
+  let adSpan = 0;
+  if (geo.cornerAd) {
+    const ad = geo.cornerAd;
+    const rects = columnRects(geo.contentWidthPx, geo.columns, geo.gapPx);
+    for (let c = ad.colStart0; c < ad.colStart0 + ad.colSpan; c++) {
+      const ra = cornerAdRunaround(rects[c], ad, geo.gapPx);
+      adSpan += ra ? 1 - ra.wPx / rects[c].w : 1;
+    }
+  }
   const fits = (h: number) => layoutBand(body, { ...geo, bodyHeightPx: h }, measurer).fits;
 
   let hi = Math.max(lo0, Math.ceil((totalTextH + photoSpan * photoH + adSpan * adH) / geo.columns));

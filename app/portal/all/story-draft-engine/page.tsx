@@ -70,10 +70,16 @@ export default async function StoryDraftEnginePage() {
                       className={`inline-block px-1.5 py-0.5 text-[10px] uppercase tracking-widest font-bold rounded ${
                         c.status === 'generated'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : c.status === 'drafted'
+                          ? 'bg-blue-50 text-blue-700 border border-blue-200'
                           : 'bg-zinc-100 text-zinc-600 border border-zinc-200'
                       }`}
                     >
-                      {c.status === 'generated' ? 'Article ready' : 'New'}
+                      {c.status === 'generated'
+                        ? 'Article ready'
+                        : c.status === 'drafted'
+                        ? 'In Story Editor'
+                        : 'New'}
                     </span>
                   </div>
                 </Link>

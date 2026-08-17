@@ -46,13 +46,20 @@ export type Writer = {
 const CANDIDATE_COLS =
   'id, headline, summary, section, suggested_byline, sources, status, article_headline, article_subline, article_body, byline, drafted_story_id, created_at';
 
-/** Active candidates (pending + generated), newest first. */
+/** How long a DRAFTED candidate stays listed in the engine so its article can
+ *  still be regenerated (writes through to the Story Editor draft). */
+const DRAFTED_RETENTION_DAYS = 30;
+
+/** Engine list: pending + generated candidates, plus recently drafted ones
+ *  (still regenerable — the article writes through to the story draft).
+ *  Newest first. */
 export async function getStoryCandidates(): Promise<StoryCandidate[]> {
   const supabase = createClient();
+  const cutoff = new Date(Date.now() - DRAFTED_RETENTION_DAYS * 86_400_000).toISOString();
   const { data, error } = await supabase
     .from('story_candidates')
     .select(CANDIDATE_COLS)
-    .in('status', ['pending', 'generated'])
+    .or(`status.in.(pending,generated),and(status.eq.drafted,created_at.gte.${cutoff})`)
     .order('created_at', { ascending: false })
     .limit(200);
   if (error) {

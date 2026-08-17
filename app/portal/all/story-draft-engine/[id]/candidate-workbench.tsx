@@ -45,6 +45,8 @@ export function CandidateWorkbench({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  /** Already moved to the Story Editor — regeneration writes through to that draft. */
+  const isDrafted = candidate.status === 'drafted';
 
   function patchRow(i: number, patch: Partial<FactRow>) {
     setRows((list) => list.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
@@ -258,15 +260,30 @@ export function CandidateWorkbench({
                 <p key={i}>{p}</p>
               ))}
             </div>
+            {isDrafted ? (
+              <p className="mt-4 rounded border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-800">
+                This article is in the Story Editor as a draft. Regenerate or Edit Again here and the
+                draft is updated in place — until it&rsquo;s published.
+              </p>
+            ) : null}
             <div className="mt-5 flex items-center gap-3 border-t border-zinc-200 pt-4">
-              <button
-                type="button"
-                onClick={runMoveToDraft}
-                disabled={busy !== null}
-                className="inline-flex items-center px-4 py-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-semibold rounded transition-colors"
-              >
-                {busy === 'draft' ? 'Moving…' : 'Move to Draft Status'}
-              </button>
+              {isDrafted && candidate.drafted_story_id ? (
+                <a
+                  href={`/portal/edit/${candidate.drafted_story_id}`}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-red hover:bg-brand-red-dark text-white text-sm font-semibold rounded transition-colors"
+                >
+                  Open in Story Editor <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={runMoveToDraft}
+                  disabled={busy !== null}
+                  className="inline-flex items-center px-4 py-2 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-semibold rounded transition-colors"
+                >
+                  {busy === 'draft' ? 'Moving…' : 'Move to Draft Status'}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setEditAgainOpen((o) => !o)}
@@ -309,6 +326,7 @@ export function CandidateWorkbench({
             <h3 className="text-sm font-bold text-zinc-900">Delete this candidate?</h3>
             <p className="mt-1 text-sm text-zinc-600">
               &ldquo;{candidate.headline}&rdquo; will be removed from the Story Draft Engine.
+              {isDrafted ? ' The draft already in the Story Editor is kept.' : ''}
             </p>
             <div className="mt-4 flex items-center justify-end gap-3">
               <button

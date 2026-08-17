@@ -148,11 +148,40 @@ export async function generateArticle(
   const admin = createAdminClient();
   const { data: candidate } = await admin
     .from('story_candidates')
-    .select('id, headline, summary, status, article_headline, article_body')
+    .select('id, headline, summary, status, article_headline, article_body, drafted_story_id')
     .eq('id', candidateId)
     .maybeSingle();
-  if (!candidate || candidate.status === 'drafted' || candidate.status === 'deleted') {
-    return { ok: false, error: 'Candidate not found (it may already be drafted).' };
+  if (!candidate || candidate.status === 'deleted') {
+    return { ok: false, error: 'Candidate not found.' };
+  }
+
+  // A DRAFTED candidate stays regenerable: the new article writes through to
+  // its Story Editor draft. Refuse only if that story has since been published
+  // (or otherwise left draft status) — that copy is the editor's now.
+  const linkedStoryId =
+    candidate.status === 'drafted' ? ((candidate.drafted_story_id as string | null) ?? null) : null;
+  if (candidate.status === 'drafted') {
+    if (!linkedStoryId) {
+      return { ok: false, error: 'This candidate was drafted but its story link is missing.' };
+    }
+    const { data: linked } = await admin
+      .from('stories')
+      .select('id, status')
+      .eq('id', linkedStoryId)
+      .maybeSingle();
+    if (!linked) {
+      // The draft was deleted in the Story Editor — reopen the candidate so it
+      // can be generated and moved to draft again.
+      await admin
+        .from('story_candidates')
+        .update({ status: 'generated', drafted_story_id: null, updated_at: new Date().toISOString() })
+        .eq('id', candidateId);
+    } else if (linked.status !== 'draft') {
+      return {
+        ok: false,
+        error: `This story is already ${linked.status} — edit it in the Story Editor instead of regenerating.`,
+      };
+    }
   }
 
   let { data: writer } = await admin
@@ -240,10 +269,33 @@ export async function generateArticle(
     );
   }
 
+  // Write through to the linked Story Editor draft first (when there is one),
+  // so the candidate and the story never disagree.
+  const writeThrough = Boolean(linkedStoryId);
+  if (writeThrough) {
+    const { data: updatedStory, error: sErr } = await admin
+      .from('stories')
+      .update({
+        headline: article.headline,
+        subline: article.subline,
+        body: article.body,
+        byline: input.byline.trim(),
+      })
+      .eq('id', linkedStoryId as string)
+      .eq('status', 'draft')
+      .select('id')
+      .maybeSingle();
+    if (sErr || !updatedStory) {
+      console.error('[generateArticle] story write-through', sErr);
+      return { ok: false, error: 'Article generated but the Story Editor draft could not be updated.' };
+    }
+  }
+
   const { error: updErr } = await admin
     .from('story_candidates')
     .update({
-      status: 'generated',
+      // Drafted candidates stay drafted (the story is the live copy).
+      status: writeThrough ? 'drafted' : 'generated',
       article_headline: article.headline,
       article_subline: article.subline,
       article_body: article.body,
@@ -258,6 +310,10 @@ export async function generateArticle(
 
   revalidatePath(`${BASE}/${candidateId}`);
   revalidatePath(BASE);
+  if (writeThrough) {
+    revalidatePath(`/portal/edit/${linkedStoryId}`);
+    revalidatePath('/portal/all/edit-stories');
+  }
   return { ok: true };
 }
 

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale, Sparkles } from 'lucide-react';
-import { requireRole, canManageCredentials } from '@/lib/auth';
+import { requireRole, canManageCredentials, isPinnedMasterAdmin } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
 
@@ -61,13 +61,20 @@ export default async function EditorPortalLandingPage() {
       icon: LayoutGrid,
       badge: 'Coming soon',
     },
-    {
-      href: '/portal/all/story-draft-engine',
-      title: 'Story Draft Engine',
-      description:
-        'Dual-sourced story candidates from the news desks — pick the facts, add your angle, and generate the article.',
-      icon: Sparkles,
-    },
+    // Master admin ONLY (the pinned publisher account): the private story
+    // bank where AI drafts land first and Admin Drafts live.
+    ...(isPinnedMasterAdmin(user)
+      ? [
+          {
+            href: '/portal/all/master-admin-stories',
+            title: 'Master Admin Stories',
+            description:
+              'AI drafts from Howard Roark, Gail Wynand and Henry Cameron land here first. Edit, ask the AI to revise, then Save to Admin Draft or Push to the Story Editor.',
+            icon: Sparkles,
+            badge: 'Master admin',
+          },
+        ]
+      : []),
     {
       href: '/portal/all/edit-stories',
       title: 'Edit Stories',

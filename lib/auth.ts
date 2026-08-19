@@ -117,6 +117,25 @@ export function isMasterAdmin(user: { roles: ReadonlyArray<UserRole> }): boolean
   return user.roles.includes('master admin');
 }
 
+/** The ONE account allowed to hold the master admin credential. Publisher
+ *  direction 2026-08-17: master admin is a singleton pinned to John Thaler's
+ *  account; it is never grantable from the Credentials page and migration
+ *  044 strips it from anyone else (and enforces the same pin in SQL via
+ *  public.is_master_admin()). Overridable for a staging project only. */
+export const MASTER_ADMIN_EMAIL = (
+  process.env.MASTER_ADMIN_EMAIL ?? 'jthaler@jatcapital.com'
+).toLowerCase();
+
+/** True only for the pinned master admin account holding the role. Use this
+ *  (not isMasterAdmin) to gate master-admin-only features such as Master
+ *  Admin Stories. */
+export function isPinnedMasterAdmin(user: {
+  email: string;
+  roles: ReadonlyArray<UserRole>;
+}): boolean {
+  return isMasterAdmin(user) && user.email.trim().toLowerCase() === MASTER_ADMIN_EMAIL;
+}
+
 /**
  * Can the viewer modify ANY role for the given target?
  *
@@ -264,6 +283,16 @@ export async function requireRole(
   const user = await requireUser(returnTo);
   if (!allowedRoles.includes(user.role)) {
     redirect('/portal?denied=1');
+  }
+  return user;
+}
+
+/** Gate for master-admin-only surfaces (Master Admin Stories): signed in,
+ *  holding the master admin role, AND the pinned master admin account. */
+export async function requireMasterAdmin(returnTo: string): Promise<AuthenticatedUser> {
+  const user = await requireUser(returnTo);
+  if (!isPinnedMasterAdmin(user)) {
+    redirect('/portal/all?denied=1');
   }
   return user;
 }

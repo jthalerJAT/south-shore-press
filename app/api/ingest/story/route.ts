@@ -1,24 +1,24 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { llmComplete, isModelEnabled, DEFAULT_MODEL } from '@/lib/llm';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
 
 /**
- * POST /api/ingest/story — machine-created stories from the newsroom
- * pipeline. Token-guarded: `x-ssp-ingest-token` must match STORY_INGEST_TOKEN.
+ * POST /api/ingest/story — machine-written stories from the newsroom
+ * pipeline (Howard Roark / Gail Wynand / Henry Cameron on the office PC).
+ * Token-guarded: `x-ssp-ingest-token` must match STORY_INGEST_TOKEN.
  *
- * Since the Story Draft Engine (migration 041), incoming auto-drafts are
- * CONVERTED TO CANDIDATES by default: the article is decomposed into an
- * atomic fact list and filed in story_candidates for an editor to rebuild
- * with their own fact selection and angle. This redirects the old pipeline
- * into the engine without touching the office PC.
+ * Publisher direction 2026-08-17: the writers write complete articles under
+ * their own instructions, and those articles land in MASTER ADMIN STORIES
+ * (admin_stories, source 'ai') with headline, subhead, byline and body
+ * pre-filled. The master admin edits / AI-revises them there and pushes the
+ * ones he wants into the Story Editor as drafts.
  *
- *   INGEST_STORY_MODE=draft     → restore the legacy behavior (draft story)
- *   extraction failure          → falls back to the legacy draft path, so a
- *                                 story is never lost
+ *   INGEST_STORY_MODE=draft  → legacy behavior: post straight into the Story
+ *                              Editor as a draft (stories, status draft)
+ *   admin_stories missing    → (migration 044 not applied yet) falls back to
+ *                              the legacy draft path so a story is never lost
  */
 
 type IngestBody = {
@@ -29,22 +29,9 @@ type IngestBody = {
   categories?: string[];
 };
 
-const EXTRACT_SYSTEM = `You decompose a news article into its atomic facts for an editor's story-building tool.
-
-Rules:
-- Extract 10-20 facts. One factual claim per fact, stated neutrally in your own words. Be thorough — the editor will rebuild a full 500-700 word article from this list, so capture every distinct fact, figure, date, name, quote, and piece of context the article contains, not just the headline points.
-- Use ONLY what the article says. No outside knowledge, no speculation.
-- Attributed statements stay attributed to the PERSON or INSTITUTION quoted ("Supervisor Romaine said ...").
-- NEVER refer to the article itself. Do not write "the article says/suggests/compares/raises", "the report notes", "according to the piece", etc. State each fact directly as a standalone claim. If the article offers its own analysis or opinion, phrase it as the claim itself (e.g. "The drone tariffs parallel the CHIPS Act approach of pairing trade tools with public support"), not as something the article does.
-- Also write a 2-3 sentence neutral summary of the subject and its background.
-
-Return STRICT JSON, nothing else:
-{"summary": "...", "facts": [{"fact": "..."}]}`;
-
 /** Pipeline sections → site section slugs (the pipeline says 'nation'). */
-function mapSection(cat: string | undefined): string | null {
-  const c = (cat ?? '').toLowerCase().trim();
-  if (!c) return null;
+function mapSection(cat: string): string {
+  const c = cat.toLowerCase().trim();
   return c === 'nation' ? 'national' : c;
 }
 
@@ -92,78 +79,44 @@ export async function POST(req: Request) {
 
   const categories =
     Array.isArray(payload.categories) && payload.categories.length > 0
-      ? payload.categories.map((c) => String(c).toLowerCase().trim()).filter(Boolean)
+      ? payload.categories.map((c) => mapSection(String(c))).filter(Boolean)
       : ['business'];
   const byline = (payload.byline ?? '').trim() || 'Business Desk';
   const subline = (payload.subline ?? '').trim() || null;
 
   const legacyMode = process.env.INGEST_STORY_MODE === 'draft';
 
-  // ── Candidate conversion (default) ────────────────────────────────────────
-  if (!legacyMode && isModelEnabled(DEFAULT_MODEL).ok) {
-    try {
-      const res = await llmComplete({
-        system: EXTRACT_SYSTEM,
-        user: `HEADLINE: ${headline}\n${subline ? `SUBHEAD: ${subline}\n` : ''}\nARTICLE:\n${body}\n\nReturn the JSON now.`,
-        maxTokens: 4000,
+  // ── Master Admin Stories (default) ────────────────────────────────────────
+  if (!legacyMode) {
+    const admin = createAdminClient();
+    const { data, error } = await admin
+      .from('admin_stories')
+      .insert({
+        headline,
+        subline,
+        body,
+        byline,
+        categories,
+        source: 'ai',
+        status: 'admin_draft',
+        created_by: null,
+      })
+      .select('id')
+      .single();
+    if (!error && data) {
+      return NextResponse.json({
+        ok: true,
+        mode: 'admin_draft',
+        id: data.id,
+        editPath: `/portal/all/master-admin-stories/${data.id}`,
       });
-      if (res.ok) {
-        const cleaned = res.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
-        const parsed = JSON.parse(cleaned) as {
-          summary?: string;
-          facts?: Array<{ fact?: string }>;
-        };
-        const facts = (parsed.facts ?? [])
-          .map((f) => (f.fact ?? '').trim())
-          .filter(Boolean);
-        if (facts.length >= 3) {
-          const admin = createAdminClient();
-          const { data: candidate, error } = await admin
-            .from('story_candidates')
-            .insert({
-              headline,
-              summary: (parsed.summary ?? '').trim() || subline,
-              section: mapSection(categories[0]),
-              suggested_byline: byline,
-              sources: [],
-              status: 'pending',
-            })
-            .select('id')
-            .single();
-          if (!error && candidate) {
-            const { error: fErr } = await admin.from('candidate_facts').insert(
-              facts.map((fact, i) => ({
-                candidate_id: candidate.id,
-                fact,
-                source_label: byline,
-                fact_order: i,
-              }))
-            );
-            if (!fErr) {
-              return NextResponse.json({
-                ok: true,
-                mode: 'candidate',
-                id: candidate.id,
-                enginePath: `/portal/all/story-draft-engine/${candidate.id}`,
-              });
-            }
-            console.error('[ingest/story→candidate] facts', fErr);
-          } else {
-            console.error('[ingest/story→candidate]', error);
-          }
-        } else {
-          console.error('[ingest/story→candidate] too few facts extracted');
-        }
-      } else {
-        console.error('[ingest/story→candidate] extraction', res.error);
-      }
-    } catch (err) {
-      console.error('[ingest/story→candidate] failed, falling back to draft', err);
     }
-    // fall through to the legacy draft path on any failure
+    // 42P01 = admin_stories does not exist yet (migration 044 not applied).
+    // Anything else is unexpected but equally should not lose the story.
+    console.error('[ingest/story] admin_stories insert failed, falling back to draft', error);
   }
 
-  // ── Legacy draft path ─────────────────────────────────────────────────────
+  // ── Legacy / fallback: Story Editor draft ─────────────────────────────────
   const { data, error } = await createLegacyDraft({ headline, subline, body, byline, categories });
   if (error || !data) {
     console.error('[ingest/story]', error);

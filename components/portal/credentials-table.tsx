@@ -79,6 +79,7 @@ export function CredentialsTable({
   currentUserId,
   currentUserRoles,
   adClients = [],
+  masterAdminEmail,
 }: {
   initialProfiles: ProfileForCredentials[];
   currentUserId: string;
@@ -87,6 +88,9 @@ export function CredentialsTable({
   currentUserRoles: UserRole[];
   /** Ad Database client files — the "Link User to Advertiser File" options. */
   adClients?: Array<{ id: string; business_name: string }>;
+  /** The single account the Master Admin credential is pinned to (shown in
+   *  the locked Master Admin column's tooltip). */
+  masterAdminEmail?: string;
 }) {
   const viewerIsMaster = currentUserRoles.includes('master admin');
   // Draft state: per-profile-id Set of currently-checked roles. Local
@@ -455,6 +459,12 @@ export function CredentialsTable({
                 >
                   Reader
                 </th>
+                <th
+                  className="w-28 px-4 py-2.5 text-center font-semibold text-zinc-700"
+                  title={`Master Admin is a single credential pinned to ${masterAdminEmail ?? 'the publisher account'}. It cannot be granted or revoked here — it unlocks Master Admin Stories and every other privilege.`}
+                >
+                  Master Admin
+                </th>
                 {ROLE_KEYS.map((rk) => (
                   <SortableTh
                     key={rk}
@@ -475,7 +485,7 @@ export function CredentialsTable({
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={10}
+                    colSpan={11}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     No users match.
@@ -528,6 +538,16 @@ export function CredentialsTable({
                         title="Every account holds the Reader credential — read the site, manage their own profile. It can never be revoked; delete the account to remove the user entirely."
                       >
                         <RoleCheckbox checked disabled />
+                      </td>
+                      <td
+                        className="px-4 py-3 text-center"
+                        title={
+                          p.master
+                            ? 'The master admin — pinned to this account; changeable only via SQL.'
+                            : `Reserved for ${masterAdminEmail ?? 'the publisher account'}; not grantable.`
+                        }
+                      >
+                        <RoleCheckbox checked={p.master} disabled />
                       </td>
                       {ROLE_KEYS.map((rk) => {
                         const cellDisabled = p.roleDisabled[rk];

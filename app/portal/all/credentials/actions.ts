@@ -9,6 +9,7 @@ import {
   canManageUser,
   canManageRole,
   isMasterAdmin,
+  MASTER_ADMIN_EMAIL,
   pickHighestRole,
   normalizeRole,
   normalizeCustomerRole,
@@ -67,7 +68,7 @@ export async function setUserRolesAction(
   //   - diff what's actually changing for per-role permission checks
   const { data: target, error: loadErr } = await supabase
     .from('profiles')
-    .select('id, roles, ad_client_id, display_name')
+    .select('id, email, roles, ad_client_id, display_name')
     .eq('id', targetUserId)
     .maybeSingle();
   if (loadErr || !target) {
@@ -131,7 +132,12 @@ export async function setUserRolesAction(
   // Preserve master admin if the target already had it (the UI never
   // exposes a toggle for master admin; this guards against any
   // direct-API path that omits it).
-  const wasMasterAdmin = isMasterAdmin(targetUserObj);
+  // Master admin is a SINGLETON pinned to MASTER_ADMIN_EMAIL (2026-08-17):
+  // preserved only on that account; any other row carrying it is cleaned
+  // up on the next save (migration 044 does the same in SQL).
+  const wasMasterAdmin =
+    isMasterAdmin(targetUserObj) &&
+    String(target.email ?? '').trim().toLowerCase() === MASTER_ADMIN_EMAIL;
   // Every account always retains the reader credential — revoking all
   // editorial roles leaves a plain reader row, never a role-less one whose
   // access silently falls back to the legacy column (2026-07-16 policy;

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { requireRole } from '@/lib/auth';
+import { requireRole, MASTER_ADMIN_EMAIL } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { CredentialsTable } from '@/components/portal/credentials-table';
 import { getAllProfiles } from '@/lib/queries/profiles';
@@ -42,6 +42,7 @@ export default async function CredentialsPage() {
         currentUserId={user.id}
         currentUserRoles={user.roles}
         adClients={adClients.map((c) => ({ id: c.id, business_name: c.business_name }))}
+        masterAdminEmail={MASTER_ADMIN_EMAIL}
       />
     </PortalShell>
   );

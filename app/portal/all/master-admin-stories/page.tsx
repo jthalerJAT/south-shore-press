@@ -30,12 +30,20 @@ export default async function MasterAdminStoriesPage() {
           here first; stories you write and save as Admin Drafts stay here too. Open a story to edit
           it, ask the AI to revise it, then Save to Admin Draft or Push to the Story Editor.
         </p>
-        <Link
-          href="/portal/all/master-admin-stories/new"
-          className="inline-flex items-center px-4 py-2 bg-brand-red hover:bg-brand-red-dark text-white text-sm font-semibold uppercase tracking-wide rounded transition-colors"
-        >
-          + New Story
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/portal/all/master-admin-stories/guidelines"
+            className="inline-flex items-center px-4 py-2 border border-zinc-300 hover:bg-zinc-50 text-zinc-800 text-sm font-semibold uppercase tracking-wide rounded transition-colors"
+          >
+            Writing Guidelines
+          </Link>
+          <Link
+            href="/portal/all/master-admin-stories/new"
+            className="inline-flex items-center px-4 py-2 bg-brand-red hover:bg-brand-red-dark text-white text-sm font-semibold uppercase tracking-wide rounded transition-colors"
+          >
+            + New Story
+          </Link>
+        </div>
       </div>
 
       {error === 'migration' ? (

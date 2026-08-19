@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { llmComplete, isModelEnabled, DEFAULT_MODEL } from '@/lib/llm';
 import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG } from '@/lib/site-config';
 import { isMissingTable } from '@/lib/queries/admin-stories';
+import { getHouseStyle, houseStyleBlock, HOUSE_STYLE_KEY } from '@/lib/house-style';
 
 /**
  * Master Admin Stories — server actions. Every action re-checks that the
@@ -208,6 +209,32 @@ export async function deleteAdminStory(id: string): Promise<Result> {
   return { ok: true };
 }
 
+// ── House writing guidelines ────────────────────────────────────────────────
+
+/** Save the house writing guidelines (Master Admin Stories → Writing
+ *  Guidelines). Every AI writing path reads the saved text on its next run. */
+export async function saveHouseStyle(content: string): Promise<Result> {
+  const gate = await requireMaster();
+  if (!gate.ok) return { ok: false, error: gate.error };
+  const text = (content ?? '').replace(/\r\n/g, '\n').trim();
+  if (!text) return { ok: false, error: 'The guidelines cannot be empty.' };
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('house_style')
+    .upsert(
+      { key: HOUSE_STYLE_KEY, content: text, updated_at: new Date().toISOString(), updated_by: gate.user.id },
+      { onConflict: 'key' }
+    );
+  if (error) {
+    if (/house_style/i.test(error.message) && /could not find|does not exist/i.test(error.message)) {
+      return { ok: false, error: 'The house_style table does not exist yet — run migration 045 in Supabase.' };
+    }
+    return { ok: false, error: error.message };
+  }
+  revalidatePath(`${BASE}/guidelines`);
+  return { ok: true };
+}
+
 // ── AI revision ──────────────────────────────────────────────────────────────
 
 export type ReviseResult =
@@ -259,9 +286,13 @@ export async function reviseWithAi(input: {
   const gateModel = isModelEnabled(model);
   if (!gateModel.ok) return { ok: false, error: gateModel.error! };
 
-  const system = persona
-    ? `${REVISE_SYSTEM_BASE}\n\nThe article's author profile — keep every edit in this voice:\n${persona}`
-    : REVISE_SYSTEM_BASE;
+  // Persona (the writer's VOICE) first, then the house guidelines, which the
+  // preamble subordinates to the voice on conflict.
+  const style = await getHouseStyle();
+  const system =
+    (persona
+      ? `${REVISE_SYSTEM_BASE}\n\nThe article's author profile (VOICE) — keep every edit in this voice:\n${persona}`
+      : REVISE_SYSTEM_BASE) + houseStyleBlock(style, 'voice');
   const user = `CURRENT ARTICLE
 HEADLINE: ${input.headline ?? ''}
 SUBHEAD: ${input.subline ?? ''}

@@ -31,6 +31,13 @@ export type AdminStory = AdminStoryRow & {
   photo_credit: string | null;
 };
 
+/** True when the error means admin_stories does not exist yet. */
+export function isMissingTable(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  if (error.code === '42P01' || error.code === 'PGRST205') return true;
+  return /could not find the table .*admin_stories|relation .*admin_stories.* does not exist/i.test(error.message ?? '');
+}
+
 const ROW_COLS =
   'id, headline, subline, byline, categories, hero_photo_url, source, status, pushed_story_id, pushed_at, created_at, updated_at';
 const FULL_COLS = `${ROW_COLS}, body, extra_photo_urls, photo_caption, photo_credit`;
@@ -48,8 +55,9 @@ export async function getAdminStories(): Promise<{ rows: AdminStoryRow[]; error:
     .limit(500);
   if (error) {
     console.error('[getAdminStories]', error);
-    // 42P01 = table missing (migration 044 not applied yet) — surface that.
-    return { rows: [], error: error.code === '42P01' ? 'migration' : error.message };
+    // Table missing (migration 044 not applied yet): Postgres says 42P01,
+    // PostgREST's schema cache says PGRST205 — surface either as 'migration'.
+    return { rows: [], error: isMissingTable(error) ? 'migration' : error.message };
   }
   return { rows: (data ?? []) as AdminStoryRow[], error: null };
 }

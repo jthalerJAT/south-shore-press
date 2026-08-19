@@ -5,6 +5,7 @@ import { getCurrentUser, isPinnedMasterAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { llmComplete, isModelEnabled, DEFAULT_MODEL } from '@/lib/llm';
 import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG } from '@/lib/site-config';
+import { isMissingTable } from '@/lib/queries/admin-stories';
 
 /**
  * Master Admin Stories — server actions. Every action re-checks that the
@@ -74,7 +75,7 @@ function clean(input: AdminStoryInput) {
 }
 
 function friendlyDbError(error: { code?: string; message?: string } | null): string {
-  if (error?.code === '42P01') {
+  if (isMissingTable(error)) {
     return 'The admin_stories table does not exist yet — run migration 044 in Supabase.';
   }
   return error?.message || 'Database error.';

@@ -17,7 +17,7 @@ export default async function EditAdminStoryPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { saved?: string };
+  searchParams?: { saved?: string; pushed?: string };
 }) {
   const user = await requireMasterAdmin(`/portal/all/master-admin-stories/${params.id}`);
   const story = await getAdminStory(params.id);
@@ -33,7 +33,13 @@ export default async function EditAdminStoryPage({
     >
       <AdminStoryForm
         story={story}
-        flash={searchParams?.saved === '1' ? 'Saved to Admin Drafts.' : null}
+        flash={
+          searchParams?.pushed === '1'
+            ? 'Pushed to the Story Editor as a draft. You are still in Master Admin Stories.'
+            : searchParams?.saved === '1'
+            ? 'Saved to Admin Drafts.'
+            : null
+        }
       />
     </PortalShell>
   );

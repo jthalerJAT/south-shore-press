@@ -24,11 +24,22 @@ export type AdminStoryRow = {
   updated_at: string;
 };
 
+/** One turn of the AI conversation on an admin story. */
+export type AiTurn = {
+  role: 'user' | 'assistant';
+  text: string;
+  at: string;
+  /** Assistant turns only: true when this reply also applied an edit. */
+  applied?: boolean;
+};
+
 export type AdminStory = AdminStoryRow & {
   body: string | null;
   extra_photo_urls: string[];
   photo_caption: string | null;
   photo_credit: string | null;
+  /** Saved AI conversation (migration 046); [] when none or pre-046. */
+  ai_thread: AiTurn[];
 };
 
 /** True when the error means admin_stories does not exist yet. */
@@ -62,16 +73,32 @@ export async function getAdminStories(): Promise<{ rows: AdminStoryRow[]; error:
   return { rows: (data ?? []) as AdminStoryRow[], error: null };
 }
 
+/** True when the error means the ai_thread column is missing (pre-046). */
+export function isMissingAiThread(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  return (error.code === '42703' || error.code === 'PGRST204') && /ai_thread/i.test(error.message ?? '')
+    || /ai_thread.*(does not exist|could not find|schema cache)/i.test(error.message ?? '');
+}
+
 export async function getAdminStory(id: string): Promise<AdminStory | null> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('admin_stories')
-    .select(FULL_COLS)
+    .select(`${FULL_COLS}, ai_thread`)
     .eq('id', id)
     .maybeSingle();
+  if (error && isMissingAiThread(error)) {
+    // Pre-migration-046: read without the thread column.
+    ({ data, error } = await supabase.from('admin_stories').select(FULL_COLS).eq('id', id).maybeSingle());
+  }
   if (error) {
     console.error('[getAdminStory]', error);
     return null;
   }
-  return (data as AdminStory | null) ?? null;
+  if (!data) return null;
+  const row = data as unknown as AdminStory & { ai_thread?: unknown };
+  const thread = Array.isArray(row.ai_thread)
+    ? (row.ai_thread as AiTurn[]).filter((t) => t && (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string')
+    : [];
+  return { ...row, ai_thread: thread };
 }

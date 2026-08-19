@@ -11,15 +11,15 @@
  * Controlled state throughout so the AI revision can update the fields in
  * place.
  */
-import { useState, useTransition } from 'react';
+import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, X, Sparkles, ExternalLink } from 'lucide-react';
+import { Plus, X, Sparkles, ExternalLink, Send } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG, PRINT_ONLY_LABEL } from '@/lib/site-config';
 import { PhotoUrlField } from '@/app/portal/all/newspaper-creator/photo-url-field';
-import type { AdminStory } from '@/lib/queries/admin-stories';
-import { saveAdminStory, pushToStoryEditor, deleteAdminStory, reviseWithAi, type AdminStoryInput } from './actions';
+import type { AdminStory, AiTurn } from '@/lib/queries/admin-stories';
+import { saveAdminStory, pushToStoryEditor, deleteAdminStory, askAi, type AdminStoryInput } from './actions';
 
 const inputCls =
   'block w-full rounded border border-zinc-300 px-3 py-2 text-base focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red disabled:bg-zinc-50 disabled:text-zinc-500';
@@ -49,8 +49,11 @@ export function AdminStoryForm({
     story?.extra_photo_urls && story.extra_photo_urls.length > 0 ? story.extra_photo_urls : ['']
   );
 
-  const [instruction, setInstruction] = useState('');
-  const [lastRevision, setLastRevision] = useState<{ model: string; at: string } | null>(null);
+  // AI conversation: saved with the admin draft, disposed of on push.
+  const [thread, setThread] = useState<AiTurn[]>(story?.ai_thread ?? []);
+  const [message, setMessage] = useState('');
+  const [lastModel, setLastModel] = useState<string | null>(null);
+  const threadEndRef = useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState<'save' | 'push' | 'ai' | 'delete' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(flash ?? null);
@@ -81,7 +84,7 @@ export function AdminStoryForm({
     setNotice(null);
     setBusy('save');
     startTransition(async () => {
-      const res = await saveAdminStory(story?.id ?? null, payload());
+      const res = await saveAdminStory(story?.id ?? null, payload(), thread);
       setBusy(null);
       if (!res.ok) {
         setError(res.error ?? 'Could not save.');
@@ -108,7 +111,15 @@ export function AdminStoryForm({
         setError(res.error ?? 'Could not push.');
         return;
       }
-      router.push(`/portal/edit/${res.id}?saved=1`);
+      // Stay in Master Admin Stories — the Story Editor is a deliberate click
+      // away (the "Open in Story Editor" link on the pushed banner).
+      setThread([]);
+      if (!story) {
+        router.push(`/portal/all/master-admin-stories/${res.adminId ?? ''}?pushed=1`);
+      } else {
+        setNotice('Pushed to the Story Editor as a draft. You are still in Master Admin Stories.');
+        router.refresh();
+      }
     });
   }
 
@@ -128,23 +139,38 @@ export function AdminStoryForm({
     });
   }
 
-  async function runRevise() {
+  async function runAsk() {
+    const text = message.trim();
+    if (!text) return;
     setError(null);
     setNotice(null);
     setBusy('ai');
-    const res = await reviseWithAi({ headline, subline, byline, body, instruction });
+    const userTurn: AiTurn = { role: 'user', text, at: new Date().toISOString() };
+    const history = thread;
+    setThread((t) => [...t, userTurn]);
+    setMessage('');
+    const res = await askAi({ headline, subline, byline, body, message: text, history });
     setBusy(null);
     if (!res.ok) {
       setError(res.error);
+      setThread((t) => [...t, { role: 'assistant', text: `(error) ${res.error}`, at: new Date().toISOString() }]);
       return;
     }
-    setHeadline(res.headline);
-    setSubline(res.subline);
-    setBody(res.body);
-    setLastRevision({ model: res.model, at: new Date().toLocaleTimeString() });
-    setInstruction('');
-    setNotice('Revision applied to the fields above — review it, then Save or Push.');
+    if (res.edit) {
+      setHeadline(res.edit.headline);
+      setSubline(res.edit.subline);
+      setBody(res.edit.body);
+    }
+    setLastModel(res.model);
+    setThread((t) => [
+      ...t,
+      { role: 'assistant', text: res.reply, at: new Date().toISOString(), ...(res.edit ? { applied: true } : {}) },
+    ]);
   }
+
+  useEffect(() => {
+    threadEndRef.current?.scrollIntoView({ block: 'nearest' });
+  }, [thread.length]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -268,39 +294,98 @@ export function AdminStoryForm({
         />
       </Field>
 
-      {/* ── AI revision box ─────────────────────────────────────────────── */}
+      {/* ── AI conversation ───────────────────────────────────────────────── */}
       {!isPushed ? (
         <div className="rounded-lg border border-zinc-300 bg-zinc-50 p-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
-            <Sparkles className="w-4 h-4 text-brand-red" />
-            Ask the AI to edit this article
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 text-sm font-semibold text-zinc-800">
+              <Sparkles className="w-4 h-4 text-brand-red" />
+              Talk to the AI about this article
+            </div>
+            {thread.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Clear this conversation? (It is not saved until you Save to Admin Draft.)')) setThread([]);
+                }}
+                disabled={busy !== null}
+                className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+              >
+                Clear conversation
+              </button>
+            ) : null}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
-            Type an instruction — &ldquo;tighten the lede,&rdquo; &ldquo;add a paragraph on what this means for Suffolk taxpayers,&rdquo;
-            &ldquo;make the headline more direct,&rdquo; &ldquo;cut to 500 words.&rdquo; The revision replaces the headline, subhead and body
-            above; nothing is saved until you Save or Push. Edits stay in the byline&rsquo;s voice when it is one of the house writers.
+            Ask a question (&ldquo;is this quote dual-sourced?&rdquo;, &ldquo;is the lede too long?&rdquo;) and you get an
+            answer — the article is left alone. Give an instruction (&ldquo;tighten the lede,&rdquo; &ldquo;cut to 500
+            words&rdquo;) and the edit is applied to the fields above <em>and</em> explained here. Nothing is saved
+            until you Save or Push; Save keeps this conversation with the draft, Push discards it. The AI only sees
+            the article text and this thread — it cannot check sources.
           </p>
+
+          {thread.length > 0 ? (
+            <div className="mt-3 max-h-[28rem] overflow-y-auto rounded border border-zinc-200 bg-white p-3 space-y-3 ssp-scroll">
+              {thread.map((t, i) => (
+                <div key={i} className={cn('flex', t.role === 'user' ? 'justify-end' : 'justify-start')}>
+                  <div
+                    className={cn(
+                      'max-w-[85%] rounded-lg px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed',
+                      t.role === 'user'
+                        ? 'bg-zinc-900 text-white'
+                        : 'bg-zinc-100 text-zinc-900 border border-zinc-200'
+                    )}
+                  >
+                    {t.role === 'assistant' && t.applied ? (
+                      <div className="mb-1 inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-800">
+                        Edit applied to the article
+                      </div>
+                    ) : null}
+                    <div>{t.text}</div>
+                    <div className={cn('mt-1 text-[10px]', t.role === 'user' ? 'text-zinc-300' : 'text-zinc-400')}>
+                      {new Date(t.at).toLocaleTimeString()}
+                    </div>
+                  </div>
+                </div>
+              ))}
+              {busy === 'ai' ? (
+                <div className="flex justify-start">
+                  <div className="rounded-lg bg-zinc-100 border border-zinc-200 px-3 py-2 text-sm text-zinc-500 italic">
+                    Thinking…
+                  </div>
+                </div>
+              ) : null}
+              <div ref={threadEndRef} />
+            </div>
+          ) : null}
+
           <textarea
-            value={instruction}
-            onChange={(e) => setInstruction(e.target.value)}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                void runAsk();
+              }
+            }}
             rows={3}
             disabled={busy !== null}
-            placeholder="Your instruction to the AI…"
+            placeholder="Ask a question or give an instruction… (Ctrl+Enter to send)"
             className={cn(inputCls, 'mt-3 bg-white')}
           />
           <div className="mt-2 flex items-center gap-3">
             <button
               type="button"
-              onClick={runRevise}
-              disabled={busy !== null || !instruction.trim()}
+              onClick={() => void runAsk()}
+              disabled={busy !== null || !message.trim()}
               className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-black disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors"
             >
-              <Sparkles className="w-4 h-4" />
-              {busy === 'ai' ? 'Revising…' : 'Apply with AI'}
+              <Send className="w-4 h-4" />
+              {busy === 'ai' ? 'Sending…' : 'Send'}
             </button>
-            {lastRevision ? (
+            {lastModel ? <span className="text-xs text-zinc-500">Model: {lastModel}</span> : null}
+            {thread.length > 0 ? (
               <span className="text-xs text-zinc-500">
-                Last revision {lastRevision.at} · {lastRevision.model}
+                {thread.length} message{thread.length === 1 ? '' : 's'} · saved with Save to Admin Draft
               </span>
             ) : null}
           </div>

@@ -5,7 +5,7 @@ import { getCurrentUser, isPinnedMasterAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { llmComplete, isModelEnabled, DEFAULT_MODEL } from '@/lib/llm';
 import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG } from '@/lib/site-config';
-import { isMissingTable } from '@/lib/queries/admin-stories';
+import { isMissingTable, isMissingAiThread, type AiTurn } from '@/lib/queries/admin-stories';
 import { getHouseStyle, houseStyleBlock, HOUSE_STYLE_KEY } from '@/lib/house-style';
 
 /**
@@ -45,7 +45,7 @@ export type AdminStoryInput = {
   extra_photo_urls: string[];
 };
 
-type Result = { ok: boolean; error?: string; id?: string };
+type Result = { ok: boolean; error?: string; id?: string; adminId?: string };
 
 async function requireMaster(): Promise<
   { ok: true; user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>> } | { ok: false; error: string }
@@ -82,31 +82,66 @@ function friendlyDbError(error: { code?: string; message?: string } | null): str
   return error?.message || 'Database error.';
 }
 
-/** Create (id null) or update an Admin Draft. */
-export async function saveAdminStory(id: string | null, input: AdminStoryInput): Promise<Result> {
+/** Sanitize a client-supplied AI thread before storing it. */
+function cleanThread(thread: AiTurn[] | undefined | null): AiTurn[] {
+  if (!Array.isArray(thread)) return [];
+  return thread
+    .filter((t) => t && (t.role === 'user' || t.role === 'assistant') && typeof t.text === 'string')
+    .slice(-60)
+    .map((t) => ({
+      role: t.role,
+      text: String(t.text).slice(0, 8000),
+      at: typeof t.at === 'string' ? t.at : new Date().toISOString(),
+      ...(t.role === 'assistant' && t.applied ? { applied: true } : {}),
+    }));
+}
+
+/** Create (id null) or update an Admin Draft. The AI conversation is saved
+ *  alongside (migration 046); pre-046 the save silently drops it. */
+export async function saveAdminStory(
+  id: string | null,
+  input: AdminStoryInput,
+  thread?: AiTurn[]
+): Promise<Result> {
   const gate = await requireMaster();
   if (!gate.ok) return { ok: false, error: gate.error };
   const payload = clean(input);
   if (!payload.headline) return { ok: false, error: 'Headline is required.' };
+  const ai_thread = cleanThread(thread);
 
   const supabase = createClient();
   if (id) {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('admin_stories')
-      .update({ ...payload, updated_at: new Date().toISOString() })
+      .update({ ...payload, ai_thread, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select('id')
       .maybeSingle();
+    if (error && isMissingAiThread(error)) {
+      ({ data, error } = await supabase
+        .from('admin_stories')
+        .update({ ...payload, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('id')
+        .maybeSingle());
+    }
     if (error || !data) return { ok: false, error: friendlyDbError(error) || 'Story not found.' };
     revalidatePath(`${BASE}/${id}`);
     revalidatePath(BASE);
     return { ok: true, id };
   }
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('admin_stories')
-    .insert({ ...payload, source: 'admin', status: 'admin_draft', created_by: gate.user.id })
+    .insert({ ...payload, ai_thread, source: 'admin', status: 'admin_draft', created_by: gate.user.id })
     .select('id')
     .single();
+  if (error && isMissingAiThread(error)) {
+    ({ data, error } = await supabase
+      .from('admin_stories')
+      .insert({ ...payload, source: 'admin', status: 'admin_draft', created_by: gate.user.id })
+      .select('id')
+      .single());
+  }
   if (error || !data) return { ok: false, error: friendlyDbError(error) };
   revalidatePath(BASE);
   return { ok: true, id: data.id as string };
@@ -178,15 +213,21 @@ export async function pushToStoryEditor(id: string | null, input: AdminStoryInpu
     return { ok: false, error: sErr?.message || 'Could not create the Story Editor draft.' };
   }
 
-  await supabase
+  // Mark pushed and dispose of the AI conversation (it belonged to the
+  // drafting stage). Pre-046 the column is absent — retry without it.
+  const pushedPatch = {
+    status: 'pushed',
+    pushed_story_id: story.id,
+    pushed_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  const { error: pErr } = await supabase
     .from('admin_stories')
-    .update({
-      status: 'pushed',
-      pushed_story_id: story.id,
-      pushed_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
+    .update({ ...pushedPatch, ai_thread: [] })
     .eq('id', adminId);
+  if (pErr && isMissingAiThread(pErr)) {
+    await supabase.from('admin_stories').update(pushedPatch).eq('id', adminId);
+  }
 
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${adminId}`);
@@ -196,7 +237,7 @@ export async function pushToStoryEditor(id: string | null, input: AdminStoryInpu
   for (const slug of payload.categories) {
     if (ROUTE_SECTION_SLUGS.has(slug)) revalidatePath(`/${slug}`);
   }
-  return { ok: true, id: story.id as string };
+  return { ok: true, id: story.id as string, adminId };
 }
 
 export async function deleteAdminStory(id: string): Promise<Result> {
@@ -235,36 +276,59 @@ export async function saveHouseStyle(content: string): Promise<Result> {
   return { ok: true };
 }
 
-// ── AI revision ──────────────────────────────────────────────────────────────
+// ── AI conversation ─────────────────────────────────────────────────────────
 
-export type ReviseResult =
-  | { ok: true; headline: string; subline: string; body: string; model: string }
+export type AskAiResult =
+  | {
+      ok: true;
+      /** The assistant's visible reply — an answer, or an explanation of the edit. */
+      reply: string;
+      /** Present only when the publisher asked for a change to the text. */
+      edit: { headline: string; subline: string; body: string } | null;
+      model: string;
+    }
   | { ok: false; error: string };
 
-const REVISE_SYSTEM_BASE = `You are the copy desk for The South Shore Press, a community newspaper on Long Island's South Shore. You revise an existing article exactly as the publisher instructs.
+const ASK_SYSTEM_BASE = `You are the publisher's editorial assistant and copy desk at The South Shore Press, a community newspaper on Long Island's South Shore. You are in a running conversation with the publisher about ONE article (shown below, always in its current state).
 
-Rules:
-- Apply the publisher's instruction faithfully. Change what the instruction asks you to change and keep everything else intact — same facts, same voice, same structure — unless the instruction says otherwise.
-- Never invent facts, names, numbers, dates, or quotes. If the instruction asks for something the article's facts cannot support, do the closest thing the facts allow and keep going.
-- Keep AP style and the paper's voice. Body = plain-text paragraphs separated by blank lines; no markdown, no bullet points, no headings.
-- Return STRICT JSON and nothing else: {"headline": "...", "subline": "...", "body": "..."}`;
+The publisher will send two kinds of messages. Tell them apart:
+- A QUESTION or request for judgment ("is this quote dual-sourced?", "is the lede too long?", "what's weak here?"). ANSWER it in "reply". Do NOT change the article. Set "edit" to null.
+- An EDIT INSTRUCTION ("tighten the lede", "cut the second quote", "add a paragraph on…"). Make the change AND, in "reply", explain concisely what you changed and why — so the publisher can see your reasoning, not just the result.
+If a message is ambiguous, answer the question and propose the edit rather than silently making it.
 
-/** Apply the master admin's instruction to the article. Picks the model from
- *  the byline's writer profile (writers.model) when there is one, and folds
- *  that writer's persona in so edits stay in their voice. */
-export async function reviseWithAi(input: {
+What you know and don't know:
+- You know ONLY the article text and this conversation. You have NO access to the sources, the wire, the web, or the reporter's notes. If asked to verify sourcing, facts, attribution, or a quote, say plainly that you cannot verify it from here, explain what you CAN observe in the text (e.g. whether the quote is attributed and to whom), and say what the publisher should check. NEVER delete or alter material on the grounds that you could not verify it unless the publisher explicitly tells you to.
+- Never invent facts, names, numbers, dates, or quotes. If an instruction asks for something the article's facts cannot support, do the closest thing the facts allow and say so in "reply".
+
+Editing rules (when you do edit):
+- Change what was asked and keep everything else intact — same facts, same voice, same structure — unless told otherwise.
+- Keep AP style and the paper's voice. Body = plain-text paragraphs separated by blank lines; no markdown, no bullets, no headings.
+
+Output: STRICT JSON and nothing else:
+{"reply": "...", "edit": null}
+or
+{"reply": "...", "edit": {"headline": "...", "subline": "...", "body": "..."}}
+"reply" is plain text (a few sentences; longer if a question needs it). In "edit", return the COMPLETE headline, subline and body — not a diff.`;
+
+const MAX_HISTORY_TURNS = 14;
+
+/** One turn of the AI conversation about an admin story. Answers questions;
+ *  applies and explains edits. The byline's writer persona (VOICE) and model
+ *  are used when the byline is a house writer, then the house guidelines. */
+export async function askAi(input: {
   headline: string;
   subline: string;
   byline: string;
   body: string;
-  instruction: string;
-}): Promise<ReviseResult> {
+  message: string;
+  history: AiTurn[];
+}): Promise<AskAiResult> {
   const gate = await requireMaster();
   if (!gate.ok) return { ok: false, error: gate.error };
-  const instruction = (input.instruction ?? '').trim();
-  if (!instruction) return { ok: false, error: 'Type an instruction first.' };
+  const message = (input.message ?? '').trim();
+  if (!message) return { ok: false, error: 'Type a message first.' };
   if (!(input.body ?? '').trim() && !(input.headline ?? '').trim()) {
-    return { ok: false, error: 'There is no article text to revise yet.' };
+    return { ok: false, error: 'There is no article text yet.' };
   }
 
   // Writer persona + model for the byline (optional).
@@ -286,36 +350,56 @@ export async function reviseWithAi(input: {
   const gateModel = isModelEnabled(model);
   if (!gateModel.ok) return { ok: false, error: gateModel.error! };
 
-  // Persona (the writer's VOICE) first, then the house guidelines, which the
-  // preamble subordinates to the voice on conflict.
   const style = await getHouseStyle();
   const system =
     (persona
-      ? `${REVISE_SYSTEM_BASE}\n\nThe article's author profile (VOICE) — keep every edit in this voice:\n${persona}`
-      : REVISE_SYSTEM_BASE) + houseStyleBlock(style, 'voice');
-  const user = `CURRENT ARTICLE
+      ? `${ASK_SYSTEM_BASE}\n\nThe article's author profile (VOICE) — keep every edit in this voice:\n${persona}`
+      : ASK_SYSTEM_BASE) + houseStyleBlock(style, 'voice');
+
+  const history = cleanThread(input.history).slice(-MAX_HISTORY_TURNS);
+  const transcript = history.length
+    ? history
+        .map((t) => `${t.role === 'user' ? 'PUBLISHER' : 'ASSISTANT'}${t.applied ? ' (applied an edit)' : ''}: ${t.text}`)
+        .join('\n\n')
+    : '(none yet)';
+
+  const user = `CURRENT ARTICLE (as it stands right now, including any edits already applied)
 HEADLINE: ${input.headline ?? ''}
 SUBHEAD: ${input.subline ?? ''}
 BYLINE: ${byline || '(none)'}
 BODY:
 ${input.body ?? ''}
 
-PUBLISHER'S INSTRUCTION:
-${instruction}
+CONVERSATION SO FAR:
+${transcript}
 
-Return the revised article as JSON now.`;
+PUBLISHER'S NEW MESSAGE:
+${message}
+
+Respond as JSON now.`;
 
   const res = await llmComplete({ model, system, user, maxTokens: 6000 });
   if (!res.ok) return { ok: false, error: res.error };
   const cleaned = res.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try {
-    const obj = JSON.parse(cleaned) as { headline?: string; subline?: string; body?: string };
-    const headline = (obj.headline ?? '').trim();
-    const body = (obj.body ?? '').trim();
-    if (!headline || !body) return { ok: false, error: 'The model returned an unusable revision — try again.' };
-    return { ok: true, headline, subline: (obj.subline ?? '').trim(), body, model };
+    const obj = JSON.parse(cleaned) as {
+      reply?: string;
+      edit?: { headline?: string; subline?: string; body?: string } | null;
+    };
+    const reply = (obj.reply ?? '').trim();
+    let edit: { headline: string; subline: string; body: string } | null = null;
+    if (obj.edit && typeof obj.edit === 'object') {
+      const headline = (obj.edit.headline ?? '').trim();
+      const body = (obj.edit.body ?? '').trim();
+      if (headline && body) edit = { headline, subline: (obj.edit.subline ?? '').trim(), body };
+    }
+    if (!reply && !edit) return { ok: false, error: 'The model returned an unusable reply — try again.' };
+    return { ok: true, reply: reply || 'Done.', edit, model };
   } catch {
-    console.error('[reviseWithAi] unparseable', res.text.slice(0, 300));
-    return { ok: false, error: 'The model returned an unusable revision — try again.' };
+    // Not JSON — treat the whole thing as a plain reply rather than failing.
+    const text = res.text.trim();
+    if (text) return { ok: true, reply: text.slice(0, 4000), edit: null, model };
+    console.error('[askAi] unparseable', res.text.slice(0, 300));
+    return { ok: false, error: 'The model returned an unusable reply — try again.' };
   }
 }

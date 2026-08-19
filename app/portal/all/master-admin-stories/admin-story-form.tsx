@@ -14,7 +14,7 @@
 import { useEffect, useRef, useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, X, Sparkles, ExternalLink, Send } from 'lucide-react';
+import { Plus, X, Sparkles, ExternalLink, Send, Globe } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG, PRINT_ONLY_LABEL } from '@/lib/site-config';
 import { PhotoUrlField } from '@/app/portal/all/newspaper-creator/photo-url-field';
@@ -52,6 +52,7 @@ export function AdminStoryForm({
   // AI conversation: saved with the admin draft, disposed of on push.
   const [thread, setThread] = useState<AiTurn[]>(story?.ai_thread ?? []);
   const [message, setMessage] = useState('');
+  const [webLookup, setWebLookup] = useState(false);
   const [lastModel, setLastModel] = useState<string | null>(null);
   const threadEndRef = useRef<HTMLDivElement | null>(null);
   const [busy, setBusy] = useState<'save' | 'push' | 'ai' | 'delete' | null>(null);
@@ -145,11 +146,15 @@ export function AdminStoryForm({
     setError(null);
     setNotice(null);
     setBusy('ai');
-    const userTurn: AiTurn = { role: 'user', text, at: new Date().toISOString() };
+    const userTurn: AiTurn = {
+      role: 'user',
+      text: webLookup ? `${text}\n[web lookup on]` : text,
+      at: new Date().toISOString(),
+    };
     const history = thread;
     setThread((t) => [...t, userTurn]);
     setMessage('');
-    const res = await askAi({ headline, subline, byline, body, message: text, history });
+    const res = await askAi({ headline, subline, byline, body, message: text, history, webLookup });
     setBusy(null);
     if (!res.ok) {
       setError(res.error);
@@ -164,7 +169,13 @@ export function AdminStoryForm({
     setLastModel(res.model);
     setThread((t) => [
       ...t,
-      { role: 'assistant', text: res.reply, at: new Date().toISOString(), ...(res.edit ? { applied: true } : {}) },
+      {
+        role: 'assistant',
+        text: res.reply,
+        at: new Date().toISOString(),
+        ...(res.edit ? { applied: true } : {}),
+        ...(res.citations.length ? { citations: res.citations.slice(0, 12) } : {}),
+      },
     ]);
   }
 
@@ -319,8 +330,9 @@ export function AdminStoryForm({
             Ask a question (&ldquo;is this quote dual-sourced?&rdquo;, &ldquo;is the lede too long?&rdquo;) and you get an
             answer — the article is left alone. Give an instruction (&ldquo;tighten the lede,&rdquo; &ldquo;cut to 500
             words&rdquo;) and the edit is applied to the fields above <em>and</em> explained here. Nothing is saved
-            until you Save or Push; Save keeps this conversation with the draft, Push discards it. The AI only sees
-            the article text and this thread — it cannot check sources.
+            until you Save or Push; Save keeps this conversation with the draft, Push discards it. By default the AI
+            sees only the article and this thread — turn on <strong>Web lookup</strong> for a message when you want
+            it to go check the web / X (is this quote public? who reported it? do the numbers hold up?).
           </p>
 
           {thread.length > 0 ? (
@@ -341,6 +353,20 @@ export function AdminStoryForm({
                       </div>
                     ) : null}
                     <div>{t.text}</div>
+                    {t.role === 'assistant' && t.citations && t.citations.length > 0 ? (
+                      <div className="mt-2 border-t border-zinc-200 pt-1.5">
+                        <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Sources consulted</div>
+                        <ul className="mt-0.5 space-y-0.5">
+                          {t.citations.map((u, j) => (
+                            <li key={j} className="truncate">
+                              <a href={u} target="_blank" rel="noreferrer" className="text-xs text-brand-red hover:underline">
+                                {u.replace(/^https?:\/\/(www\.)?/, '')}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                     <div className={cn('mt-1 text-[10px]', t.role === 'user' ? 'text-zinc-300' : 'text-zinc-400')}>
                       {new Date(t.at).toLocaleTimeString()}
                     </div>
@@ -380,8 +406,19 @@ export function AdminStoryForm({
               className="inline-flex items-center gap-2 px-4 py-2 bg-zinc-900 hover:bg-black disabled:opacity-50 text-white text-sm font-semibold rounded transition-colors"
             >
               <Send className="w-4 h-4" />
-              {busy === 'ai' ? 'Sending…' : 'Send'}
+              {busy === 'ai' ? (webLookup ? 'Searching…' : 'Sending…') : 'Send'}
             </button>
+            <label
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded border text-xs font-medium cursor-pointer select-none',
+                webLookup ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-zinc-300 text-zinc-600 hover:bg-zinc-100'
+              )}
+              title="Let the AI search the live web and X to answer this message. Off = answers from the article text only."
+            >
+              <input type="checkbox" className="accent-blue-600" checked={webLookup} onChange={(e) => setWebLookup(e.target.checked)} disabled={busy !== null} />
+              <Globe className="w-3.5 h-3.5" />
+              Web lookup {webLookup ? 'on' : 'off'}
+            </label>
             {lastModel ? <span className="text-xs text-zinc-500">Model: {lastModel}</span> : null}
             {thread.length > 0 ? (
               <span className="text-xs text-zinc-500">

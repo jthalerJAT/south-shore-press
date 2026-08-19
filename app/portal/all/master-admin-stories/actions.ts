@@ -93,6 +93,9 @@ function cleanThread(thread: AiTurn[] | undefined | null): AiTurn[] {
       text: String(t.text).slice(0, 8000),
       at: typeof t.at === 'string' ? t.at : new Date().toISOString(),
       ...(t.role === 'assistant' && t.applied ? { applied: true } : {}),
+      ...(t.role === 'assistant' && Array.isArray(t.citations) && t.citations.length
+        ? { citations: t.citations.filter((u) => typeof u === 'string').slice(0, 12) }
+        : {}),
     }));
 }
 
@@ -286,6 +289,8 @@ export type AskAiResult =
       /** Present only when the publisher asked for a change to the text. */
       edit: { headline: string; subline: string; body: string } | null;
       model: string;
+      /** URLs the model consulted when web lookup was on. */
+      citations: string[];
     }
   | { ok: false; error: string };
 
@@ -297,7 +302,7 @@ The publisher will send two kinds of messages. Tell them apart:
 If a message is ambiguous, answer the question and propose the edit rather than silently making it.
 
 What you know and don't know:
-- You know ONLY the article text and this conversation. You have NO access to the sources, the wire, the web, or the reporter's notes. If asked to verify sourcing, facts, attribution, or a quote, say plainly that you cannot verify it from here, explain what you CAN observe in the text (e.g. whether the quote is attributed and to whom), and say what the publisher should check. NEVER delete or alter material on the grounds that you could not verify it unless the publisher explicitly tells you to.
+- By default you know ONLY the article text and this conversation — not the reporter's notes, the wire, or the web. When the publisher turns on WEB LOOKUP for a message (you will be told below), you can and should search the live web and X to answer: find whether a quote or fact appears publicly, who reported it, whether the numbers match, what is missing — and say what you found, naming the outlets/pages. Without web lookup, if asked to verify sourcing, facts, attribution, or a quote, say plainly that you cannot verify it from the text alone, explain what you CAN observe (e.g. whether the quote is attributed and to whom), and remind the publisher they can turn on Web lookup for that message. NEVER delete or alter material on the grounds that you could not verify it unless the publisher explicitly tells you to.
 - Never invent facts, names, numbers, dates, or quotes. If an instruction asks for something the article's facts cannot support, do the closest thing the facts allow and say so in "reply".
 
 Editing rules (when you do edit):
@@ -322,6 +327,8 @@ export async function askAi(input: {
   body: string;
   message: string;
   history: AiTurn[];
+  /** Publisher enabled web lookup for this message. */
+  webLookup?: boolean;
 }): Promise<AskAiResult> {
   const gate = await requireMaster();
   if (!gate.ok) return { ok: false, error: gate.error };
@@ -375,10 +382,14 @@ ${transcript}
 
 PUBLISHER'S NEW MESSAGE:
 ${message}
-
+${
+  input.webLookup
+    ? '\nWEB LOOKUP IS ON for this message: search the web / X as needed to answer, and base your reply on what you actually find. Name the outlets or pages you relied on in your reply.'
+    : '\n(Web lookup is OFF for this message — answer from the article text and this conversation only.)'
+}
 Respond as JSON now.`;
 
-  const res = await llmComplete({ model, system, user, maxTokens: 6000 });
+  const res = await llmComplete({ model, system, user, maxTokens: 6000, webSearch: Boolean(input.webLookup) });
   if (!res.ok) return { ok: false, error: res.error };
   const cleaned = res.text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   try {
@@ -394,11 +405,11 @@ Respond as JSON now.`;
       if (headline && body) edit = { headline, subline: (obj.edit.subline ?? '').trim(), body };
     }
     if (!reply && !edit) return { ok: false, error: 'The model returned an unusable reply — try again.' };
-    return { ok: true, reply: reply || 'Done.', edit, model };
+    return { ok: true, reply: reply || 'Done.', edit, model, citations: res.citations };
   } catch {
     // Not JSON — treat the whole thing as a plain reply rather than failing.
     const text = res.text.trim();
-    if (text) return { ok: true, reply: text.slice(0, 4000), edit: null, model };
+    if (text) return { ok: true, reply: text.slice(0, 4000), edit: null, model, citations: res.citations };
     console.error('[askAi] unparseable', res.text.slice(0, 300));
     return { ok: false, error: 'The model returned an unusable reply — try again.' };
   }

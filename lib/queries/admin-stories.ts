@@ -31,6 +31,8 @@ export type AiTurn = {
   at: string;
   /** Assistant turns only: true when this reply also applied an edit. */
   applied?: boolean;
+  /** Assistant turns only: URLs consulted when web lookup was on. */
+  citations?: string[];
 };
 
 export type AdminStory = AdminStoryRow & {

@@ -19,7 +19,15 @@ const initialState: SignUpState = { error: null, success: false };
  * because Supabase email-confirmation gates the auth session we'd need
  * to call /api/payments/setup-intent.
  */
-export function SignUpForm({ next: _next }: { next: string }) {
+export function SignUpForm({
+  next: _next,
+  turnstileSiteKey = null,
+}: {
+  next: string;
+  /** Cloudflare Turnstile site key, read server-side at request time (works
+   *  for Sensitive Vercel env vars that build-time inlining can't see). */
+  turnstileSiteKey?: string | null;
+}) {
   const [state, formAction] = useFormState(signUpAction, initialState);
 
   if (state.success) {
@@ -96,7 +104,7 @@ export function SignUpForm({ next: _next }: { next: string }) {
         </div>
       ) : null}
 
-      <TurnstileWidget />
+      <TurnstileWidget siteKey={turnstileSiteKey} />
       <SubmitButton />
     </form>
   );
@@ -147,8 +155,8 @@ function Field({
  * forwards that token to Supabase (which verifies it when CAPTCHA
  * protection is enabled in the Supabase Auth settings).
  */
-function TurnstileWidget() {
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+function TurnstileWidget({ siteKey: siteKeyProp }: { siteKey?: string | null }) {
+  const siteKey = siteKeyProp ?? process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
   useEffect(() => {
     if (!siteKey) return;
     if (document.querySelector('script[src^="https://challenges.cloudflare.com/turnstile"]')) return;

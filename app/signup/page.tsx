@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Rendered per-request so the Turnstile site key is read from the RUNTIME
+// environment — build-time NEXT_PUBLIC_ inlining silently gets nothing when
+// the Vercel env var is marked Sensitive (decrypted at runtime only).
+export const dynamic = 'force-dynamic';
+
 /**
  * Reader self-signup page. Editor/journalist accounts are still
  * provisioned manually in Supabase by an admin — this page is for
@@ -34,7 +39,14 @@ export default async function SignUpPage({
         Free to sign up. Add a payment method later for paid subscriptions.
       </p>
       <div className="mt-8">
-        <SignUpForm next={searchParams.next ?? '/account'} />
+        <SignUpForm
+          next={searchParams.next ?? '/account'}
+          turnstileSiteKey={
+            process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ??
+            process.env.TURNSTILE_SITE_KEY ??
+            null
+          }
+        />
       </div>
       <p className="mt-6 text-center text-sm text-zinc-600">
         Already have an account?{' '}

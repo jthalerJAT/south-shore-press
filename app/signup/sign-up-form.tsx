@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { signUpAction, type SignUpState } from './actions';
 import { PhoneField } from '@/components/ui/phone-field';
@@ -95,6 +96,7 @@ export function SignUpForm({ next: _next }: { next: string }) {
         </div>
       ) : null}
 
+      <TurnstileWidget />
       <SubmitButton />
     </form>
   );
@@ -135,6 +137,28 @@ function Field({
       {help ? <p className="mt-1 text-xs text-zinc-500">{help}</p> : null}
     </div>
   );
+}
+
+/**
+ * Cloudflare Turnstile bot check — renders only when
+ * NEXT_PUBLIC_TURNSTILE_SITE_KEY is set. Turnstile auto-renders any
+ * `.cf-turnstile` element once its script loads and injects a hidden
+ * `cf-turnstile-response` input into the surrounding form; signUpAction
+ * forwards that token to Supabase (which verifies it when CAPTCHA
+ * protection is enabled in the Supabase Auth settings).
+ */
+function TurnstileWidget() {
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  useEffect(() => {
+    if (!siteKey) return;
+    if (document.querySelector('script[src^="https://challenges.cloudflare.com/turnstile"]')) return;
+    const s = document.createElement('script');
+    s.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js';
+    s.async = true;
+    document.head.appendChild(s);
+  }, [siteKey]);
+  if (!siteKey) return null;
+  return <div className="cf-turnstile" data-sitekey={siteKey} />;
 }
 
 function SubmitButton() {

@@ -27,7 +27,7 @@ import type { UserRole } from '@/lib/auth';
  */
 
 type RoleKey = 'admin' | 'editor' | 'journalist' | 'advertiser' | 'legal';
-type SortKey = 'first' | 'last' | 'email' | RoleKey;
+type SortKey = 'first' | 'last' | 'email' | 'created' | RoleKey;
 type SortDir = 'asc' | 'desc';
 
 const ROLE_KEYS: ReadonlyArray<RoleKey> = [
@@ -50,6 +50,16 @@ const ROLE_LABELS: Record<RoleKey, string> = {
 
 function isRoleKey(n: string): n is RoleKey {
   return (ROLE_KEYS as ReadonlyArray<string>).includes(n);
+}
+
+/** Machine-generated-name heuristic — long low-vowel strings or 5+ letter
+ *  consonant runs ("Dfaakmnozgprbywzit"). Drives the "Select suspicious"
+ *  bulk-delete helper; never auto-deletes anything on its own. */
+function looksGibberish(name: string): boolean {
+  const t = (name ?? '').trim();
+  if (!t || t === '—') return false;
+  if (t.length >= 14 && (t.match(/[aeiou]/gi) ?? []).length / t.length < 0.38) return true;
+  return /[bcdfghjklmnpqrstvwxz]{5,}/i.test(t);
 }
 
 function splitName(displayName: string | null): {
@@ -117,6 +127,11 @@ export function CredentialsTable({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const router = useRouter();
+
+  // Bulk delete: selected profile ids (locked rows can never be selected).
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number } | null>(null);
 
   // Pre-compute name split, master flag, and per-row / per-cell lock
   // state once. Lock rules mirror server-side canManageUser /
@@ -260,9 +275,9 @@ export function CredentialsTable({
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortKey(key);
-      // For role columns default to "checked first" (desc); for text
-      // columns default to A→Z (asc).
-      setSortDir(ROLE_KEYS.includes(key as RoleKey) ? 'desc' : 'asc');
+      // Role columns default to "checked first" (desc); Created defaults to
+      // newest-first (desc); text columns default to A→Z (asc).
+      setSortDir(ROLE_KEYS.includes(key as RoleKey) || key === 'created' ? 'desc' : 'asc');
     }
   }
 
@@ -283,6 +298,8 @@ export function CredentialsTable({
       if (sortKey === 'first') cmp = a.first.localeCompare(b.first);
       else if (sortKey === 'last') cmp = a.last.localeCompare(b.last);
       else if (sortKey === 'email') cmp = a.email.localeCompare(b.email);
+      else if (sortKey === 'created')
+        cmp = (a.created_at ?? '').localeCompare(b.created_at ?? '');
       else {
         // Role column: 1 if checked (in draft), 0 if not. Sort asc =
         // unchecked first; desc = checked first.
@@ -366,6 +383,49 @@ export function CredentialsTable({
     }
   }
 
+  const deletableVisible = visible.filter((p) => !p.rowLocked);
+  const suspiciousVisible = deletableVisible.filter(
+    (p) =>
+      (looksGibberish(p.first) || looksGibberish(p.last)) &&
+      !p.originalRoles.has('admin') &&
+      !p.originalRoles.has('editor') &&
+      !p.originalRoles.has('journalist')
+  );
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function applyBulkDelete() {
+    setBulkConfirm(false);
+    setError(null);
+    const ids = enriched.filter((p) => selected.has(p.id) && !p.rowLocked).map((p) => p.id);
+    if (ids.length === 0) return;
+    setBulkProgress({ done: 0, total: ids.length });
+    startTransition(async () => {
+      const errors: string[] = [];
+      let done = 0;
+      for (const id of ids) {
+        const res = await deleteUserAction(id);
+        if (res.error) {
+          const label = enriched.find((p) => p.id === id)?.email ?? id;
+          errors.push(`${label}: ${res.error}`);
+        }
+        done += 1;
+        setBulkProgress({ done, total: ids.length });
+      }
+      setBulkProgress(null);
+      setSelected(new Set());
+      if (errors.length > 0) setError(errors.slice(0, 5).join(' · ') + (errors.length > 5 ? ` (+${errors.length - 5} more)` : ''));
+      router.refresh();
+    });
+  }
+
   function applyDelete() {
     if (!deleteTarget) return;
     const target = deleteTarget;
@@ -426,12 +486,66 @@ export function CredentialsTable({
         </div>
       </div>
 
+      {/* Bulk-select toolbar */}
+      <div className="flex flex-wrap items-center gap-3 text-sm">
+        <button
+          type="button"
+          onClick={() => setSelected(new Set(suspiciousVisible.map((p) => p.id)))}
+          disabled={isPending || suspiciousVisible.length === 0}
+          className="px-3 py-1.5 border border-amber-300 bg-amber-50 text-amber-900 rounded font-medium hover:bg-amber-100 disabled:opacity-50"
+          title="Selects visible reader-only accounts whose first/last names look machine-generated. Review before deleting — nothing is removed until you confirm."
+        >
+          Select suspicious ({suspiciousVisible.length})
+        </button>
+        {selected.size > 0 ? (
+          <>
+            <span className="text-zinc-600">{selected.size} selected</span>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              disabled={isPending}
+              className="text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
+            >
+              Clear
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkConfirm(true)}
+              disabled={isPending}
+              className="px-4 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded font-semibold disabled:opacity-50"
+            >
+              Delete Selected ({selected.size})
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-zinc-400">
+            Tick rows (or use Select suspicious) to delete accounts in bulk.
+          </span>
+        )}
+        {bulkProgress ? (
+          <span className="text-xs font-semibold text-red-700">
+            Deleting {bulkProgress.done}/{bulkProgress.total}…
+          </span>
+        ) : null}
+      </div>
+
       {/* Table */}
       <div className="overflow-hidden border border-zinc-200 rounded-lg">
         <div className="max-h-[65vh] overflow-y-auto ssp-scroll">
           <table className="w-full text-sm">
             <thead className="bg-zinc-50 border-b border-zinc-200 sticky top-0 z-10">
               <tr>
+                <th className="w-10 px-3 py-2.5 text-center">
+                  <input
+                    type="checkbox"
+                    className="accent-red-600"
+                    checked={deletableVisible.length > 0 && deletableVisible.every((p) => selected.has(p.id))}
+                    onChange={(e) =>
+                      setSelected(e.target.checked ? new Set(deletableVisible.map((p) => p.id)) : new Set())
+                    }
+                    title="Select every visible (unlocked) account"
+                  />
+                </th>
                 <SortableTh
                   label="First Name"
                   k="first"
@@ -452,6 +566,14 @@ export function CredentialsTable({
                   current={sortKey}
                   dir={sortDir}
                   onClick={toggleSort}
+                />
+                <SortableTh
+                  label="Created"
+                  k="created"
+                  current={sortKey}
+                  dir={sortDir}
+                  onClick={toggleSort}
+                  className="w-28"
                 />
                 <th
                   className="w-24 px-4 py-2.5 text-center font-semibold text-zinc-700"
@@ -485,7 +607,7 @@ export function CredentialsTable({
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={11}
+                    colSpan={13}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     No users match.
@@ -502,6 +624,15 @@ export function CredentialsTable({
                         p.rowLocked && 'bg-zinc-50/50'
                       )}
                     >
+                      <td className="px-3 py-3 text-center">
+                        <input
+                          type="checkbox"
+                          className="accent-red-600"
+                          checked={selected.has(p.id)}
+                          disabled={p.rowLocked || isPending}
+                          onChange={() => toggleSelected(p.id)}
+                        />
+                      </td>
                       <td className="px-4 py-3 text-zinc-900">{p.first || '—'}</td>
                       <td className="px-4 py-3 text-zinc-900">{p.last || '—'}</td>
                       <td className="px-4 py-3 text-zinc-700">
@@ -532,6 +663,15 @@ export function CredentialsTable({
                             </span>
                           ) : null}
                         </div>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-zinc-500 whitespace-nowrap">
+                        {p.created_at
+                          ? new Date(p.created_at).toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })
+                          : '—'}
                       </td>
                       <td
                         className="px-4 py-3 text-center"
@@ -616,6 +756,47 @@ export function CredentialsTable({
       ) : null}
 
       {/* Delete-account modal */}
+      {bulkConfirm ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="text-sm font-bold text-zinc-900">
+              Delete {selected.size} account{selected.size === 1 ? '' : 's'}?
+            </h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              Each account is removed entirely — sign-in, profile, and credentials. Stories keep
+              their content (author becomes blank). This cannot be undone.
+            </p>
+            <div className="mt-3 max-h-40 overflow-y-auto rounded border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-600 ssp-scroll">
+              {enriched
+                .filter((p) => selected.has(p.id))
+                .slice(0, 40)
+                .map((p) => (
+                  <div key={p.id} className="truncate">
+                    {(p.display_name?.trim() || `${p.first} ${p.last}`.trim() || '—') + ' · ' + p.email}
+                  </div>
+                ))}
+              {selected.size > 40 ? <div>…and {selected.size - 40} more</div> : null}
+            </div>
+            <div className="mt-4 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setBulkConfirm(false)}
+                className="text-sm text-zinc-500 hover:text-zinc-800"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={applyBulkDelete}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded transition-colors"
+              >
+                Delete {selected.size} Account{selected.size === 1 ? '' : 's'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {deleteTarget ? (
         <DeleteModal
           target={deleteTarget}

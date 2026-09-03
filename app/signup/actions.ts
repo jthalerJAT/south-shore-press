@@ -54,10 +54,18 @@ export async function signUpAction(
 
   const supabase = createClient();
 
+  // Turnstile bot-check token (present when NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  // is configured). Supabase verifies it server-side once CAPTCHA protection
+  // is enabled in the Auth settings — at the AUTH API level, so bots that
+  // skip the form and hit /auth/v1/signup directly are refused too.
+  const captchaToken =
+    String(formData.get('cf-turnstile-response') ?? '').trim() || undefined;
+
   const { error } = await supabase.auth.signUp({
     email,
     password,
     options: {
+      captchaToken,
       // Sent to the trigger via raw_user_meta_data → mirrored into profiles.
       data: {
         first_name: firstName,
@@ -85,6 +93,12 @@ export async function signUpAction(
     if (error.message.toLowerCase().includes('already registered')) {
       return {
         error: 'An account with this email already exists. Try signing in.',
+        success: false,
+      };
+    }
+    if (error.message.toLowerCase().includes('captcha')) {
+      return {
+        error: 'Bot check failed — please complete the verification box and try again.',
         success: false,
       };
     }

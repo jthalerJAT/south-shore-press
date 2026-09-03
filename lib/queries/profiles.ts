@@ -22,6 +22,8 @@ export type ProfileForCredentials = {
   role: string | null;
   /** Linked Ad Database client file (advertiser credential). */
   ad_client_id: string | null;
+  /** Account creation time — null when the column predates migration 003. */
+  created_at: string | null;
 };
 
 /** Every profile in the system, sorted by email for stable ordering.
@@ -31,10 +33,10 @@ export async function getAllProfiles(): Promise<ProfileForCredentials[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, email, display_name, roles, role, ad_client_id')
+    .select('id, email, display_name, roles, role, ad_client_id, created_at')
     .order('email', { ascending: true });
   if (error) {
-    // Pre-migration-040 fallback (ad_client_id doesn't exist yet).
+    // Fallback for older schemas (ad_client_id / created_at not present).
     const retry = await supabase
       .from('profiles')
       .select('id, email, display_name, roles, role')
@@ -43,9 +45,16 @@ export async function getAllProfiles(): Promise<ProfileForCredentials[]> {
       console.error('[getAllProfiles]', error);
       return [];
     }
-    return (retry.data ?? []).map((p) => ({ ...p, ad_client_id: null })) as ProfileForCredentials[];
+    return (retry.data ?? []).map((p) => ({
+      ...p,
+      ad_client_id: null,
+      created_at: null,
+    })) as ProfileForCredentials[];
   }
-  return (data ?? []) as ProfileForCredentials[];
+  return (data ?? []).map((p) => ({
+    created_at: null,
+    ...(p as object),
+  })) as ProfileForCredentials[];
 }
 
 /** Email addresses of every admin / master-admin. Uses the SERVICE-ROLE

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale, Sparkles } from 'lucide-react';
+import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, BookOpen, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale, Sparkles } from 'lucide-react';
 import { requireRole, canManageCredentials, isPinnedMasterAdmin } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
@@ -109,6 +109,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Build the weekly print issue — drag stories onto pages, edit content, and lay out the paper.',
       icon: Newspaper,
+    },
+    {
+      href: '/portal/all/digital-paper',
+      title: 'Digital Paper',
+      description:
+        'Every printed issue as a shareable PDF, newest first — view, print, download, or email a link.',
+      icon: BookOpen,
     },
     {
       href: '/portal/all/ads',

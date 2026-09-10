@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { DIGITAL_PAPERS_BUCKET } from '@/lib/queries/digital-papers';
+import { upsertDigitalPaper } from '@/lib/digital-papers-store';
 
 const EDITOR_ROLES = ['editor', 'admin', 'master admin'] as const;
 // Deleting issues is admin-only; editors may add but not remove.
@@ -75,57 +76,17 @@ export async function createDigitalPaperAction(input: {
     input.day
   ).padStart(2, '0')}`;
 
-  const admin = createAdminClient();
-
-  // Replace-in-place: if this issue date already has a file, remove the old
-  // storage object and update the row rather than failing the unique index.
-  const { data: existing } = await admin
-    .from('digital_papers')
-    .select('id, storage_path')
-    .eq('issue_date', issue_date)
-    .maybeSingle();
-
-  if (existing) {
-    if (existing.storage_path && existing.storage_path !== input.storage_path) {
-      const { error: rmErr } = await admin.storage
-        .from(DIGITAL_PAPERS_BUCKET)
-        .remove([existing.storage_path as string]);
-      if (rmErr) console.error('[createDigitalPaperAction] old object remove', rmErr);
-    }
-    const { error } = await admin
-      .from('digital_papers')
-      .update({
-        storage_path: input.storage_path,
-        file_name: input.file_name || null,
-        page_count: input.page_count ?? null,
-        file_size_bytes: input.file_size_bytes ?? null,
-        created_by: user.id,
-      })
-      .eq('id', existing.id);
-    if (error) {
-      console.error('[createDigitalPaperAction] update', error);
-      return { ok: false, error: 'Could not replace the issue. Please try again.' };
-    }
-  } else {
-    const { error } = await admin.from('digital_papers').insert({
-      issue_date,
-      storage_path: input.storage_path,
-      file_name: input.file_name || null,
-      page_count: input.page_count ?? null,
-      file_size_bytes: input.file_size_bytes ?? null,
-      created_by: user.id,
-    });
-    if (error) {
-      console.error('[createDigitalPaperAction]', error);
-      const missing = error.code === '42P01' || error.code === 'PGRST205';
-      return {
-        ok: false,
-        error: missing
-          ? 'The digital_papers table does not exist yet — run migration 047 in Supabase.'
-          : 'Could not save the issue. Please try again.',
-      };
-    }
-  }
+  // Shared replace-in-place write path (also used by the press-export
+  // workflow's publish step): one row per issue date, old file removed.
+  const res = await upsertDigitalPaper({
+    issue_date,
+    storage_path: input.storage_path,
+    file_name: input.file_name || null,
+    page_count: input.page_count ?? null,
+    file_size_bytes: input.file_size_bytes ?? null,
+    created_by: user.id,
+  });
+  if (!res.ok) return { ok: false, error: res.error };
 
   revalidatePath(BASE);
   return { ok: true };

@@ -64,6 +64,15 @@ jobs:
           OPEN: '0' # never try to open a viewer in CI
         run: node scripts/export-issue-pdf.mjs
 
+      # Compress a web edition and file it in the portal's Digital Paper
+      # archive (skipped automatically for partial-page exports).
+      - name: Publish Digital Paper
+        env:
+          PRINT_API_TOKEN: ${{ secrets.PRINT_API_TOKEN }}
+          INDESIGN_API_TOKEN: ${{ secrets.INDESIGN_API_TOKEN }}
+          PAGES: ${{ github.event.inputs.pages }}
+        run: node scripts/publish-digital-paper.mjs
+
       - name: Upload PDFs
         uses: actions/upload-artifact@v4
         with:
@@ -71,4 +80,5 @@ jobs:
           path: |
             out/issue-x1a.pdf
             out/issue-rgb.pdf
+            out/issue-web.pdf
           if-no-files-found: error

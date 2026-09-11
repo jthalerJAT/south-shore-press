@@ -97,14 +97,29 @@ export function HeroCarousel({ stories }: { stories: StoryListItem[] }) {
             )}
           >
             {imgSrc ? (
-              <Image
-                src={imgSrc}
-                alt=""
-                fill
-                sizes="(max-width: 1024px) 100vw, 66vw"
-                className="object-cover"
-                priority={i === 0}
-              />
+              <>
+                {/* Photos are never cropped (publisher rule 2026-09-11): the
+                    photo letterboxes inside the fixed 16:9 frame, over a
+                    blurred copy of itself so off-ratio images still fill the
+                    slide instead of showing bars. */}
+                <Image
+                  src={imgSrc}
+                  alt=""
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                  className="object-cover blur-2xl scale-110 opacity-50"
+                  aria-hidden="true"
+                  priority={i === 0}
+                />
+                <Image
+                  src={imgSrc}
+                  alt=""
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 66vw"
+                  className="object-contain"
+                  priority={i === 0}
+                />
+              </>
             ) : null}
 
             {/* Dark bottom gradient so the headline + dek read on any photo */}

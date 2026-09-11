@@ -4,9 +4,11 @@ import { parseYouTubeId, youTubeEmbedUrl } from '@/lib/youtube';
 type Props = {
   url: string | null | undefined;
   alt: string;
-  /** Controls layout. 'hero' = full-bleed 16:9 with rounded corners (story
-   *  detail), 'card' = 16:10 thumbnail (homepage + category grids — matches
-   *  v1's card aspect). */
+  /** Controls layout. 'hero' = story-page lead image, rendered at the
+   *  photo's NATURAL aspect ratio (publisher rule 2026-09-11: photos are
+   *  never cropped). 'card' = 16:10 frame on homepage + category grids —
+   *  the frame keeps the grids aligned, but the photo letterboxes inside
+   *  it (object-contain) rather than cropping. */
   variant?: 'hero' | 'card';
   /** Mark the hero image as priority so LCP is fast on the story page. */
   priority?: boolean;
@@ -49,7 +51,7 @@ export function HeroMedia({ url, alt, variant = 'hero', priority }: Props) {
           alt={alt}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover"
+          className="object-contain"
         />
         {ytId ? (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -86,16 +88,18 @@ export function HeroMedia({ url, alt, variant = 'hero', priority }: Props) {
     );
   }
 
+  // Story-page photo: rendered at the image's own aspect ratio — never
+  // cropped. width/height are only next/image's required placeholders; the
+  // `h-auto` lets the browser use the loaded file's intrinsic proportions.
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-zinc-100">
-      <Image
-        src={url}
-        alt={alt}
-        fill
-        sizes="(max-width: 1024px) 100vw, 1024px"
-        className="object-cover"
-        priority={priority}
-      />
-    </div>
+    <Image
+      src={url}
+      alt={alt}
+      width={1600}
+      height={900}
+      sizes="(max-width: 1024px) 100vw, 1024px"
+      className="w-full h-auto rounded-lg bg-zinc-100"
+      priority={priority}
+    />
   );
 }

@@ -280,18 +280,17 @@ export default async function StoryPage({ params }: { params: Params }) {
       {story.extra_photo_urls && story.extra_photo_urls.length > 0 ? (
         <div className="mt-12 grid grid-cols-1 sm:grid-cols-2 gap-4">
           {story.extra_photo_urls.map((url, i) => (
-            <div
+            // Natural aspect ratio — additional photos are never cropped
+            // (publisher rule 2026-09-11). Grid cells align tops; heights vary.
+            <Image
               key={i}
-              className="relative aspect-[4/3] w-full overflow-hidden bg-zinc-100"
-            >
-              <Image
-                src={url}
-                alt={`${story.headline} — additional photo ${i + 1}`}
-                fill
-                sizes="(max-width: 640px) 100vw, 50vw"
-                className="object-cover"
-              />
-            </div>
+              src={url}
+              alt={`${story.headline} — additional photo ${i + 1}`}
+              width={1200}
+              height={900}
+              sizes="(max-width: 640px) 100vw, 50vw"
+              className="w-full h-auto self-start bg-zinc-100"
+            />
           ))}
         </div>
       ) : null}

@@ -158,8 +158,10 @@ export function BandRenderer({
                       top: geometry.photo.top,
                       width: geometry.photo.width,
                       height: imgH,
-                      objectFit: 'cover',
-                      background: '#e4e4e7',
+                      // 'contain' = whole image, white space around it
+                      // (charts/graphics); default fills the box and trims.
+                      objectFit: geometry.photo.fit === 'contain' ? 'contain' : 'cover',
+                      background: geometry.photo.fit === 'contain' ? '#fff' : '#e4e4e7',
                     }}
                   />
                   {hasStrip ? (

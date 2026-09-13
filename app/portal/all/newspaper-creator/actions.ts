@@ -449,8 +449,8 @@ export type SavedItem = {
   slot_key: string | null;
   source_story_id: string | null;
   data: Record<string, unknown>;
-  /** Phase 2 visual-layout geometry. Omitted by the form editor (resets to
-   *  default on next layout open); sent by the visual layout editor. */
+  /** Phase 2 visual-layout geometry. Sent by both editors; omitted for a new
+   *  or re-filled item, which then gets the default layout. */
   layout?: Record<string, unknown>;
 };
 

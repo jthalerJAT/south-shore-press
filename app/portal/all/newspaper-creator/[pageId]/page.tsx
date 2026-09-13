@@ -252,6 +252,7 @@ export default async function NewspaperPageEditorPage({
           slot_key: it.slot_key,
           source_story_id: it.source_story_id,
           data: it.data ?? {},
+          layout: (it.layout ?? {}) as Record<string, unknown>,
         }))}
         initialShowColophon={Boolean((page.template_data as { show_colophon?: boolean })?.show_colophon)}
         initialPhotoScale={(page.template_data as { photo_scale?: number })?.photo_scale ?? 1}

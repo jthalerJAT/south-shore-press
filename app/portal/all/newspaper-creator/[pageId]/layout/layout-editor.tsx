@@ -148,14 +148,29 @@ export function LayoutEditor({
 
   const onPhotoCommit = useCallback(
     (id: string, c: PhotoCommit) => {
-      updateStory(id, (s) => ({ ...s, photo: { mode: 'column', ...c } }));
+      updateStory(id, (s) => ({
+        ...s,
+        photo: { mode: 'column', ...c, ...(s.photo?.fit ? { fit: s.photo.fit } : {}) },
+      }));
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
 
   function resetPhoto(id: string, hasHero: boolean) {
-    updateStory(id, (s) => ({ ...s, photo: defaultStoryLayout(s.band_index, hasHero).photo }));
+    updateStory(id, (s) => {
+      const photo = defaultStoryLayout(s.band_index, hasHero).photo;
+      return { ...s, photo: photo && s.photo?.fit ? { ...photo, fit: s.photo.fit } : photo };
+    });
+  }
+  function setPhotoFit(id: string, whole: boolean) {
+    updateStory(id, (s) => {
+      if (!s.photo) return s;
+      const photo = { ...s.photo };
+      if (whole) photo.fit = 'contain';
+      else delete photo.fit;
+      return { ...s, photo };
+    });
   }
   function removePhoto(id: string) {
     updateStory(id, (s) => ({ ...s, photo: null }));
@@ -305,6 +320,7 @@ export function LayoutEditor({
             onColumns={(n) => selected && setColumns(selected.id, n)}
             onResetPhoto={() => selected && resetPhoto(selected.id, Boolean(selected.data.hero_photo_url))}
             onRemovePhoto={() => selected && removePhoto(selected.id)}
+            onPhotoFit={(whole) => selected && setPhotoFit(selected.id, whole)}
             onAdSize={(s) => selected && setAdSize(selected.id, s)}
             onMove={(dir) => selected && moveBand(selected.id, dir)}
           />
@@ -322,6 +338,7 @@ function Inspector({
   onColumns,
   onResetPhoto,
   onRemovePhoto,
+  onPhotoFit,
   onAdSize,
   onMove,
 }: {
@@ -332,6 +349,7 @@ function Inspector({
   onColumns: (n: number) => void;
   onResetPhoto: () => void;
   onRemovePhoto: () => void;
+  onPhotoFit: (whole: boolean) => void;
   onAdSize: (s: StoredAdLayout['size']) => void;
   onMove: (dir: -1 | 1) => void;
 }) {
@@ -407,6 +425,20 @@ function Inspector({
                       Remove
                     </button>
                   </div>
+                  <label className="inline-flex items-start gap-2 text-xs text-zinc-700">
+                    <input
+                      type="checkbox"
+                      checked={band.story.photo.fit === 'contain'}
+                      onChange={(e) => onPhotoFit(e.target.checked)}
+                      className="mt-0.5 h-3.5 w-3.5 rounded border-zinc-300 text-brand-red focus:ring-brand-red"
+                    />
+                    <span>
+                      Show whole image (no crop)
+                      <span className="block text-[11px] text-zinc-400">
+                        For charts and graphics. White space fills the box where the shapes differ.
+                      </span>
+                    </span>
+                  </label>
                 </div>
               ) : (
                 <button

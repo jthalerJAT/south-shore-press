@@ -69,6 +69,9 @@ export type StoredPhotoLayout = {
   /** Free mode only: left + width as fractions of page content WIDTH. */
   x?: number;
   width?: number;
+  /** 'contain' shows the whole image inside the box (white space where the
+   *  shapes differ) — for charts/graphics. Absent = 'cover' (fill + trim). */
+  fit?: 'cover' | 'contain';
 };
 
 export type StoredStoryLayout = {
@@ -199,6 +202,7 @@ function normalizePhoto(
     photo.x = clamp(num(r.x, 0), 0, 1);
     photo.width = clamp(num(r.width, 0.5), 0.05, 1);
   }
+  if (r.fit === 'contain') photo.fit = 'contain';
   return photo;
 }
 
@@ -243,7 +247,15 @@ export function normalizeAdLayout(
 
 // ── Px geometry ────────────────────────────────────────────────────────────
 export type ColumnRect = { x: number; w: number };
-export type PhotoRectPx = { left: number; top: number; width: number; height: number; colStart0: number; colSpan: number };
+export type PhotoRectPx = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  colStart0: number;
+  colSpan: number;
+  fit?: 'cover' | 'contain';
+};
 export type ColumnRun = {
   colIdx: number;
   topPx: number;
@@ -309,7 +321,7 @@ export function photoRectPx(
     const colStart0 = Math.max(0, rects.findIndex((r) => r.x + r.w > left + 1));
     let colEnd0 = colStart0;
     while (colEnd0 < columns - 1 && rects[colEnd0].x + rects[colEnd0].w < left + width - 1) colEnd0++;
-    return { left, top: topPx, width, height: heightPx, colStart0, colSpan: colEnd0 - colStart0 + 1 };
+    return { left, top: topPx, width, height: heightPx, colStart0, colSpan: colEnd0 - colStart0 + 1, fit: photo.fit };
   }
   const rects = columnRects(contentWidthPx, columns, gapPx);
   const colStart0 = clampInt(photo.col_start - 1, 0, columns - 1);
@@ -317,7 +329,7 @@ export function photoRectPx(
   const left = rects[colStart0].x;
   const last = rects[colStart0 + colSpan - 1];
   const width = last.x + last.w - left;
-  return { left, top: topPx, width, height: heightPx, colStart0, colSpan };
+  return { left, top: topPx, width, height: heightPx, colStart0, colSpan, fit: photo.fit };
 }
 
 function clampInt(n: number, lo: number, hi: number): number {

@@ -28,6 +28,9 @@ type EditorItem = {
   slot_key: string | null;
   source_story_id: string | null;
   data: Record<string, any>;
+  /** Saved Edit Page Layout geometry — kept on save and used by the preview
+   *  so it matches the printed page. Undefined = default layout. */
+  layout?: Record<string, unknown>;
 };
 
 let counter = 0;
@@ -55,7 +58,7 @@ export function PageEditor({
   kind: string;
   slots: SlotDef[] | null;
   initialSectionName: string;
-  initialItems: Array<Pick<EditorItem, 'type' | 'slot_key' | 'source_story_id' | 'data'>>;
+  initialItems: Array<Pick<EditorItem, 'type' | 'slot_key' | 'source_story_id' | 'data' | 'layout'>>;
   initialShowColophon?: boolean;
   initialPhotoScale?: number;
   initialSpaceScale?: number;
@@ -158,9 +161,14 @@ export function PageEditor({
   function patch(localId: string, partial: Record<string, any>) {
     setSaved(false);
     setItems((prev) =>
-      prev.map((it) =>
-        it.localId === localId ? { ...it, data: { ...it.data, ...partial } } : it
-      )
+      prev.map((it) => {
+        if (it.localId !== localId) return it;
+        // A photo added to a story whose saved layout has none would stay
+        // hidden — drop that layout so the default photo placement applies.
+        const addsPhoto =
+          Boolean(partial.hero_photo_url) && !it.data.hero_photo_url && it.layout?.photo === null;
+        return { ...it, data: { ...it.data, ...partial }, ...(addsPhoto ? { layout: undefined } : {}) };
+      })
     );
   }
   function setSlot(localId: string, slotKey: string) {
@@ -181,6 +189,9 @@ export function PageEditor({
         it.localId === localId
           ? {
               ...it,
+              // A different story gets a fresh default layout (the old photo
+              // placement belonged to the previous story).
+              layout: undefined,
               source_story_id: storyId,
               data: {
                 ...it.data,
@@ -216,6 +227,7 @@ export function PageEditor({
       slot_key: it.slot_key,
       source_story_id: it.source_story_id,
       data: it.data,
+      layout: it.layout,
     }));
     const res = await savePage(pageId, sectionName, payload);
     if (res.ok) {
@@ -238,7 +250,7 @@ export function PageEditor({
     id: it.localId,
     type: it.type,
     data: it.data as ProofItem['data'],
-    layout: {},
+    layout: it.layout ?? {},
   }));
 
   return (
@@ -357,9 +369,9 @@ export function PageEditor({
           {saving ? 'Saving…' : 'Save Page Content'}
         </button>
         <p className="mt-2 text-xs text-zinc-500">
-          Saving locks this page&apos;s content. You can reopen and re-save to change it. Note: saving
-          content here resets a custom page layout to the default — arrange the layout last, in{' '}
-          <strong>Edit Page Layout</strong>.
+          Saving locks this page&apos;s content. You can reopen and re-save to change it. Photo placement
+          set in <strong>Edit Page Layout</strong> is kept (a slot filled with a different story starts
+          from the default layout).
         </p>
       </div>
       </div>

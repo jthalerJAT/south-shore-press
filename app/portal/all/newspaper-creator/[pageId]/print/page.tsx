@@ -18,13 +18,10 @@ import { PageFour } from '@/components/newspaper/page-four';
 import { ClassifiedPage } from '@/components/newspaper/classified-page';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { FunPage } from '@/components/newspaper/fun-page';
-import { PageHeader } from '@/components/newspaper/page-header';
-import { SectionFlag } from '@/components/newspaper/section-flag';
-import { ColophonRail } from '@/components/newspaper/colophon-rail';
-import { COLOPHON_RAIL_W, COLOPHON_GAP } from '@/lib/newspaper/colophon';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { PrintButton } from './print-button';
-import { ProofBands, type ProofItem } from './proof-bands';
+import { type ProofItem } from './proof-bands';
+import { FlowPage } from './flow-page';
 
 export const metadata: Metadata = {
   title: 'Page proof · Newspaper Creator',
@@ -120,28 +117,17 @@ export default async function PagePrintProof({
             issueDate={issueDate}
           />
         ) : (
-          // Fixed height + flex column: ProofBands receives the remaining page
-          // height so a corner quarter ad can pin to the page bottom.
-          <div style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, display: 'flex', flexDirection: 'column' }}>
-            <PageHeader pageNumber={ordinal} dateLabel={issueDate} />
-            <SectionFlag label={page.section_name} />
-            {(page.template_data as { show_colophon?: boolean })?.show_colophon ? (
-              <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX, flex: '1 1 0%', minHeight: 0 }}>
-                <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP, display: 'flex', flexDirection: 'column' }}>
-                  {proofItems.length > 0 ? (
-                    <ProofBands items={proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={ordinal} />
-                  ) : (
-                    <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
-                  )}
-                </div>
-                <ColophonRail width={COLOPHON_RAIL_W} />
-              </div>
-            ) : proofItems.length === 0 ? (
-              <p className="text-sm text-zinc-400 italic">No content on this page yet.</p>
-            ) : (
-              <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={ordinal} />
-            )}
-          </div>
+          <FlowPage
+            items={proofItems}
+            pageNumber={ordinal}
+            dateLabel={issueDate}
+            sectionName={page.section_name}
+            showColophon={Boolean((page.template_data as { show_colophon?: boolean })?.show_colophon)}
+            photoScale={photoScale}
+            spaceScale={spaceScale}
+            columns={fitColumns}
+            emptyText="No content on this page yet."
+          />
         )}
         </div>
       </div>

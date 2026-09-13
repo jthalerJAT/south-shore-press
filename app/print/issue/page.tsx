@@ -15,13 +15,9 @@ import { PageFour } from '@/components/newspaper/page-four';
 import { ClassifiedPage } from '@/components/newspaper/classified-page';
 import { FullPageAd } from '@/components/newspaper/full-page-ad';
 import { FunPage } from '@/components/newspaper/fun-page';
-import { PageHeader } from '@/components/newspaper/page-header';
-import { SectionFlag } from '@/components/newspaper/section-flag';
-import { ColophonRail } from '@/components/newspaper/colophon-rail';
-import { COLOPHON_RAIL_W, COLOPHON_GAP } from '@/lib/newspaper/colophon';
-import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import type { NpPage } from '@/lib/queries/newspaper';
-import { ProofBands, type ProofItem } from '../../portal/all/newspaper-creator/[pageId]/print/proof-bands';
+import { type ProofItem } from '../../portal/all/newspaper-creator/[pageId]/print/proof-bands';
+import { FlowPage } from '../../portal/all/newspaper-creator/[pageId]/print/flow-page';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,24 +109,16 @@ export default async function PrintIssue({
                 issueDate={issueDate}
               />
             ) : (
-              // Fixed height + flex column: ProofBands receives the remaining
-              // page height so a corner quarter ad can pin to the page bottom.
-              <div style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, display: 'flex', flexDirection: 'column' }}>
-                <PageHeader pageNumber={r.ordinal} dateLabel={issueDate} />
-                <SectionFlag label={r.page.section_name} />
-                {(r.page.template_data as { show_colophon?: boolean })?.show_colophon ? (
-                  <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX, flex: '1 1 0%', minHeight: 0 }}>
-                    <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP, display: 'flex', flexDirection: 'column' }}>
-                      {r.proofItems.length > 0 ? (
-                        <ProofBands items={r.proofItems} contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={r.ordinal} />
-                      ) : null}
-                    </div>
-                    <ColophonRail width={COLOPHON_RAIL_W} />
-                  </div>
-                ) : r.proofItems.length > 0 ? (
-                  <ProofBands items={r.proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={fitColumns} pageOrdinal={r.ordinal} />
-                ) : null}
-              </div>
+              <FlowPage
+                items={r.proofItems}
+                pageNumber={r.ordinal}
+                dateLabel={issueDate}
+                sectionName={r.page.section_name}
+                showColophon={Boolean((r.page.template_data as { show_colophon?: boolean })?.show_colophon)}
+                photoScale={photoScale}
+                spaceScale={spaceScale}
+                columns={fitColumns}
+              />
             )}
           </div>
         );

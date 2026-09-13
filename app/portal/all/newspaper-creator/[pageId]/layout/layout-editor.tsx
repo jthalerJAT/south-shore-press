@@ -1,10 +1,12 @@
 'use client';
 
 /**
- * LayoutEditor — the visual "Edit Page Layout" tool (Phase 2A). Owns the band
- * list + per-band geometry, drives the to-scale canvas, and persists geometry
- * via savePage. Column count + photo placement reflow real column text through
- * the shared layout engine; band order, zoom, and save live here.
+ * LayoutEditor — the visual "Edit Page Layout" tool. The canvas is drawn by
+ * FlowPage — the SAME renderer as the page editor preview, View / Print PDF and
+ * the press export (header, section flag, publication-info rail, corner quarter
+ * ads, bottom-pinned third ads, spacing) — with selection and photo handles
+ * layered on top. Per-story geometry (column count, photo placement/fit) lives
+ * here; Save Layout writes it with custom: true so it prints exactly as shown.
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
@@ -21,18 +23,13 @@ import {
   type StoredStoryLayout,
   type StoredAdLayout,
 } from '@/lib/newspaper/layout-engine';
-import { useComputedBands, type BandInput } from '@/lib/newspaper/use-bands';
+import type { ComputedBand } from '@/lib/newspaper/use-bands';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 import { savePage, type SavedItem } from '../../actions';
+import { FlowPage } from '../print/flow-page';
+import type { ProofEditHooks, ProofItem } from '../print/proof-bands';
 import { PageCanvas } from './page-canvas';
-import { StoryBand } from './story-band';
-import type { PhotoCommit } from './photo-overlay';
-
-const ADS_BUCKET = 'newspaper-ads';
-function adUrl(path: string): string {
-  const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');
-  return `${base}/storage/v1/object/public/${ADS_BUCKET}/${path}`;
-}
+import { PhotoOverlay, type PhotoCommit } from './photo-overlay';
 
 export type EditorBand = {
   id: string;
@@ -89,6 +86,10 @@ export function LayoutEditor({
   sectionName,
   initialItems,
   pageFit,
+  pageNumber,
+  dateLabel,
+  showColophon = false,
+  spaceScale = 1,
 }: {
   pageId: string;
   pageTitle: string;
@@ -97,6 +98,12 @@ export function LayoutEditor({
   /** Page editor's page-wide levers. Stories not yet arranged here open with
    *  them applied, so the canvas starts from what currently prints. */
   pageFit?: { columns: number | null; photoScale: number };
+  /** Printed page number (running header; quarter ads anchor to the exterior
+   *  corner — even pages left, odd right). */
+  pageNumber: number;
+  dateLabel?: string;
+  showColophon?: boolean;
+  spaceScale?: number;
 }) {
   const router = useRouter();
 
@@ -119,6 +126,8 @@ export function LayoutEditor({
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [computedById, setComputedById] = useState<Record<string, ComputedBand>>({});
+  const [textOverflow, setTextOverflow] = useState(false);
 
   const canvasColRef = useRef<HTMLDivElement>(null);
   const fitZoom = useCallback(() => {
@@ -132,31 +141,32 @@ export function LayoutEditor({
     return () => window.removeEventListener('resize', fitZoom);
   }, [fitZoom]);
 
-  const inputs: BandInput[] = useMemo(
-    () => bands.map((b) => ({ id: b.id, type: b.type, data: b.data, story: b.story, ad: b.ad })),
+  // What the canvas draws: the editor's state, marked custom so the shared
+  // renderer applies no page-wide override on top (it prints exactly this).
+  const proofItems: ProofItem[] = useMemo(
+    () =>
+      bands.map((b) => ({
+        id: b.id,
+        type: b.type,
+        data: b.data,
+        layout: (b.type === 'story' && b.story
+          ? { ...b.story, custom: true }
+          : b.ad ?? {}) as unknown as Record<string, unknown>,
+      })),
     [bands]
   );
-  const { computed } = useComputedBands(inputs);
-  const computedById = useMemo(() => {
-    const m: Record<string, (typeof computed)[number]> = {};
-    computed.forEach((c) => (m[c.id] = c));
-    return m;
-  }, [computed]);
 
   const selected = bands.find((b) => b.id === selectedId) ?? null;
-  const selectedComputed = selectedId ? computedById[selectedId] : null;
+  const selectedComputed = selectedId ? computedById[selectedId] ?? null : null;
 
   // ── Mutators ──────────────────────────────────────────────────────────────
-  const dirty = useRef(false);
   function updateStory(id: string, fn: (s: StoredStoryLayout) => StoredStoryLayout) {
-    dirty.current = true;
     setSaved(false);
     setBands((prev) =>
       prev.map((b) => (b.id === id && b.story ? { ...b, story: fn(b.story) } : b))
     );
   }
   function updateAd(id: string, fn: (a: StoredAdLayout) => StoredAdLayout) {
-    dirty.current = true;
     setSaved(false);
     setBands((prev) => prev.map((b) => (b.id === id && b.ad ? { ...b, ad: fn(b.ad) } : b)));
   }
@@ -208,7 +218,6 @@ export function LayoutEditor({
   }
 
   function moveBand(id: string, dir: -1 | 1) {
-    dirty.current = true;
     setSaved(false);
     setBands((prev) => {
       const i = prev.findIndex((b) => b.id === id);
@@ -241,12 +250,60 @@ export function LayoutEditor({
       setError(res.error ?? 'Could not save the layout.');
       return;
     }
-    dirty.current = false;
     setSaved(true);
     router.refresh();
   }
 
-  const anyOverflow = computed.some((c) => c.layoutResult && !c.layoutResult.fits);
+  const edit: ProofEditHooks = {
+    selectedId,
+    onSelect: setSelectedId,
+    onComputed: (computed) => {
+      const m: Record<string, ComputedBand> = {};
+      computed.forEach((c) => (m[c.id] = c));
+      setComputedById(m);
+    },
+    renderOverlay: (bandId, c, cornerAdId) => {
+      const band = bands.find((b) => b.id === bandId);
+      const photo = c.geometry.photo;
+      const ad = c.geometry.cornerAd;
+      return (
+        <>
+          {bandId === selectedId && photo && band?.data.hero_photo_url ? (
+            <PhotoOverlay
+              photo={photo}
+              bodyHeightPx={c.geometry.bodyHeightPx}
+              contentWidthPx={c.geometry.contentWidthPx}
+              columns={c.geometry.columns}
+              zoom={zoom}
+              onCommit={(pc) => onPhotoCommit(bandId, pc)}
+            />
+          ) : null}
+          {/* The quarter ad folded into this story's corner: click to select
+              the ad itself (size, order) rather than the story. */}
+          {ad && cornerAdId ? (
+            <div
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedId(cornerAdId);
+              }}
+              className={cn(
+                'absolute cursor-pointer',
+                cornerAdId === selectedId ? 'ring-2 ring-brand-red' : 'hover:ring-1 hover:ring-zinc-400'
+              )}
+              style={{
+                left: ad.leftPx,
+                top: c.geometry.bodyHeightPx - ad.heightPx,
+                width: ad.widthPx,
+                height: ad.heightPx,
+              }}
+            />
+          ) : null}
+        </>
+      );
+    },
+  };
+
+  const anyOverflow = textOverflow || Object.values(computedById).some((c) => c.layoutResult && !c.layoutResult.fits);
 
   return (
     <div className="flex flex-col h-[calc(100vh-9rem)] min-h-[32rem]">
@@ -302,44 +359,33 @@ export function LayoutEditor({
           ) : null}
           {saved ? (
             <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
-              Layout saved.
+              Layout saved — this is what prints.
             </span>
           ) : null}
           {anyOverflow ? (
             <span className="text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">
-              Some content overflows the page — carrying to another page comes in the next phase.
+              Some text doesn&apos;t fit the page and will be cut off — add columns, shrink a photo, or trim
+              the story.
             </span>
           ) : null}
         </div>
       )}
 
       <div className="flex-1 min-h-0 grid grid-cols-[1fr_18rem] gap-4 pt-3">
-        {/* Canvas */}
+        {/* Canvas — the shared print renderer, with editing hooks. */}
         <div ref={canvasColRef} className="min-w-0">
           <PageCanvas zoom={zoom}>
-            {bands.length === 0 ? (
-              <p className="text-sm text-zinc-400 italic p-4">
-                This page has no content yet. Add stories from the Newspaper Creator board, then
-                arrange them here.
-              </p>
-            ) : (
-              bands.map((b) => {
-                const c = computedById[b.id];
-                if (!c) return null;
-                return (
-                  <StoryBand
-                    key={b.id}
-                    band={b}
-                    computed={c}
-                    selected={b.id === selectedId}
-                    zoom={zoom}
-                    onSelect={() => setSelectedId(b.id)}
-                    onPhotoCommit={(pc) => onPhotoCommit(b.id, pc)}
-                    adPublicUrl={adUrl}
-                  />
-                );
-              })
-            )}
+            <FlowPage
+              items={proofItems}
+              pageNumber={pageNumber}
+              dateLabel={dateLabel}
+              sectionName={sectionName}
+              showColophon={showColophon}
+              spaceScale={spaceScale}
+              onTextOverflow={setTextOverflow}
+              emptyText="This page has no content yet. Add stories from the page editor, then arrange them here."
+              edit={edit}
+            />
           </PageCanvas>
         </div>
 
@@ -428,7 +474,10 @@ function Inspector({
                 +
               </button>
             </div>
-            <p className="mt-1 text-[11px] text-zinc-400">Fewer columns ⇒ taller; more ⇒ shorter.</p>
+            <p className="mt-1 text-[11px] text-zinc-400">
+              This story only — other stories on the page keep their own. Fewer columns ⇒ taller; more ⇒
+              shorter.
+            </p>
           </div>
 
           <div>
@@ -493,9 +542,9 @@ function Inspector({
             </label>
             {computed?.layoutResult ? (
               computed.layoutResult.fits ? (
-                <span className="text-xs text-emerald-700">✓ Fits the page</span>
+                <span className="text-xs text-emerald-700">✓ All text fits</span>
               ) : (
-                <span className="text-xs text-red-600">Overflows — extends past the page bottom</span>
+                <span className="text-xs text-red-600">Text doesn&apos;t fit — the end will be cut off</span>
               )
             ) : (
               <span className="text-xs text-zinc-400">—</span>
@@ -516,8 +565,13 @@ function Inspector({
           >
             <option value="full">Full Page</option>
             <option value="half">Half Page</option>
+            <option value="third">Third Page</option>
             <option value="quarter">Quarter Page</option>
           </select>
+          <p className="mt-1 text-[11px] text-zinc-400">
+            Quarter ads sit in the page&apos;s bottom outside corner with the last story wrapping around
+            them; third ads run across the page bottom.
+          </p>
         </div>
       ) : null}
 

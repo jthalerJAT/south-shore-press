@@ -9,12 +9,9 @@ import { CONTENT_W_PX, CONTENT_H_PX, MIN_COLUMNS, MAX_COLUMNS } from '@/lib/news
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { Ad } from '@/lib/queries/ads';
 import { AdCopyPicker } from '../ad-copy-picker';
-import { SectionFlag } from '@/components/newspaper/section-flag';
-import { PageHeader } from '@/components/newspaper/page-header';
-import { ColophonRail } from '@/components/newspaper/colophon-rail';
-import { COLOPHON_RAIL_W, COLOPHON_GAP } from '@/lib/newspaper/colophon';
 import { StoryFillPicker } from '@/components/portal/story-fill-picker';
-import { ProofBands, type ProofItem } from './print/proof-bands';
+import { type ProofItem } from './print/proof-bands';
+import { FlowPage } from './print/flow-page';
 import { PhotoUrlField } from '../photo-url-field';
 import { HeadlineField } from '../headline-field';
 import { savePage, requestAdUploadUrl, setColophonRail, setPageFit, fetchStoryDetail, type SavedItem } from '../actions';
@@ -397,38 +394,23 @@ export function PageEditor({
           style={{ width: CONTENT_W_PX * PREVIEW_SCALE, height: CONTENT_H_PX * PREVIEW_SCALE }}
         >
           <div style={{ transform: `scale(${PREVIEW_SCALE})`, transformOrigin: 'top left' }}>
-            {/* MUST mirror the proof/View File/press render exactly (PageHeader +
-                flag + colophon layout) — this box is what the overflow warning
-                and "adjust to fit" measure. Anything the real page adds that the
-                preview doesn't gets silently cut on print. */}
-            <div
-              ref={pageRef}
-              style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, display: 'flex', flexDirection: 'column', background: '#fff', color: '#111' }}
-            >
-              <PageHeader pageNumber={pageNumber} dateLabel={dateLabel} />
-              <SectionFlag label={sectionName} />
-              {proofItems.length > 0 ? (
-                showColophon ? (
-                  <div style={{ display: 'flex', gap: COLOPHON_GAP, width: CONTENT_W_PX, flex: '1 1 0%', minHeight: 0 }}>
-                    <div style={{ width: CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP, display: 'flex', flexDirection: 'column' }}>
-                      <ProofBands
-                        items={proofItems}
-                        contentWidthPx={CONTENT_W_PX - COLOPHON_RAIL_W - COLOPHON_GAP}
-                        photoScale={photoScale}
-                        spaceScale={spaceScale}
-                        columns={columns}
-                        pageOrdinal={pageNumber}
-                        onTextOverflow={setTextOverflow}
-                      />
-                    </div>
-                    <ColophonRail width={COLOPHON_RAIL_W} />
-                  </div>
-                ) : (
-                  <ProofBands items={proofItems} photoScale={photoScale} spaceScale={spaceScale} columns={columns} pageOrdinal={pageNumber} onTextOverflow={setTextOverflow} />
-                )
-              ) : (
-                <p className="text-sm text-zinc-400 italic">Add a story or ad to see the preview.</p>
-              )}
+            {/* The shared page drawing (same as Edit Page Layout, View PDF and the
+                press export). Its frame is what the overflow warning and
+                "adjust to fit" measure. */}
+            <div style={{ background: '#fff', color: '#111' }}>
+              <FlowPage
+                frameRef={pageRef}
+                items={proofItems}
+                pageNumber={pageNumber}
+                dateLabel={dateLabel}
+                sectionName={sectionName}
+                showColophon={showColophon}
+                photoScale={photoScale}
+                spaceScale={spaceScale}
+                columns={columns}
+                onTextOverflow={setTextOverflow}
+                emptyText="Add a story or ad to see the preview."
+              />
             </div>
           </div>
         </div>

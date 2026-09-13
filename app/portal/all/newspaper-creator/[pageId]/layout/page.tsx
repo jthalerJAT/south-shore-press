@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { getPages, getPage, getPageItems } from '@/lib/queries/newspaper';
+import { getPages, getPage, getPageItems, getIssueDate } from '@/lib/queries/newspaper';
 import { pageHeading } from '@/lib/newspaper-templates';
 import { LayoutEditor, type InitialItem } from './layout-editor';
 
@@ -26,7 +26,17 @@ export default async function NewspaperLayoutPage({
   const page = await getPage(params.pageId);
   if (!page) notFound();
 
-  const [pages, items] = await Promise.all([getPages(), getPageItems(params.pageId)]);
+  const [pages, items, issueDate] = await Promise.all([
+    getPages(),
+    getPageItems(params.pageId),
+    getIssueDate(),
+  ]);
+  const td = (page.template_data ?? {}) as {
+    show_colophon?: boolean;
+    space_scale?: number;
+    photo_scale?: number;
+    columns?: number | null;
+  };
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
   const displayTitle = pageHeading(page.title, ordinal);
 
@@ -52,10 +62,11 @@ export default async function NewspaperLayoutPage({
         pageTitle={displayTitle}
         sectionName={page.section_name ?? ''}
         initialItems={initialItems}
-        pageFit={{
-          columns: (page.template_data as { columns?: number | null })?.columns ?? null,
-          photoScale: (page.template_data as { photo_scale?: number })?.photo_scale ?? 1,
-        }}
+        pageFit={{ columns: td.columns ?? null, photoScale: td.photo_scale ?? 1 }}
+        pageNumber={ordinal}
+        dateLabel={issueDate}
+        showColophon={Boolean(td.show_colophon)}
+        spaceScale={td.space_scale ?? 1}
       />
     </PortalShell>
   );

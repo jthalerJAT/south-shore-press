@@ -6,7 +6,8 @@
  * what the visual editor showed. Measurement is client-side (DOM), so this is a
  * client component the server proof page mounts.
  */
-import { useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import {
   normalizeStoryLayout,
   normalizeAdLayout,
@@ -15,7 +16,13 @@ import {
   MIN_COLUMNS,
   MAX_COLUMNS,
 } from '@/lib/newspaper/layout-engine';
-import { useComputedBands, mergeQuarterAds, mergeThirdAds, type BandInput } from '@/lib/newspaper/use-bands';
+import {
+  useComputedBands,
+  mergeQuarterAds,
+  mergeThirdAds,
+  type BandInput,
+  type ComputedBand,
+} from '@/lib/newspaper/use-bands';
 import { BandRenderer } from '@/components/newspaper/band-renderer';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 
@@ -32,6 +39,19 @@ export type ProofItem = {
   layout: Record<string, unknown>;
 };
 
+/** Edit Page Layout's hooks. When present, each band becomes clickable with a
+ *  selection ring, and the overlay (photo handle, corner-ad hit area) is drawn
+ *  inside the story body. Absent on every print path — output is unchanged. */
+export type ProofEditHooks = {
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  /** Overlay drawn inside a story band's body (absolute-positioned). The
+   *  corner-ad id is the ad item folded into this band, if any. */
+  renderOverlay: (bandId: string, computed: ComputedBand, cornerAdId: string | null) => ReactNode;
+  /** Every band's resolved geometry + text fit, after each recompute. */
+  onComputed?: (computed: ComputedBand[]) => void;
+};
+
 export function ProofBands({
   items,
   contentWidthPx = CONTENT_W_PX,
@@ -40,6 +60,7 @@ export function ProofBands({
   columns,
   pageOrdinal,
   onTextOverflow,
+  edit,
 }: {
   items: ProofItem[];
   /** Render width for the bands — narrowed when a side rail shares the page. */
@@ -57,6 +78,8 @@ export function ProofBands({
    *  band (the pour trims the remainder at the page edge — invisible unless
    *  surfaced). Never rendered; the print output is unchanged. */
   onTextOverflow?: (overflowing: boolean) => void;
+  /** Edit Page Layout only (see ProofEditHooks). */
+  edit?: ProofEditHooks;
 }) {
   const clampCols = (n: number) => Math.min(MAX_COLUMNS, Math.max(MIN_COLUMNS, Math.round(n)));
   const rawInputs: BandInput[] = useMemo(
@@ -142,6 +165,13 @@ export function ProofBands({
     }
   }, [computed, ready, onTextOverflow]);
 
+  // Edit Page Layout reads each band's geometry + fit (inspector, overflow).
+  const onComputedRef = useRef(edit?.onComputed);
+  onComputedRef.current = edit?.onComputed;
+  useEffect(() => {
+    if (ready) onComputedRef.current?.(computed);
+  }, [computed, ready]);
+
   useLayoutEffect(() => {
     if (!stretchBandId || !ready) return;
     const root = rootRef.current;
@@ -171,20 +201,60 @@ export function ProofBands({
       {inputs.map((it) => {
         const c = byId[it.id];
         if (!c) return null;
+        if (!edit) {
+          return (
+            <BandRenderer
+              key={it.id}
+              type={it.type}
+              data={it.data}
+              geometry={c.geometry}
+              layoutResult={c.layoutResult}
+              adHeightPx={c.adHeightPx}
+              adPublicUrl={adUrl}
+              bylineLead={it.type === 'story' && Boolean((it.data.byline ?? '').trim())}
+              photoCaption={it.data.photo_caption}
+              photoCredit={it.data.photo_credit}
+              cornerAdData={it.cornerAd?.data}
+            />
+          );
+        }
+        // Edit Page Layout: same render, plus a click-to-select wrapper (a
+        // block box of identical height — outlines don't affect layout) and
+        // the editor overlay inside the story body.
+        const selected = edit.selectedId === it.id;
+        const overflowing = c.layoutResult ? !c.layoutResult.fits : false;
         return (
-          <BandRenderer
+          <div
             key={it.id}
-            type={it.type}
-            data={it.data}
-            geometry={c.geometry}
-            layoutResult={c.layoutResult}
-            adHeightPx={c.adHeightPx}
-            adPublicUrl={adUrl}
-            bylineLead={it.type === 'story' && Boolean((it.data.byline ?? '').trim())}
-            photoCaption={it.data.photo_caption}
-            photoCredit={it.data.photo_credit}
-            cornerAdData={it.cornerAd?.data}
-          />
+            onClick={() => edit.onSelect(it.id)}
+            className={cn(
+              'relative cursor-pointer',
+              selected
+                ? 'outline outline-2 outline-brand-red outline-offset-2'
+                : 'hover:outline hover:outline-1 hover:outline-zinc-300 hover:outline-offset-2'
+            )}
+          >
+            <BandRenderer
+              type={it.type}
+              data={it.data}
+              geometry={c.geometry}
+              layoutResult={c.layoutResult}
+              adHeightPx={c.adHeightPx}
+              adPublicUrl={adUrl}
+              bylineLead={it.type === 'story' && Boolean((it.data.byline ?? '').trim())}
+              photoCaption={it.data.photo_caption}
+              photoCredit={it.data.photo_credit}
+              cornerAdData={it.cornerAd?.data}
+              editing
+            >
+              {it.type === 'story' ? edit.renderOverlay(it.id, c, it.cornerAd?.id ?? null) : null}
+            </BandRenderer>
+            {overflowing ? (
+              <div className="absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5">
+                Text doesn&apos;t fit
+              </div>
+            ) : null}
+          </div>
         );
       })}
     </div>

@@ -34,6 +34,8 @@ import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 export type CornerAdInput = {
   side: 'left' | 'right';
   data: NpAdData;
+  /** Id of the ad item folded in (lets Edit Page Layout select it). */
+  id?: string;
 };
 
 export type BandInput = {
@@ -81,7 +83,7 @@ export function mergeQuarterAds(inputs: BandInput[], exteriorSide: 'left' | 'rig
   if (storyIdx === -1) return inputs;
   const ad = inputs[adIdx];
   return rest.map((it, i) =>
-    i === storyIdx ? { ...it, cornerAd: { side: exteriorSide, data: ad.data } } : it
+    i === storyIdx ? { ...it, cornerAd: { side: exteriorSide, data: ad.data, id: ad.id } } : it
   );
 }
 

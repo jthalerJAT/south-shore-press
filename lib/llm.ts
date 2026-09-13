@@ -5,7 +5,8 @@ import 'server-only';
  * The model is chosen per writer (writers.model); the provider is inferred
  * from the model name:
  *   claude-*  → Anthropic Messages API (ANTHROPIC_API_KEY)
- *   grok-*    → xAI chat completions, OpenAI format (XAI_API_KEY)
+ *   grok-*    → xAI chat completions, OpenAI format (XAI_API_KEY);
+ *               Responses API + web_search/x_search tools when webSearch is on
  * Callers degrade gracefully when the needed key isn't set.
  */
 
@@ -48,6 +49,55 @@ export async function llmComplete(params: {
   const webSearch = Boolean(params.webSearch);
 
   try {
+    if (providerFor(model) === 'xai' && webSearch) {
+      // xAI Agent Tools (Responses API). The old Live Search
+      // (`search_parameters` on chat completions) was removed 2026-01-12 and
+      // now answers 410 Gone. The server runs the web + X searches itself.
+      const res = await fetch('https://api.x.ai/v1/responses', {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${process.env.XAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model,
+          max_output_tokens: params.maxTokens ?? 4000,
+          input: [
+            { role: 'system', content: params.system },
+            { role: 'user', content: params.user },
+          ],
+          tools: [{ type: 'web_search' }, { type: 'x_search' }],
+          store: false,
+        }),
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        console.error('[llmComplete:xai-responses]', res.status, detail.slice(0, 500));
+        return { ok: false, error: `xAI API error (${res.status}).` };
+      }
+      const data = (await res.json()) as {
+        output_text?: string;
+        output?: Array<{
+          type?: string;
+          content?: Array<{ type?: string; text?: string; annotations?: Array<{ url?: string }> }>;
+        }>;
+        citations?: unknown[];
+      };
+      const parts = (data.output ?? [])
+        .filter((o) => o.type === 'message')
+        .flatMap((o) => o.content ?? [])
+        .filter((c) => c.type === 'output_text' && typeof c.text === 'string');
+      const text = parts.map((c) => c.text as string).join('') || (data.output_text ?? '');
+      if (!text.trim()) return { ok: false, error: 'The model returned no text.' };
+      const urls = [
+        ...(Array.isArray(data.citations) ? data.citations : []).map((c) =>
+          typeof c === 'string' ? c : (c as { url?: string } | null)?.url
+        ),
+        ...parts.flatMap((c) => (c.annotations ?? []).map((a) => a.url)),
+      ].filter((u): u is string => typeof u === 'string' && u.length > 0);
+      return { ok: true, text, citations: Array.from(new Set(urls)) };
+    }
+
     if (providerFor(model) === 'xai') {
       const body: Record<string, unknown> = {
         model,
@@ -57,15 +107,6 @@ export async function llmComplete(params: {
           { role: 'user', content: params.user },
         ],
       };
-      if (webSearch) {
-        // xAI Live Search: web + news + X, citations returned on the response.
-        body.search_parameters = {
-          mode: 'on',
-          return_citations: true,
-          max_search_results: 12,
-          sources: [{ type: 'web' }, { type: 'news' }, { type: 'x' }],
-        };
-      }
       const res = await fetch('https://api.x.ai/v1/chat/completions', {
         method: 'POST',
         headers: {

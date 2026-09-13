@@ -171,6 +171,19 @@ export function PageEditor({
       })
     );
   }
+  // Changing Columns / Photo size by hand hands every story back to those
+  // page-wide levers (a layout saved in Edit Page Layout otherwise wins).
+  function releaseCustomLayouts() {
+    setItems((prev) =>
+      prev.map((it) => {
+        if (!it.layout || it.layout.custom !== true) return it;
+        const { custom: _custom, ...rest } = it.layout;
+        void _custom;
+        return { ...it, layout: rest };
+      })
+    );
+  }
+  const hasCustomLayout = items.some((it) => it.type === 'story' && it.layout?.custom === true);
   function setSlot(localId: string, slotKey: string) {
     setItems((prev) =>
       prev.map((it) =>
@@ -450,7 +463,7 @@ export function PageEditor({
             <div className="inline-flex items-center border border-zinc-300 rounded overflow-hidden">
               <button
                 type="button"
-                onClick={() => { setColumns((c) => Math.max(MIN_COLUMNS, c - 1)); setSaved(false); }}
+                onClick={() => { setColumns((c) => Math.max(MIN_COLUMNS, c - 1)); releaseCustomLayouts(); setSaved(false); }}
                 disabled={columns <= MIN_COLUMNS}
                 className="px-2.5 py-1 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
               >
@@ -459,7 +472,7 @@ export function PageEditor({
               <span className="px-3 py-1 text-sm tabular-nums border-x border-zinc-300 min-w-[2.25rem] text-center">{columns}</span>
               <button
                 type="button"
-                onClick={() => { setColumns((c) => Math.min(MAX_COLUMNS, c + 1)); setSaved(false); }}
+                onClick={() => { setColumns((c) => Math.min(MAX_COLUMNS, c + 1)); releaseCustomLayouts(); setSaved(false); }}
                 disabled={columns >= MAX_COLUMNS}
                 className="px-2.5 py-1 text-zinc-700 hover:bg-zinc-50 disabled:opacity-40"
               >
@@ -494,7 +507,7 @@ export function PageEditor({
               max={1.8}
               step={0.02}
               value={photoScale}
-              onChange={(e) => { setPhotoScale(Number(e.target.value)); setSaved(false); }}
+              onChange={(e) => { setPhotoScale(Number(e.target.value)); releaseCustomLayouts(); setSaved(false); }}
               disabled={!hasPhotos}
               className="w-full accent-brand-red disabled:opacity-50"
             />
@@ -502,6 +515,12 @@ export function PageEditor({
           <p className="text-[11px] text-zinc-400">
             Columns, spacing and photo size apply to the whole page. Click <strong>Save Page Content</strong> to keep them.
           </p>
+          {hasCustomLayout ? (
+            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
+              This page uses the layout saved in <strong>Edit Page Layout</strong>, so Columns and Photo size
+              aren&apos;t changing it. Moving either control replaces that layout with the page-wide setting.
+            </p>
+          ) : null}
         </div>
       </div>
     </div>

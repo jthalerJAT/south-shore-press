@@ -83,6 +83,10 @@ export type StoredStoryLayout = {
   /** Explicit band height as a fraction of content height, or null = auto. */
   band_height: number | null;
   photo: StoredPhotoLayout | null;
+  /** Set when saved from Edit Page Layout: this geometry prints exactly as
+   *  arranged, and the page editor's Columns / Photo size levers skip it
+   *  (until one of those levers is changed by hand, which clears it). */
+  custom?: true;
 };
 
 export type AdSizeValue = 'full' | 'half' | 'third' | 'quarter';
@@ -224,6 +228,7 @@ export function normalizeStoryLayout(
         ? clamp(r.band_height, 0, 1)
         : null,
     photo: normalizePhoto(rawPhoto, column_count),
+    ...(r.custom === true ? { custom: true as const } : {}),
   };
 }
 

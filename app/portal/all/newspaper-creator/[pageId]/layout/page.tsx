@@ -52,6 +52,10 @@ export default async function NewspaperLayoutPage({
         pageTitle={displayTitle}
         sectionName={page.section_name ?? ''}
         initialItems={initialItems}
+        pageFit={{
+          columns: (page.template_data as { columns?: number | null })?.columns ?? null,
+          photoScale: (page.template_data as { photo_scale?: number })?.photo_scale ?? 1,
+        }}
       />
     </PortalShell>
   );

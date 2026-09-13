@@ -59,16 +59,44 @@ function clamp(n: number, lo: number, hi: number) {
   return Math.min(hi, Math.max(lo, n));
 }
 
+/** Apply the page-wide Columns / Photo size levers to a story not yet arranged
+ *  in this editor — the same reshaping ProofBands does at print time. */
+function withPageFit(
+  s: StoredStoryLayout,
+  fit: { columns: number | null; photoScale: number } | undefined
+): StoredStoryLayout {
+  if (!fit || s.custom) return s;
+  let next = s;
+  if (fit.columns) {
+    const column_count = clamp(Math.round(fit.columns), MIN_COLUMNS, MAX_COLUMNS);
+    let photo = next.photo;
+    if (photo) {
+      const col_span = clamp(photo.col_span, 1, column_count);
+      const col_start = clamp(photo.col_start, 1, column_count - col_span + 1);
+      photo = { ...photo, col_span, col_start };
+    }
+    next = { ...next, column_count, photo };
+  }
+  if (next.photo && fit.photoScale !== 1) {
+    next = { ...next, photo: { ...next.photo, height: next.photo.height * fit.photoScale } };
+  }
+  return next;
+}
+
 export function LayoutEditor({
   pageId,
   pageTitle,
   sectionName,
   initialItems,
+  pageFit,
 }: {
   pageId: string;
   pageTitle: string;
   sectionName: string;
   initialItems: InitialItem[];
+  /** Page editor's page-wide levers. Stories not yet arranged here open with
+   *  them applied, so the canvas starts from what currently prints. */
+  pageFit?: { columns: number | null; photoScale: number };
 }) {
   const router = useRouter();
 
@@ -81,7 +109,7 @@ export function LayoutEditor({
       data: it.data,
       story:
         it.type === 'story'
-          ? normalizeStoryLayout(it.layout, i, Boolean(it.data.hero_photo_url))
+          ? withPageFit(normalizeStoryLayout(it.layout, i, Boolean(it.data.hero_photo_url)), pageFit)
           : undefined,
       ad: it.type === 'ad' ? normalizeAdLayout(it.layout, i, it.data.ad_size ?? 'quarter') : undefined,
     }))
@@ -200,7 +228,12 @@ export function LayoutEditor({
       slot_key: b.slot_key,
       source_story_id: b.source_story_id,
       data: b.data as Record<string, unknown>,
-      layout: (b.type === 'story' ? b.story : b.ad) as unknown as Record<string, unknown>,
+      // Stories saved here print exactly as arranged (custom skips the page
+      // editor's Columns / Photo size overrides).
+      layout: (b.type === 'story' && b.story ? { ...b.story, custom: true } : b.ad) as unknown as Record<
+        string,
+        unknown
+      >,
     }));
     const res = await savePage(pageId, sectionName, items);
     setSaving(false);

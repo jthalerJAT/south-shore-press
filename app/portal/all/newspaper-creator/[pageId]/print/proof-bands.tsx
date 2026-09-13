@@ -71,7 +71,9 @@ export function ProofBands({
           it.type === 'story'
             ? normalizeStoryLayout(it.layout, i, Boolean(it.data.hero_photo_url))
             : undefined;
-        if (story) {
+        // A layout arranged in Edit Page Layout prints exactly as arranged —
+        // the page-wide Columns / Photo size levers don't reshape it.
+        if (story && !story.custom) {
           if (columns) story = { ...story, column_count: clampCols(columns) };
           if (story.photo && photoScale !== 1) {
             story = { ...story, photo: { ...story.photo, height: story.photo.height * photoScale } };

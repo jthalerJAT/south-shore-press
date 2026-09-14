@@ -7,6 +7,11 @@ import {
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
+// force-dynamic alone does NOT bypass Next's DATA cache: the Supabase read
+// (a GET fetch under the hood) was cached at first request and never
+// revalidated, so the office-PC desks kept receiving guidelines from weeks
+// ago after every edit. This forces every fetch in this route to no-store.
+export const fetchCache = 'force-no-store';
 
 /**
  * GET /api/house-style — the house writing guidelines for the office-PC AI

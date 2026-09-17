@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { requireMasterAdmin } from '@/lib/auth';
+import { requireAdminStoriesAccess } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { AdminStoryForm } from '../admin-story-form';
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function NewAdminStoryPage() {
-  const user = await requireMasterAdmin('/portal/all/master-admin-stories/new');
+  const user = await requireAdminStoriesAccess('/portal/all/master-admin-stories/new');
   return (
     <PortalShell
       user={user}

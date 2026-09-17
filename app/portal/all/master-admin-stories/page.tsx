@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { requireMasterAdmin } from '@/lib/auth';
+import { requireAdminStoriesAccess } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getAdminStories } from '@/lib/queries/admin-stories';
 import { AdminStoriesList } from './admin-stories-list';
@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 export default async function MasterAdminStoriesPage() {
-  const user = await requireMasterAdmin('/portal/all/master-admin-stories');
+  const user = await requireAdminStoriesAccess('/portal/all/master-admin-stories');
   const { rows, error } = await getAdminStories();
 
   return (

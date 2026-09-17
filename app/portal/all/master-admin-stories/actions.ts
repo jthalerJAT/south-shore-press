@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { getCurrentUser, isPinnedMasterAdmin } from '@/lib/auth';
+import { getCurrentUser, isPinnedMasterAdmin, canAccessAdminStories } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { llmComplete, isModelEnabled, DEFAULT_MODEL } from '@/lib/llm';
 import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG } from '@/lib/site-config';
@@ -47,7 +47,18 @@ export type AdminStoryInput = {
 
 type Result = { ok: boolean; error?: string; id?: string; adminId?: string };
 
+/** Story actions: master admin OR an 'admin stories' credential holder. */
 async function requireMaster(): Promise<
+  { ok: true; user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>> } | { ok: false; error: string }
+> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: 'Not signed in.' };
+  if (!canAccessAdminStories(user)) return { ok: false, error: 'Admin Stories access required.' };
+  return { ok: true, user };
+}
+
+/** Guidelines stay master-admin-only. */
+async function requirePinnedMaster(): Promise<
   { ok: true; user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>> } | { ok: false; error: string }
 > {
   const user = await getCurrentUser();
@@ -258,7 +269,7 @@ export async function deleteAdminStory(id: string): Promise<Result> {
 /** Save the house writing guidelines (Master Admin Stories → Writing
  *  Guidelines). Every AI writing path reads the saved text on its next run. */
 export async function saveHouseStyle(content: string): Promise<Result> {
-  const gate = await requireMaster();
+  const gate = await requirePinnedMaster();
   if (!gate.ok) return { ok: false, error: gate.error };
   const text = (content ?? '').replace(/\r\n/g, '\n').trim();
   if (!text) return { ok: false, error: 'The guidelines cannot be empty.' };

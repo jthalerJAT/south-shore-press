@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { requireMasterAdmin } from '@/lib/auth';
+import { requireAdminStoriesAccess } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getAdminStory } from '@/lib/queries/admin-stories';
 import { AdminStoryForm } from '../admin-story-form';
@@ -19,7 +19,7 @@ export default async function EditAdminStoryPage({
   params: { id: string };
   searchParams?: { saved?: string; pushed?: string };
 }) {
-  const user = await requireMasterAdmin(`/portal/all/master-admin-stories/${params.id}`);
+  const user = await requireAdminStoriesAccess(`/portal/all/master-admin-stories/${params.id}`);
   const story = await getAdminStory(params.id);
   if (!story) notFound();
 

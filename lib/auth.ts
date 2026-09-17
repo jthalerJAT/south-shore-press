@@ -30,6 +30,21 @@ export type UserRole =
  */
 export type CustomerRole = 'advertiser' | 'legal';
 
+/**
+ * ACCESS credentials — grantable feature keys that are neither editorial
+ * roles nor customer portals. 'admin stories' opens the Master Admin
+ * Stories tile to a non-master-admin (2026-09-17; master admin remains a
+ * singleton). Stored in profiles.roles[] like the customer credentials;
+ * grantable only by the master admin.
+ */
+export type AccessRole = 'admin stories';
+
+export function normalizeAccessRole(raw: unknown): AccessRole | null {
+  const normalized = String(raw ?? '').toLowerCase().replace(/_/g, ' ').trim();
+  if (normalized === 'admin stories') return normalized;
+  return null;
+}
+
 export function normalizeCustomerRole(raw: unknown): CustomerRole | null {
   const normalized = String(raw ?? '').toLowerCase().replace(/_/g, ' ').trim();
   if (normalized === 'advertiser' || normalized === 'legal') return normalized;
@@ -66,6 +81,8 @@ export type AuthenticatedUser = {
   /** Customer credentials (advertiser / legal) — gate the Ad Portal and
    *  Legal Portal. Independent of the editorial hierarchy. */
   customerRoles: CustomerRole[];
+  /** Access credentials (feature keys, e.g. 'admin stories'). */
+  accessRoles: AccessRole[];
 };
 
 /** Priority order for picking the "primary" single role from a roles
@@ -226,6 +243,14 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     )
   );
 
+  const accessRoles: AccessRole[] = Array.from(
+    new Set(
+      rawArray
+        .map(normalizeAccessRole)
+        .filter((r): r is AccessRole => r !== null)
+    )
+  );
+
   if (roles.length === 0) {
     const single = normalizeRole(profile.role);
     if (single) roles = [single];
@@ -243,6 +268,7 @@ export async function getCurrentUser(): Promise<AuthenticatedUser | null> {
     role,
     roles,
     customerRoles,
+    accessRoles,
   };
 }
 
@@ -287,8 +313,30 @@ export async function requireRole(
   return user;
 }
 
-/** Gate for master-admin-only surfaces (Master Admin Stories): signed in,
- *  holding the master admin role, AND the pinned master admin account. */
+/** Master Admin Stories access: the pinned master admin, or a holder of
+ *  the 'admin stories' access credential (granted on the Credentials page
+ *  by the master admin). Mirrors SQL public.has_admin_stories_access(). */
+export function canAccessAdminStories(user: {
+  email: string;
+  roles: ReadonlyArray<UserRole>;
+  accessRoles: ReadonlyArray<AccessRole>;
+}): boolean {
+  return isPinnedMasterAdmin(user) || user.accessRoles.includes('admin stories');
+}
+
+/** Gate for Master Admin Stories pages/actions: master admin or an
+ *  'admin stories' credential holder. */
+export async function requireAdminStoriesAccess(returnTo: string): Promise<AuthenticatedUser> {
+  const user = await requireUser(returnTo);
+  if (!canAccessAdminStories(user)) {
+    redirect('/portal/all?denied=1');
+  }
+  return user;
+}
+
+/** Gate for master-admin-only surfaces (the Writing Guidelines editor,
+ *  credential grants): signed in, holding the master admin role, AND the
+ *  pinned master admin account. */
 export async function requireMasterAdmin(returnTo: string): Promise<AuthenticatedUser> {
   const user = await requireUser(returnTo);
   if (!isPinnedMasterAdmin(user)) {

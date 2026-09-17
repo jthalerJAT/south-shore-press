@@ -26,7 +26,7 @@ import type { UserRole } from '@/lib/auth';
  *   own Admin role
  */
 
-type RoleKey = 'admin' | 'editor' | 'journalist' | 'advertiser' | 'legal';
+type RoleKey = 'admin' | 'editor' | 'journalist' | 'stories' | 'advertiser' | 'legal';
 type SortKey = 'first' | 'last' | 'email' | 'created' | RoleKey;
 type SortDir = 'asc' | 'desc';
 
@@ -34,6 +34,7 @@ const ROLE_KEYS: ReadonlyArray<RoleKey> = [
   'admin',
   'editor',
   'journalist',
+  'stories',
   'advertiser',
   'legal',
 ];
@@ -44,9 +45,17 @@ const ROLE_LABELS: Record<RoleKey, string> = {
   admin: 'Admin',
   editor: 'Editor',
   journalist: 'Journalist',
+  stories: 'Admin Stories',
   advertiser: 'Advertiser',
   legal: 'Legal',
 };
+
+/** roles[] string ↔ checkbox key: the access credential is stored as
+ *  'admin stories' but keyed 'stories' in this table. */
+function roleStringToKey(n: string): RoleKey | null {
+  if (n === 'admin stories') return 'stories';
+  return isRoleKey(n) ? n : null;
+}
 
 function isRoleKey(n: string): n is RoleKey {
   return (ROLE_KEYS as ReadonlyArray<string>).includes(n);
@@ -111,8 +120,8 @@ export function CredentialsTable({
     for (const p of initialProfiles) {
       const granted = new Set<RoleKey>();
       for (const r of p.roles ?? []) {
-        const n = normalize(r);
-        if (isRoleKey(n)) granted.add(n);
+        const k = roleStringToKey(normalize(r));
+        if (k) granted.add(k);
       }
       m.set(p.id, granted);
     }
@@ -155,8 +164,8 @@ export function CredentialsTable({
 
       const originalRoles = new Set<RoleKey>();
       for (const r of p.roles ?? []) {
-        const n = normalize(r);
-        if (isRoleKey(n)) originalRoles.add(n);
+        const k = roleStringToKey(normalize(r));
+        if (k) originalRoles.add(k);
       }
 
       // Per-role disabled map. Customer credentials (advertiser / legal)
@@ -165,6 +174,8 @@ export function CredentialsTable({
         admin: rowLocked || !viewerIsMaster,
         editor: rowLocked,
         journalist: rowLocked,
+        // Admin Stories access: master admin grants only.
+        stories: rowLocked || !viewerIsMaster,
         advertiser: rowLocked,
         legal: rowLocked,
       };
@@ -225,7 +236,7 @@ export function CredentialsTable({
       label: string;
       gained: RoleKey[];
       lost: RoleKey[];
-      finalRoles: RoleKey[];
+      finalRoles: string[];
     };
     const list: Change[] = [];
     for (const p of enriched) {
@@ -251,7 +262,8 @@ export function CredentialsTable({
         label,
         gained,
         lost,
-        finalRoles: Array.from(next),
+        // Checkbox keys → stored role strings ('stories' → 'admin stories').
+        finalRoles: Array.from(next).map((k) => (k === 'stories' ? 'admin stories' : k)),
       });
     }
     return list;
@@ -607,7 +619,7 @@ export function CredentialsTable({
               {visible.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={13}
+                    colSpan={14}
                     className="px-4 py-8 text-center text-zinc-500"
                   >
                     No users match.

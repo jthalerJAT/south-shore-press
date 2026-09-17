@@ -13,8 +13,10 @@ import {
   pickHighestRole,
   normalizeRole,
   normalizeCustomerRole,
+  normalizeAccessRole,
   type UserRole,
   type CustomerRole,
+  type AccessRole,
 } from '@/lib/auth';
 
 /**
@@ -111,6 +113,24 @@ export async function setUserRolesAction(
         .filter((r): r is CustomerRole => r !== null)
     )
   );
+  // ACCESS credentials ('admin stories'): grantable/revocable ONLY by the
+  // master admin — they open master-admin surfaces to a delegate.
+  const accessGranted = Array.from(
+    new Set(
+      newRoles
+        .map((r) => normalizeAccessRole(r))
+        .filter((r): r is AccessRole => r !== null)
+    )
+  );
+  const targetHadAccess = (Array.isArray(target.roles) ? target.roles : [])
+    .map(normalizeAccessRole)
+    .filter((r): r is AccessRole => r !== null);
+  const accessChanged =
+    accessGranted.length !== targetHadAccess.length ||
+    accessGranted.some((r) => !targetHadAccess.includes(r));
+  if (accessChanged && !isMasterAdmin(me)) {
+    return { error: 'Only master admin can grant or revoke Admin Stories access.' };
+  }
 
   // Per-role check: for every role that's being ADDED or REMOVED,
   // confirm the viewer has permission to toggle that specific role
@@ -146,6 +166,7 @@ export async function setUserRolesAction(
   const finalRoles: string[] = [
     ...granted,
     ...customerGranted,
+    ...accessGranted,
     ...(wasMasterAdmin ? (['master admin'] as UserRole[]) : []),
     'reader',
   ];

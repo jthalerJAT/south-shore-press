@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, BookOpen, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale, Sparkles } from 'lucide-react';
-import { requireRole, canManageCredentials, isPinnedMasterAdmin } from '@/lib/auth';
+import { requireRole, canManageCredentials, canAccessAdminStories } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
 
@@ -63,7 +63,7 @@ export default async function EditorPortalLandingPage() {
     },
     // Master admin ONLY (the pinned publisher account): the private story
     // bank where AI drafts land first and Admin Drafts live.
-    ...(isPinnedMasterAdmin(user)
+    ...(canAccessAdminStories(user)
       ? [
           {
             href: '/portal/all/master-admin-stories',

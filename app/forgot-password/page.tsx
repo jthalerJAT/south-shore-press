@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ForgotPasswordForm } from './forgot-password-form';
+import { turnstileSiteKeyFromEnv } from '@/components/turnstile-widget';
 
 export const metadata: Metadata = {
   title: 'Forgot password',
@@ -17,7 +18,7 @@ export default function ForgotPasswordPage() {
         Enter your email and we&apos;ll send you a link to reset it.
       </p>
       <div className="mt-8">
-        <ForgotPasswordForm />
+        <ForgotPasswordForm turnstileSiteKey={turnstileSiteKeyFromEnv()} />
       </div>
       <p className="mt-6 text-center text-sm text-zinc-600">
         Remembered it?{' '}

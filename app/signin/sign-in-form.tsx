@@ -2,6 +2,7 @@
 
 import { useFormState, useFormStatus } from 'react-dom';
 import { signInAction } from './actions';
+import { TurnstileWidget } from '@/components/turnstile-widget';
 
 /**
  * Client component that drives the sign-in form via useFormState +
@@ -9,7 +10,7 @@ import { signInAction } from './actions';
  * fetch() here, no client-side Supabase, no token handling in the
  * browser. That's the v2 win over v1's raw-fetch + localStorage path.
  */
-export function SignInForm({ next }: { next: string }) {
+export function SignInForm({ next, turnstileSiteKey = null }: { next: string; turnstileSiteKey?: string | null }) {
   const [state, formAction] = useFormState(signInAction, { error: null });
 
   return (
@@ -57,6 +58,7 @@ export function SignInForm({ next }: { next: string }) {
         </div>
       ) : null}
 
+      <TurnstileWidget siteKey={turnstileSiteKey} />
       <SubmitButton />
     </form>
   );

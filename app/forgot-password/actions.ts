@@ -26,8 +26,11 @@ export async function forgotPasswordAction(
   }
 
   const supabase = createClient();
+  const captchaToken =
+    String(formData.get('cf-turnstile-response') ?? '').trim() || undefined;
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${getSiteOrigin()}/auth/callback?next=/reset-password`,
+    captchaToken,
   });
 
   if (error) {

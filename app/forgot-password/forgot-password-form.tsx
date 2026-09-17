@@ -1,11 +1,12 @@
 'use client';
 
 import { useFormState, useFormStatus } from 'react-dom';
+import { TurnstileWidget } from '@/components/turnstile-widget';
 import { forgotPasswordAction, type ForgotPasswordState } from './actions';
 
 const initialState: ForgotPasswordState = { error: null, sent: false };
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ turnstileSiteKey = null }: { turnstileSiteKey?: string | null }) {
   const [state, formAction] = useFormState(forgotPasswordAction, initialState);
 
   if (state.sent) {
@@ -44,6 +45,7 @@ export function ForgotPasswordForm() {
         </div>
       ) : null}
 
+      <TurnstileWidget siteKey={turnstileSiteKey} />
       <SubmitButton />
     </form>
   );

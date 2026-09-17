@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser, canManageAllStories } from '@/lib/auth';
 import { SignInForm } from './sign-in-form';
+import { turnstileSiteKeyFromEnv } from '@/components/turnstile-widget';
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -65,7 +66,7 @@ export default async function SignInPage({
       ) : null}
 
       <div className="mt-8">
-        <SignInForm next={next} />
+        <SignInForm next={next} turnstileSiteKey={turnstileSiteKeyFromEnv()} />
       </div>
 
       <div className="mt-6 flex flex-col sm:flex-row sm:justify-between gap-2 text-sm text-zinc-600 text-center">

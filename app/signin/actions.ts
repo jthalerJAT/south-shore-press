@@ -33,9 +33,19 @@ export async function signInAction(
   }
 
   const supabase = createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  // Turnstile token — Supabase CAPTCHA protection enforces it on sign-in.
+  const captchaToken =
+    String(formData.get('cf-turnstile-response') ?? '').trim() || undefined;
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+    options: { captchaToken },
+  });
 
   if (error) {
+    if (error.message.toLowerCase().includes('captcha')) {
+      return { error: 'Bot check failed — give the verification box a moment to finish, then try again.' };
+    }
     // Don't leak which half was wrong (email vs password) — generic msg.
     return { error: 'Invalid email or password.' };
   }

@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { getCurrentUser, canManageAllStories } from '@/lib/auth';
 import { SignInForm } from './sign-in-form';
-import { turnstileSiteKeyFromEnv } from '@/components/turnstile-widget';
+import { turnstileSiteKeyFromEnv } from '@/lib/turnstile';
 
 export const metadata: Metadata = {
   title: 'Sign in',

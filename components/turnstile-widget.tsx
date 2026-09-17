@@ -29,8 +29,3 @@ export function TurnstileWidget({ siteKey }: { siteKey?: string | null }) {
   if (!key) return null;
   return <div className="cf-turnstile" data-sitekey={key} />;
 }
-
-/** Server-side helper value: the Turnstile site key from the runtime env. */
-export function turnstileSiteKeyFromEnv(): string | null {
-  return process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? process.env.TURNSTILE_SITE_KEY ?? null;
-}

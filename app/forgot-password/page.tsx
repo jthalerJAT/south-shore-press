@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ForgotPasswordForm } from './forgot-password-form';
-import { turnstileSiteKeyFromEnv } from '@/components/turnstile-widget';
+import { turnstileSiteKeyFromEnv } from '@/lib/turnstile';
+
+// Per-request render so the Turnstile site key comes from the runtime env.
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Forgot password',

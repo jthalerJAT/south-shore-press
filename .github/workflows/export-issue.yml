@@ -81,4 +81,5 @@ jobs:
             out/issue-x1a.pdf
             out/issue-rgb.pdf
             out/issue-web.pdf
+            out/issue-legals.pdf
           if-no-files-found: error

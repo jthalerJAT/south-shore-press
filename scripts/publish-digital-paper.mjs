@@ -54,8 +54,8 @@ const pageCount = Number(
 console.log(`Issue date ${issueDate}, ${pageCount} pages.`);
 
 // 3) Sign → PUT → record.
-async function api(payload) {
-  const r = await fetch(`${BASE}/api/ingest/digital-paper`, {
+async function api(payload, endpoint = 'digital-paper') {
+  const r = await fetch(`${BASE}/api/ingest/${endpoint}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-ssp-print-token': TOKEN },
     body: JSON.stringify(payload),
@@ -83,3 +83,60 @@ await api({
   file_size_bytes: sizeBytes,
 });
 console.log(`Digital Paper published: ${issueDate} (${pageCount} pages, ${(sizeBytes / 1e6).toFixed(1)} MB).`);
+
+// ── Legals section → the public Legals library ──────────────────────────────
+// Detect the legal-notices pages: text pages carrying the LEGAL NOTICES
+// banner near the top, EXTENDED across adjacent image-only pages (uploaded
+// court documents rasterized into the paper carry no text beyond the running
+// header — the 2026-08-26 issue's 8 extra pages taught us this).
+try {
+  const mupdf = await import('mupdf');
+  const { readFileSync: rf } = await import('node:fs');
+  const doc = mupdf.PDFDocument.openDocument(rf(SRC), 'application/pdf');
+  const n = doc.countPages();
+  const texts = [];
+  for (let i = 0; i < n; i++) {
+    texts.push(doc.loadPage(i).toStructuredText('preserve-whitespace').asText());
+  }
+  const isCore = (t) =>
+    t.toUpperCase().slice(0, 600).includes('LEGAL NOTICES') &&
+    (t.toUpperCase().match(/NOTICE/g) ?? []).length > 3;
+  const isImageOnly = (t) => t.replace(/\s+/g, ' ').trim().length <= 250;
+  const core = texts.map((t, i) => (isCore(t) ? i : -1)).filter((i) => i >= 0);
+  if (core.length === 0) {
+    console.log('No legal-notices pages found — skipping Legals publish.');
+  } else {
+    let lo = Math.min(...core);
+    let hi = Math.max(...core);
+    while (hi + 1 < n && (core.includes(hi + 1) || isImageOnly(texts[hi + 1]))) hi += 1;
+    while (lo - 1 >= 0 && (core.includes(lo - 1) || isImageOnly(texts[lo - 1]))) lo -= 1;
+    const LEGALS_OUT = 'out/issue-legals.pdf';
+    console.log(`Legals section: pages ${lo + 1}-${hi + 1} (${hi - lo + 1} pages). Extracting …`);
+    execFileSync(GS, [
+      '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.5', '-dPDFSETTINGS=/ebook',
+      `-dFirstPage=${lo + 1}`, `-dLastPage=${hi + 1}`,
+      '-dColorImageResolution=110', '-dGrayImageResolution=110', '-dMonoImageResolution=300',
+      '-dNOPAUSE', '-dBATCH', '-dQUIET', `-sOutputFile=${LEGALS_OUT}`, SRC,
+    ], { stdio: 'inherit' });
+    const legalsBytes = statSync(LEGALS_OUT).size;
+    const lSigned = await api({ action: 'sign' }, 'legals');
+    const lPut = await fetch(lSigned.signedUrl, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/pdf' },
+      body: readFileSync(LEGALS_OUT),
+    });
+    if (!lPut.ok) throw new Error(`Legals upload failed (${lPut.status})`);
+    await api({
+      action: 'record',
+      legal_date: issueDate,
+      storage_path: lSigned.path,
+      file_name: `SSP Legals ${issueDate}.pdf`,
+    }, 'legals');
+    console.log(`Legals published: ${issueDate}, ${hi - lo + 1} pages, ${(legalsBytes / 1e6).toFixed(1)} MB.`);
+  }
+} catch (err) {
+  // The paper itself is already archived — a legals failure still fails the
+  // step visibly (so CI notices), but only after the DP publish succeeded.
+  console.error('Legals publish FAILED:', err.message);
+  process.exit(1);
+}

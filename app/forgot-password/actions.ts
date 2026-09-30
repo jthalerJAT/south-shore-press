@@ -34,8 +34,26 @@ export async function forgotPasswordAction(
   });
 
   if (error) {
-    // Log internally but don't surface to the user — generic message.
     console.error('[forgotPasswordAction]', error);
+    // captcha / rate-limit failures mean NO email went out — telling the
+    // user "sent" here strands them (2026-09-30: exactly what happened when
+    // the form submitted before Turnstile finished). Neither error reveals
+    // whether the address has an account, so surfacing them is safe.
+    const code = (error as { code?: string }).code ?? '';
+    if (code === 'captcha_failed' || /captcha/i.test(error.message)) {
+      return {
+        error: 'Human verification did not complete. Please try again.',
+        sent: false,
+      };
+    }
+    if (code === 'over_email_send_rate_limit' || error.status === 429) {
+      return {
+        error: 'Too many attempts — please wait a minute and try again.',
+        sent: false,
+      };
+    }
+    // Anything else (e.g. unknown email) still gets the generic success so
+    // the form can't be used to probe which emails have accounts.
   }
 
   // Same response regardless of whether the email matched an account.

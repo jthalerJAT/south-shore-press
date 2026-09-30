@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
 import { signInAction } from './actions';
 import { TurnstileWidget } from '@/components/turnstile-widget';
@@ -12,6 +13,10 @@ import { TurnstileWidget } from '@/components/turnstile-widget';
  */
 export function SignInForm({ next, turnstileSiteKey = null }: { next: string; turnstileSiteKey?: string | null }) {
   const [state, formAction] = useFormState(signInAction, { error: null });
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  // Submitting before Turnstile has produced a token means Supabase rejects
+  // the request — hold the button until the challenge completes.
+  const captchaPending = Boolean(turnstileSiteKey) && !captchaToken;
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
@@ -58,21 +63,21 @@ export function SignInForm({ next, turnstileSiteKey = null }: { next: string; tu
         </div>
       ) : null}
 
-      <TurnstileWidget siteKey={turnstileSiteKey} />
-      <SubmitButton />
+      <TurnstileWidget siteKey={turnstileSiteKey} onToken={setCaptchaToken} />
+      <SubmitButton captchaPending={captchaPending} />
     </form>
   );
 }
 
-function SubmitButton() {
+function SubmitButton({ captchaPending }: { captchaPending: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || captchaPending}
       className="mt-2 inline-flex items-center justify-center px-4 py-2.5 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 disabled:cursor-not-allowed text-white text-sm font-medium uppercase tracking-wide rounded transition-colors"
     >
-      {pending ? 'Signing in…' : 'Sign in'}
+      {pending ? 'Signing in…' : captchaPending ? 'Verifying…' : 'Sign in'}
     </button>
   );
 }

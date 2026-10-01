@@ -8,16 +8,35 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// The token_hash flow must read searchParams per request.
+export const dynamic = 'force-dynamic';
+
 /**
- * /reset-password — landed-on after the user clicks the reset link in
- * their email and /auth/callback has exchanged the code for a session.
- * If the session is missing (link expired, manual visit), bounce to
- * /forgot-password so the user can request a new link.
+ * /reset-password — two ways in:
+ *
+ * 1. ?token_hash=... (the reset email links here directly since
+ *    2026-10-01): render the form WITHOUT touching the token. It is only
+ *    consumed when the form is submitted, so email-security scanners that
+ *    prefetch the link (Microsoft Defender Safe Links burned every reset
+ *    link sent to a corporate inbox) can't invalidate it.
+ *
+ * 2. A recovery session from /auth/callback (legacy emails sent before
+ *    the template change). If neither is present (expired link, manual
+ *    visit), bounce to /forgot-password so the user can request a new
+ *    link.
  */
-export default async function ResetPasswordPage() {
-  const user = await getCurrentUser();
-  if (!user) {
-    redirect('/forgot-password?expired=1');
+export default async function ResetPasswordPage({
+  searchParams,
+}: {
+  searchParams: { token_hash?: string };
+}) {
+  const tokenHash = (searchParams.token_hash ?? '').trim() || null;
+
+  if (!tokenHash) {
+    const user = await getCurrentUser();
+    if (!user) {
+      redirect('/forgot-password?expired=1');
+    }
   }
 
   return (
@@ -29,7 +48,7 @@ export default async function ResetPasswordPage() {
         Choose a password you don&apos;t use anywhere else.
       </p>
       <div className="mt-8">
-        <ResetPasswordForm />
+        <ResetPasswordForm tokenHash={tokenHash} />
       </div>
     </section>
   );

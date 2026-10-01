@@ -5,11 +5,14 @@ import { resetPasswordAction, type ResetPasswordState } from './actions';
 
 const initialState: ResetPasswordState = { error: null };
 
-export function ResetPasswordForm() {
+export function ResetPasswordForm({ tokenHash = null }: { tokenHash?: string | null }) {
   const [state, formAction] = useFormState(resetPasswordAction, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {/* Consumed by the action on submit — never on page load, so email
+          link scanners can't burn the one-time token. */}
+      {tokenHash ? <input type="hidden" name="token_hash" value={tokenHash} /> : null}
       <div>
         <label htmlFor="password" className="block text-sm font-medium text-zinc-700">
           New password

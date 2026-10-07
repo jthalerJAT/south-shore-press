@@ -46,7 +46,9 @@ export default async function NewspaperPageEditorPage({
   const page = await getPage(params.pageId);
   if (!page) notFound();
 
-  const pages = await getPages();
+  // Scope the page list to THIS page's issue variant so ordinals (and the
+  // election section) stay correct even when editing the non-active issue.
+  const pages = await getPages(page.variant ?? 'standard');
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
   const displayTitle = pageHeading(page.title, ordinal);
 

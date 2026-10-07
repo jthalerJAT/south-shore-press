@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
 import { PortalShell } from '@/components/portal/portal-shell';
-import { getPages, getItemSummaries } from '@/lib/queries/newspaper';
+import { getPages, getItemSummaries, getActiveVariant } from '@/lib/queries/newspaper';
 import { getAllStoriesForEditor } from '@/lib/queries/editor-stories';
 import { getAds } from '@/lib/queries/ads';
 import { getLegalsList, legalPublicUrl, formatLegalDate } from '@/lib/queries/legals';
@@ -23,9 +23,11 @@ export default async function NewspaperCreatorPage() {
     '/portal/all/newspaper-creator'
   );
 
-  // Seed the default pages once (first visit).
-  let pages = await getPages();
-  if (pages.length === 0) {
+  // Seed the default pages once (first visit). Scoped to the ACTIVE issue
+  // variant — the board shows one of the two coexisting issues at a time.
+  const issueVariant = await getActiveVariant();
+  let pages = await getPages(issueVariant);
+  if (pages.length === 0 && issueVariant === 'standard') {
     const supabase = createClient();
     await supabase.from('np_pages').insert(
       DEFAULT_PAGES.map((p, i) => ({
@@ -33,9 +35,10 @@ export default async function NewspaperCreatorPage() {
         kind: p.kind,
         title: p.title,
         status: 'tbd',
+        variant: 'standard',
       }))
     );
-    pages = await getPages();
+    pages = await getPages(issueVariant);
   }
 
   const [summaries, stories, ads, legalsRaw, classifiedsRaw] = await Promise.all([
@@ -76,6 +79,7 @@ export default async function NewspaperCreatorPage() {
         ads={ads}
         legals={legals}
         classifieds={classifieds}
+        issueVariant={issueVariant}
       />
     </PortalShell>
   );

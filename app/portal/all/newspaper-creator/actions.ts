@@ -16,7 +16,12 @@ import {
   templateId,
   type NpKind,
 } from '@/lib/newspaper-templates';
-import { NEWSPAPER_ADS_BUCKET } from '@/lib/queries/newspaper';
+import {
+  NEWSPAPER_ADS_BUCKET,
+  getActiveVariant,
+  pageInVariant,
+  type IssueVariant,
+} from '@/lib/queries/newspaper';
 import { NEWSPAPER_IMAGES_BUCKET } from '@/lib/newspaper-images';
 import { defaultStoryLayout, defaultAdLayout, type AdSizeValue } from '@/lib/newspaper/layout-engine';
 import { normalizeCover, fillSlotFromStory } from '@/lib/newspaper/section-cover';
@@ -42,26 +47,44 @@ function normalizeAdSize(size?: string | null): AdSizeValue {
     : 'quarter';
 }
 
-/** Seed the default pages once, on first visit (idempotent — no-op if any
- *  pages already exist). */
-export async function seedDefaultPages(): Promise<Result> {
-  await requireRole([...EDITOR_ROLES], BASE);
-  const supabase = createClient();
-  const { count, error: cErr } = await supabase
-    .from('np_pages')
-    .select('id', { count: 'exact', head: true });
-  if (cErr) return { ok: false, error: 'Could not read pages.' };
-  if ((count ?? 0) > 0) return { ok: true };
-
-  const rows = DEFAULT_PAGES.map((p, i) => ({
+/** Skeleton rows for a fresh issue of the given variant. */
+function lineupRows(variant: IssueVariant) {
+  const lineup = variant === 'election' ? ELECTION_DEFAULT_PAGES : DEFAULT_PAGES;
+  return lineup.map((p, i) => ({
     page_order: i + 1,
     kind: p.kind,
     title: p.title,
     section_name: p.section ?? null,
     template_data: p.colophon ? { show_colophon: true } : {},
     status: 'tbd',
+    variant,
   }));
-  const { error } = await supabase.from('np_pages').insert(rows);
+}
+
+/** Ids of the pages belonging to one variant (filtered in JS so the read
+ *  works before migration 050; absent variant counts as 'standard'). */
+async function variantPageIds(
+  supabase: ReturnType<typeof createClient>,
+  variant: IssueVariant
+): Promise<string[]> {
+  const { data } = await supabase
+    .from('np_pages')
+    .select('*')
+    .order('page_order', { ascending: true });
+  return ((data ?? []) as Array<{ id: string; variant?: string | null }>)
+    .filter((p) => pageInVariant(p, variant))
+    .map((p) => p.id);
+}
+
+/** Seed the default pages once, on first visit (idempotent — no-op if the
+ *  standard issue already has pages). */
+export async function seedDefaultPages(): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const existing = await variantPageIds(supabase, 'standard');
+  if (existing.length > 0) return { ok: true };
+
+  const { error } = await supabase.from('np_pages').insert(lineupRows('standard'));
   if (error) {
     console.error('[seedDefaultPages]', error);
     return { ok: false, error: 'Could not seed pages.' };
@@ -70,34 +93,57 @@ export async function seedDefaultPages(): Promise<Result> {
   return { ok: true };
 }
 
-/** Rebuild the entire page list — DESTRUCTIVE: deletes every page and its
- *  content, then re-seeds a fresh 40-page skeleton. `variant` picks the
- *  lineup: 'standard' (DEFAULT_PAGES) or 'election' (ELECTION_DEFAULT_PAGES —
- *  the special-issue structure with 6 election pages starting on page 3,
- *  toggled from the board's "Election Issue" switch). */
-export async function reseedPages(variant: 'standard' | 'election' = 'standard'): Promise<Result> {
+/** Rebuild the ACTIVE issue — DESTRUCTIVE for that issue only: deletes its
+ *  pages and content and re-seeds its blank skeleton (standard lineup, or the
+ *  election lineup when the Election Issue is active). The OTHER issue is
+ *  untouched — the two coexist and the board toggle switches between them. */
+export async function reseedPages(): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const variant = await getActiveVariant();
+
+  const ids = await variantPageIds(supabase, variant);
+  if (ids.length > 0) {
+    const { error: delErr } = await supabase.from('np_pages').delete().in('id', ids);
+    if (delErr) {
+      console.error('[reseedPages] delete', delErr);
+      return { ok: false, error: 'Could not clear the existing pages.' };
+    }
+  }
+
+  const { error } = await supabase.from('np_pages').insert(lineupRows(variant));
+  if (error) {
+    console.error('[reseedPages] insert', error);
+    return { ok: false, error: 'Could not rebuild the pages. Is migration 050 applied?' };
+  }
+  revalidatePath(BASE);
+  return { ok: true };
+}
+
+/** The board's "Election Issue" toggle: switch which issue is ACTIVE —
+ *  NON-destructive. Both issues keep their pages and content; the first time
+ *  a variant is activated its blank skeleton is seeded. Everything downstream
+ *  (board, editors, View File, Reset Content, Rebuild Pages, press export)
+ *  follows the active variant. */
+export async function setActiveVariant(variant: IssueVariant): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
 
-  const { error: delErr } = await supabase.from('np_pages').delete().not('id', 'is', null);
-  if (delErr) {
-    console.error('[reseedPages] delete', delErr);
-    return { ok: false, error: 'Could not clear the existing pages.' };
+  const ids = await variantPageIds(supabase, variant);
+  if (ids.length === 0) {
+    const { error: seedErr } = await supabase.from('np_pages').insert(lineupRows(variant));
+    if (seedErr) {
+      console.error('[setActiveVariant] seed', seedErr);
+      return { ok: false, error: 'Could not create the issue skeleton. Is migration 050 applied?' };
+    }
   }
 
-  const lineup = variant === 'election' ? ELECTION_DEFAULT_PAGES : DEFAULT_PAGES;
-  const rows = lineup.map((p, i) => ({
-    page_order: i + 1,
-    kind: p.kind,
-    title: p.title,
-    section_name: p.section ?? null,
-    template_data: p.colophon ? { show_colophon: true } : {},
-    status: 'tbd',
-  }));
-  const { error } = await supabase.from('np_pages').insert(rows);
+  const { error } = await supabase
+    .from('np_settings')
+    .upsert({ key: 'active_variant', value: variant, updated_at: new Date().toISOString() });
   if (error) {
-    console.error('[reseedPages] insert', error);
-    return { ok: false, error: 'Could not rebuild the pages.' };
+    console.error('[setActiveVariant]', error);
+    return { ok: false, error: 'Could not switch issues. Is migration 050 applied?' };
   }
   revalidatePath(BASE);
   return { ok: true };
@@ -352,13 +398,16 @@ export async function addPage(): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
 
+  const variant = await getActiveVariant();
   const { data: pages } = await supabase
     .from('np_pages')
-    .select('id, kind, page_order')
+    .select('*')
     .order('page_order', { ascending: true });
 
   const frontMatter = new Set<NpKind>(['front', 'page2', 'generic']);
-  const list = (pages ?? []) as Array<{ kind: NpKind; page_order: number }>;
+  const list = ((pages ?? []) as Array<{ id: string; kind: NpKind; page_order: number; variant?: string | null }>).filter(
+    (p) => pageInVariant(p, variant)
+  );
   const firstThemed = list.find((p) => !frontMatter.has(p.kind));
   const insertOrder = firstThemed ? firstThemed.page_order : list.length + 1;
 
@@ -368,7 +417,7 @@ export async function addPage(): Promise<Result> {
       await supabase
         .from('np_pages')
         .update({ page_order: p.page_order + 1 })
-        .eq('id', (p as unknown as { id: string }).id);
+        .eq('id', p.id);
     }
   }
 
@@ -377,6 +426,7 @@ export async function addPage(): Promise<Result> {
     kind: 'generic',
     title: 'Page',
     status: 'tbd',
+    variant,
   });
   if (error) {
     console.error('[addPage]', error);
@@ -940,19 +990,23 @@ export async function deletePage(pageId: string): Promise<Result> {
 
   const { data: page } = await supabase
     .from('np_pages')
-    .select('id, kind')
+    .select('*')
     .eq('id', pageId)
     .maybeSingle();
   if (!page) return { ok: false, error: 'Page not found.' };
+  const variant: IssueVariant =
+    ((page as { variant?: string | null }).variant ?? 'standard') === 'election'
+      ? 'election'
+      : 'standard';
   if (isMaster(page.kind)) {
     // Exception: EXTRA Legal Notices pages (added via the board's + button for
     // heavy weeks) are deletable as long as the standard two remain.
     if (page.kind === 'legals') {
-      const { count } = await supabase
-        .from('np_pages')
-        .select('id', { count: 'exact', head: true })
-        .eq('kind', 'legals');
-      if ((count ?? 0) <= 2) {
+      const { data: legalRows } = await supabase.from('np_pages').select('*').eq('kind', 'legals');
+      const count = ((legalRows ?? []) as Array<{ variant?: string | null }>).filter((p) =>
+        pageInVariant(p, variant)
+      ).length;
+      if (count <= 2) {
         return { ok: false, error: 'The standard two Legal Notices pages can’t be deleted.' };
       }
     } else {
@@ -966,32 +1020,32 @@ export async function deletePage(pageId: string): Promise<Result> {
     return { ok: false, error: 'Could not delete the page.' };
   }
 
-  // Renumber the remaining pages so page_order stays contiguous.
-  const { data: rest } = await supabase
-    .from('np_pages')
-    .select('id')
-    .order('page_order', { ascending: true });
+  // Renumber this issue's remaining pages so page_order stays contiguous
+  // (the other issue variant keeps its own numbering).
+  const rest = await variantPageIds(supabase, variant);
   await Promise.all(
-    (rest ?? []).map((p, i) =>
-      supabase.from('np_pages').update({ page_order: i + 1 }).eq('id', (p as { id: string }).id)
-    )
+    rest.map((id, i) => supabase.from('np_pages').update({ page_order: i + 1 }).eq('id', id))
   );
   revalidatePath(BASE);
   return { ok: true };
 }
 
-/** Clear all content + template fields for every page, but keep the page list
- *  and order intact (the "Reset Content" button). */
+/** Clear all content + template fields for every page OF THE ACTIVE ISSUE,
+ *  keeping its page list and order intact (the "Reset Content" button). The
+ *  other issue variant is untouched. */
 export async function resetIssueContent(): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
+  const variant = await getActiveVariant();
+  const ids = await variantPageIds(supabase, variant);
+  if (ids.length === 0) return { ok: true };
 
   // Remove flow content (leave any continuation rows for Phase 2B alone).
   const { error: delErr } = await supabase
     .from('np_items')
     .delete()
     .is('continuation_group', null)
-    .not('id', 'is', null);
+    .in('page_id', ids);
   if (delErr) {
     console.error('[resetIssueContent] items', delErr);
     return { ok: false, error: 'Could not clear page content.' };
@@ -1000,7 +1054,7 @@ export async function resetIssueContent(): Promise<Result> {
   const { error: pErr } = await supabase
     .from('np_pages')
     .update({ template_data: {}, section_name: null, status: 'tbd', updated_at: new Date().toISOString() })
-    .not('id', 'is', null);
+    .in('id', ids);
   if (pErr) {
     console.error('[resetIssueContent] pages', pErr);
     return { ok: false, error: 'Cleared content, but could not reset page status.' };
@@ -1018,26 +1072,31 @@ export async function addLegalPageAfter(pageId: string): Promise<Result> {
 
   const { data: target } = await supabase
     .from('np_pages')
-    .select('id, kind, title, page_order')
+    .select('*')
     .eq('id', pageId)
     .maybeSingle();
   if (!target) return { ok: false, error: 'Page not found.' };
   if (target.kind !== 'legals') {
     return { ok: false, error: 'Additional pages can only be added after a Legal Notices page.' };
   }
+  const variant: IssueVariant =
+    ((target as { variant?: string | null }).variant ?? 'standard') === 'election'
+      ? 'election'
+      : 'standard';
 
-  // Shift everything after the target down one slot (descending order so the
-  // renumber never collides), then insert the new page in the gap.
+  // Shift this issue's pages after the target down one slot (descending order
+  // so the renumber never collides), then insert the new page in the gap.
   const { data: after } = await supabase
     .from('np_pages')
-    .select('id, page_order')
+    .select('*')
     .gt('page_order', target.page_order)
     .order('page_order', { ascending: false });
-  for (const p of after ?? []) {
+  for (const p of (after ?? []) as Array<{ id: string; page_order: number; variant?: string | null }>) {
+    if (!pageInVariant(p, variant)) continue;
     await supabase
       .from('np_pages')
-      .update({ page_order: (p as { page_order: number }).page_order + 1 })
-      .eq('id', (p as { id: string }).id);
+      .update({ page_order: p.page_order + 1 })
+      .eq('id', p.id);
   }
 
   const { error } = await supabase.from('np_pages').insert({
@@ -1046,6 +1105,7 @@ export async function addLegalPageAfter(pageId: string): Promise<Result> {
     title: target.title ?? 'Legal Notices',
     status: 'tbd',
     template_data: {},
+    variant,
   });
   if (error) {
     console.error('[addLegalPageAfter]', error);
@@ -1062,18 +1122,22 @@ export async function addStandardPage(kind: NpKind): Promise<Result> {
     return { ok: false, error: 'Not an addable standard page.' };
   }
   const supabase = createClient();
+  const variant = await getActiveVariant();
   const { data: pages } = await supabase
     .from('np_pages')
-    .select('page_order')
-    .order('page_order', { ascending: false })
-    .limit(1);
-  const nextOrder = ((pages?.[0] as { page_order: number } | undefined)?.page_order ?? 0) + 1;
+    .select('*')
+    .order('page_order', { ascending: false });
+  const top = ((pages ?? []) as Array<{ page_order: number; variant?: string | null }>).find((p) =>
+    pageInVariant(p, variant)
+  );
+  const nextOrder = (top?.page_order ?? 0) + 1;
 
   const { error } = await supabase.from('np_pages').insert({
     page_order: nextOrder,
     kind,
     title: templateFor(kind).label,
     status: 'tbd',
+    variant,
   });
   if (error) {
     console.error('[addStandardPage]', error);

@@ -43,7 +43,18 @@ export default async function PrintIssue({
     .select('*')
     .order('page_order', { ascending: true });
 
-  const all = ((rows ?? []) as NpPage[]).filter((p) => p.include_in_paper !== false);
+  // Export the ACTIVE issue (standard vs Election Issue — the board toggle).
+  // Falls back to 'standard' before migration 050.
+  const { data: setting } = await admin
+    .from('np_settings')
+    .select('value')
+    .eq('key', 'active_variant')
+    .maybeSingle();
+  const activeVariant = setting?.value === 'election' ? 'election' : 'standard';
+
+  const all = ((rows ?? []) as NpPage[]).filter(
+    (p) => p.include_in_paper !== false && (p.variant ?? 'standard') === activeVariant
+  );
   const front = all.find((p) => p.kind === 'front');
   const issueDate = ((front?.template_data ?? {}) as { issue_date?: string }).issue_date ?? '';
 

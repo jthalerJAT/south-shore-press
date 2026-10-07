@@ -54,9 +54,9 @@ export default async function PagePrintProof({
   const page = await getPage(params.pageId);
   if (!page) notFound();
   const [pages, items, issueDate] = await Promise.all([
-    getPages(),
+    getPages(page.variant ?? 'standard'),
     getPageItems(params.pageId),
-    getIssueDate(),
+    getIssueDate(page.variant ?? 'standard'),
   ]);
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
   const title = pageHeading(page.title, ordinal);

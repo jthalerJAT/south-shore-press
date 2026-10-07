@@ -23,7 +23,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
-import type { NpPage, NpItemSummary } from '@/lib/queries/newspaper';
+import type { NpPage, NpItemSummary, IssueVariant } from '@/lib/queries/newspaper';
 import type { Ad } from '@/lib/queries/ads';
 import { isMaster, ADDABLE_TEMPLATE_KINDS, ASSIGNABLE_KINDS, pageHeading, templateFor, type NpKind } from '@/lib/newspaper-templates';
 import {
@@ -37,6 +37,7 @@ import {
   addLegalPageAfter,
   resetIssueContent,
   reseedPages,
+  setActiveVariant,
   setPageIncluded,
   setPageKind,
 } from './actions';
@@ -80,6 +81,7 @@ export function NewspaperBoard({
   ads,
   legals,
   classifieds,
+  issueVariant = 'standard',
 }: {
   pages: NpPage[];
   summaries: Record<string, NpItemSummary[]>;
@@ -87,6 +89,8 @@ export function NewspaperBoard({
   ads: Ad[];
   legals: LegalChip[];
   classifieds: ClassifiedChip[];
+  /** Which of the two coexisting issues the board is showing. */
+  issueVariant?: IssueVariant;
 }) {
   const router = useRouter();
   const [dragId, setDragId] = useState<string | null>(null);
@@ -288,7 +292,7 @@ export function NewspaperBoard({
   function handleReset() {
     if (
       !confirm(
-        'Reset content for the whole issue? This clears every page back to its blank wireframe (the page list and order are kept).'
+        `Reset content for the ${issueVariant === 'election' ? 'ELECTION' : 'standard'} issue? This clears every page of the currently selected issue back to its blank wireframe (the page list and order are kept). The other issue is not touched.`
       )
     )
       return;
@@ -308,17 +312,16 @@ export function NewspaperBoard({
     run(() => reseedPages());
   }
 
-  // "Election Issue" special-issue toggle (2026-10-07): rebuilds the book with
-  // the election lineup — 6 blank election pages starting on page 3, paid for
-  // by 2 Local, 1 Nation & World, 2 Opinion, and 1 Pro Sports page. As
-  // destructive as Rebuild (the current pages are replaced), so it gets the
-  // same style of confirm modal. Toggling off rebuilds the standard lineup.
-  const isElectionIssue = order.some((p) => p.kind === 'election');
-  const [electionConfirmOpen, setElectionConfirmOpen] = useState(false);
+  // "Election Issue" toggle (2026-10-07): NON-destructive switch between the
+  // two coexisting issues. Both keep their pages and content; the first time
+  // the election issue is activated, its blank skeleton (6 election pages
+  // starting on page 3) is created. Everything on this board — and Reset
+  // Content / Rebuild Pages / View File / the press export — follows the
+  // currently selected issue.
+  const isElectionIssue = issueVariant === 'election';
 
-  function confirmElectionToggle() {
-    setElectionConfirmOpen(false);
-    run(() => reseedPages(isElectionIssue ? 'standard' : 'election'));
+  function handleVariantToggle() {
+    run(() => setActiveVariant(isElectionIssue ? 'standard' : 'election'));
   }
 
   const pageIds = useMemo(() => order.map((p) => p.id), [order]);
@@ -459,12 +462,12 @@ export function NewspaperBoard({
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setElectionConfirmOpen(true)}
+                onClick={handleVariantToggle}
                 disabled={isPending}
                 title={
                   isElectionIssue
-                    ? 'Switch back to the standard 40-page issue'
-                    : 'Rebuild as the Election Issue — 6 election pages starting on page 3'
+                    ? 'Switch to the standard issue wireframe (the Election Issue is kept)'
+                    : 'Switch to the Election Issue wireframe (the standard issue is kept)'
                 }
                 className={cn(
                   'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded border transition-colors disabled:opacity-60',
@@ -479,7 +482,7 @@ export function NewspaperBoard({
                     isElectionIssue ? 'bg-emerald-400' : 'bg-zinc-300'
                   )}
                 />
-                Election Issue
+                {isElectionIssue ? 'Election Issue ✓' : 'Election Issue'}
               </button>
               <div className="relative">
                 <button
@@ -524,7 +527,7 @@ export function NewspaperBoard({
                 type="button"
                 onClick={handleReseed}
                 disabled={isPending}
-                title="Delete all pages and rebuild the standard 40-page issue skeleton"
+                title="Delete the currently selected issue's pages and rebuild its blank 40-page skeleton"
                 className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-60 rounded transition-colors"
               >
                 Rebuild Pages
@@ -584,60 +587,6 @@ export function NewspaperBoard({
         {dragClassified ? <ClassifiedChipPresentation classified={dragClassified} dragging /> : null}
       </DragOverlay>
 
-      {electionConfirmOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="election-confirm-title"
-        >
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden">
-            <div className="px-6 py-4 border-b border-zinc-200">
-              <h2 id="election-confirm-title" className="font-headline text-xl font-bold text-red-700">
-                {isElectionIssue
-                  ? '⚠ Switch back to a standard issue?'
-                  : '⚠ Switch to the Election Issue?'}
-              </h2>
-            </div>
-            <div className="px-6 py-4 space-y-3 text-sm text-zinc-700">
-              <p className="font-semibold text-zinc-900">
-                This rebuilds the whole issue — every current page and everything on it is deleted,
-                and a fresh blank {isElectionIssue ? 'standard' : 'Election Issue'} skeleton is
-                created. <span className="text-red-700">This cannot be undone.</span>
-              </p>
-              {!isElectionIssue ? (
-                <ul className="list-disc pl-5 space-y-1">
-                  <li>6 blank Election Coverage pages, starting on page 3 (after the main editorial)</li>
-                  <li>
-                    To stay at 40 pages: 2 fewer Local News, 1 fewer Nation &amp; World, 2 fewer
-                    Opinion, and 1 fewer Professional Sports page
-                  </li>
-                  <li>Open any Election page to build the race tiles — one list fills all 6 pages</li>
-                </ul>
-              ) : (
-                <p>The standard 40-page lineup is restored, with blank pages throughout.</p>
-              )}
-            </div>
-            <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={() => setElectionConfirmOpen(false)}
-                className="px-4 py-2 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={confirmElectionToggle}
-                className="px-4 py-2 text-sm font-bold uppercase tracking-wide text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
-              >
-                {isElectionIssue ? 'Yes — rebuild as standard issue' : 'Yes — rebuild as Election Issue'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {rebuildConfirmOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -651,12 +600,13 @@ export function NewspaperBoard({
                 id="rebuild-confirm-title"
                 className="font-headline text-xl font-bold text-red-700"
               >
-                ⚠ Rebuild Pages — this deletes the whole issue
+                ⚠ Rebuild Pages — this deletes the {isElectionIssue ? 'ELECTION' : 'standard'} issue
               </h2>
             </div>
             <div className="px-6 py-4 space-y-3 text-sm text-zinc-700">
               <p className="font-semibold text-zinc-900">
-                The entire page structure will be deleted — every page and everything on it:
+                The currently selected issue&apos;s entire page structure will be deleted — every
+                page and everything on it (the other issue is not touched):
               </p>
               <ul className="list-disc pl-5 space-y-1">
                 <li>All placed stories, ads, legals, classifieds, and pulled Fun Stuff pages</li>
@@ -664,7 +614,8 @@ export function NewspaperBoard({
                 <li>Any pages you added, renamed, reordered, or converted</li>
               </ul>
               <p>
-                A fresh standard 40-page skeleton is created in their place.{' '}
+                A fresh blank {isElectionIssue ? 'Election Issue' : 'standard'} 40-page skeleton is
+                created in its place.{' '}
                 <span className="font-semibold text-red-700">This cannot be undone.</span>
               </p>
               <p className="text-zinc-500">

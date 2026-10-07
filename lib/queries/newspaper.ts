@@ -13,6 +13,11 @@ export type { StoredStoryLayout, StoredAdLayout, StoredLayout };
 
 export type NpStatus = 'tbd' | 'draft' | 'locked';
 
+/** Which of the two coexisting issues a page belongs to: the standard weekly
+ *  book or the Election Issue special (2026-10-07). The board's toggle flips
+ *  the ACTIVE variant (np_settings.active_variant); both page sets persist. */
+export type IssueVariant = 'standard' | 'election';
+
 export type NpPage = {
   id: string;
   page_order: number;
@@ -20,6 +25,9 @@ export type NpPage = {
   title: string;
   section_name: string | null;
   status: NpStatus;
+  /** Issue the page belongs to. Optional so reads keep working before
+   *  migration 050; absent means 'standard'. */
+  variant?: IssueVariant;
   /** Structured fields for template-mode pages (Front Page, section covers).
    *  Empty object `{}` for flow pages / before Phase 6. */
   template_data: Record<string, unknown>;
@@ -68,8 +76,27 @@ export type NpItem = {
   updated_at: string;
 };
 
-/** All pages of the current issue, in order. */
-export async function getPages(): Promise<NpPage[]> {
+/** Which issue the Newspaper Creator is currently showing. Falls back to
+ *  'standard' when migration 050 hasn't been applied yet. */
+export async function getActiveVariant(): Promise<IssueVariant> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('np_settings')
+    .select('value')
+    .eq('key', 'active_variant')
+    .maybeSingle();
+  if (error || !data) return 'standard';
+  return data.value === 'election' ? 'election' : 'standard';
+}
+
+/** Rows are filtered in JS (not SQL) so reads keep working before migration
+ *  050 adds the variant column — absent variant counts as 'standard'. */
+export function pageInVariant(p: { variant?: string | null }, variant: IssueVariant): boolean {
+  return (p.variant ?? 'standard') === variant;
+}
+
+/** All pages of an issue, in order. Defaults to the ACTIVE variant. */
+export async function getPages(variant?: IssueVariant): Promise<NpPage[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('np_pages')
@@ -79,7 +106,8 @@ export async function getPages(): Promise<NpPage[]> {
     console.error('[getPages]', error);
     return [];
   }
-  return (data ?? []) as NpPage[];
+  const v = variant ?? (await getActiveVariant());
+  return ((data ?? []) as NpPage[]).filter((p) => pageInVariant(p, v));
 }
 
 export type NpItemSummary = { type: 'story' | 'ad'; title: string };
@@ -119,16 +147,18 @@ export async function getItemSummaries(): Promise<Record<string, NpItemSummary[]
 }
 
 /** The issue date typed on the Front Page (its template_data.issue_date).
- *  Later pages display it in their running head. */
-export async function getIssueDate(): Promise<string> {
+ *  Later pages display it in their running head. Each variant has its own
+ *  front page, so this follows the active (or given) variant. */
+export async function getIssueDate(variant?: IssueVariant): Promise<string> {
   const supabase = createClient();
-  const { data } = await supabase
-    .from('np_pages')
-    .select('template_data')
-    .eq('kind', 'front')
-    .limit(1)
-    .maybeSingle();
-  const td = (data?.template_data ?? {}) as { issue_date?: string };
+  // select('*') rather than naming the variant column, so this read keeps
+  // working before migration 050.
+  const { data } = await supabase.from('np_pages').select('*').eq('kind', 'front');
+  const v = variant ?? (await getActiveVariant());
+  const front = ((data ?? []) as Array<{ template_data: unknown; variant?: string | null }>).find(
+    (p) => pageInVariant(p, v)
+  );
+  const td = (front?.template_data ?? {}) as { issue_date?: string };
   return td.issue_date ?? '';
 }
 

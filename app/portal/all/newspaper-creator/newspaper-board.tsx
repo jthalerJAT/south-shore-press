@@ -308,6 +308,19 @@ export function NewspaperBoard({
     run(() => reseedPages());
   }
 
+  // "Election Issue" special-issue toggle (2026-10-07): rebuilds the book with
+  // the election lineup — 6 blank election pages starting on page 3, paid for
+  // by 2 Local, 1 Nation & World, 2 Opinion, and 1 Pro Sports page. As
+  // destructive as Rebuild (the current pages are replaced), so it gets the
+  // same style of confirm modal. Toggling off rebuilds the standard lineup.
+  const isElectionIssue = order.some((p) => p.kind === 'election');
+  const [electionConfirmOpen, setElectionConfirmOpen] = useState(false);
+
+  function confirmElectionToggle() {
+    setElectionConfirmOpen(false);
+    run(() => reseedPages(isElectionIssue ? 'standard' : 'election'));
+  }
+
   const pageIds = useMemo(() => order.map((p) => p.id), [order]);
 
   return (
@@ -444,6 +457,30 @@ export function NewspaperBoard({
           <div className="flex items-center justify-between mb-2 gap-2">
             <h3 className="text-xs uppercase tracking-widest font-bold text-zinc-500">Pages</h3>
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setElectionConfirmOpen(true)}
+                disabled={isPending}
+                title={
+                  isElectionIssue
+                    ? 'Switch back to the standard 40-page issue'
+                    : 'Rebuild as the Election Issue — 6 election pages starting on page 3'
+                }
+                className={cn(
+                  'inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold rounded border transition-colors disabled:opacity-60',
+                  isElectionIssue
+                    ? 'bg-brand-navy text-white border-brand-navy'
+                    : 'text-zinc-700 border-zinc-300 hover:bg-zinc-50'
+                )}
+              >
+                <span
+                  className={cn(
+                    'inline-block h-2 w-2 rounded-full',
+                    isElectionIssue ? 'bg-emerald-400' : 'bg-zinc-300'
+                  )}
+                />
+                Election Issue
+              </button>
               <div className="relative">
                 <button
                   type="button"
@@ -546,6 +583,60 @@ export function NewspaperBoard({
         {dragAd ? <AdChipPresentation ad={dragAd} dragging /> : null}
         {dragClassified ? <ClassifiedChipPresentation classified={dragClassified} dragging /> : null}
       </DragOverlay>
+
+      {electionConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="election-confirm-title"
+        >
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden">
+            <div className="px-6 py-4 border-b border-zinc-200">
+              <h2 id="election-confirm-title" className="font-headline text-xl font-bold text-red-700">
+                {isElectionIssue
+                  ? '⚠ Switch back to a standard issue?'
+                  : '⚠ Switch to the Election Issue?'}
+              </h2>
+            </div>
+            <div className="px-6 py-4 space-y-3 text-sm text-zinc-700">
+              <p className="font-semibold text-zinc-900">
+                This rebuilds the whole issue — every current page and everything on it is deleted,
+                and a fresh blank {isElectionIssue ? 'standard' : 'Election Issue'} skeleton is
+                created. <span className="text-red-700">This cannot be undone.</span>
+              </p>
+              {!isElectionIssue ? (
+                <ul className="list-disc pl-5 space-y-1">
+                  <li>6 blank Election Coverage pages, starting on page 3 (after the main editorial)</li>
+                  <li>
+                    To stay at 40 pages: 2 fewer Local News, 1 fewer Nation &amp; World, 2 fewer
+                    Opinion, and 1 fewer Professional Sports page
+                  </li>
+                  <li>Open any Election page to build the race tiles — one list fills all 6 pages</li>
+                </ul>
+              ) : (
+                <p>The standard 40-page lineup is restored, with blank pages throughout.</p>
+              )}
+            </div>
+            <div className="px-6 py-4 border-t border-zinc-200 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setElectionConfirmOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmElectionToggle}
+                className="px-4 py-2 text-sm font-bold uppercase tracking-wide text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
+              >
+                {isElectionIssue ? 'Yes — rebuild as standard issue' : 'Yes — rebuild as Election Issue'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {rebuildConfirmOpen ? (
         <div

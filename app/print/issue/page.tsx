@@ -8,7 +8,9 @@ import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeFunPage } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
+import { normalizeElectionSection } from '@/lib/newspaper/election-page';
 import { LegalPage } from '@/components/newspaper/legal-page';
+import { ElectionPage } from '@/components/newspaper/election-page';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
@@ -44,6 +46,12 @@ export default async function PrintIssue({
   const all = ((rows ?? []) as NpPage[]).filter((p) => p.include_in_paper !== false);
   const front = all.find((p) => p.kind === 'front');
   const issueDate = ((front?.template_data ?? {}) as { issue_date?: string }).issue_date ?? '';
+
+  // Election Issue section: the tile list lives on the FIRST election page;
+  // every election page renders its slice (sectionIndex = position among the
+  // issue's election pages).
+  const electionPages = all.filter((p) => p.kind === 'election');
+  const electionData = normalizeElectionSection(electionPages[0]?.template_data ?? {});
 
   const withOrdinal = all.map((page, i) => ({ page, ordinal: i + 1 }));
   const want = searchParams.pages
@@ -101,6 +109,13 @@ export default async function PrintIssue({
               <FunPage data={normalizeFunPage(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' && templateId(r.page.kind) === 'legal' ? (
               <LegalPage data={normalizeLegalPage(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
+            ) : r.kind === 'template' && templateId(r.page.kind) === 'election' ? (
+              <ElectionPage
+                data={electionData}
+                sectionIndex={electionPages.findIndex((p) => p.id === r.page.id)}
+                pageNumber={r.ordinal}
+                dateLabel={issueDate}
+              />
             ) : r.kind === 'template' ? (
               <SectionCover
                 data={normalizeCover(r.page.template_data, r.page.kind)}

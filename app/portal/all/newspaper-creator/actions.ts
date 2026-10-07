@@ -8,6 +8,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getStoryForEdit } from '@/lib/queries/editor-stories';
 import {
   DEFAULT_PAGES,
+  ELECTION_DEFAULT_PAGES,
   templateFor,
   isOpenKind,
   isMaster,
@@ -69,10 +70,12 @@ export async function seedDefaultPages(): Promise<Result> {
   return { ok: true };
 }
 
-/** Rebuild the entire page list from DEFAULT_PAGES — DESTRUCTIVE: deletes every
- *  page and its content, then re-seeds the standard 40-page issue skeleton.
- *  For applying a new default structure to the current working issue. */
-export async function reseedPages(): Promise<Result> {
+/** Rebuild the entire page list — DESTRUCTIVE: deletes every page and its
+ *  content, then re-seeds a fresh 40-page skeleton. `variant` picks the
+ *  lineup: 'standard' (DEFAULT_PAGES) or 'election' (ELECTION_DEFAULT_PAGES —
+ *  the special-issue structure with 6 election pages starting on page 3,
+ *  toggled from the board's "Election Issue" switch). */
+export async function reseedPages(variant: 'standard' | 'election' = 'standard'): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
 
@@ -82,7 +85,8 @@ export async function reseedPages(): Promise<Result> {
     return { ok: false, error: 'Could not clear the existing pages.' };
   }
 
-  const rows = DEFAULT_PAGES.map((p, i) => ({
+  const lineup = variant === 'election' ? ELECTION_DEFAULT_PAGES : DEFAULT_PAGES;
+  const rows = lineup.map((p, i) => ({
     page_order: i + 1,
     kind: p.kind,
     title: p.title,
@@ -827,6 +831,38 @@ export async function saveLegalPage(pageId: string, data: Record<string, unknown
   }
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
+/** Persist the Election Issue SECTION (intro + race tiles) and lock its pages.
+ *  The section data lives on the FIRST election page's template_data; the
+ *  other election pages render their computed slice of the same tile list, so
+ *  they only get their status bumped. */
+export async function saveElectionSection(
+  firstPageId: string,
+  data: Record<string, unknown>,
+  otherPageIds: string[]
+): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: now })
+    .eq('id', firstPageId);
+  if (error) {
+    console.error('[saveElectionSection]', error);
+    return { ok: false, error: 'Could not save the election section.' };
+  }
+  if (otherPageIds.length > 0) {
+    const { error: othersErr } = await supabase
+      .from('np_pages')
+      .update({ status: 'locked', updated_at: now })
+      .in('id', otherPageIds);
+    if (othersErr) console.error('[saveElectionSection] others', othersErr);
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${firstPageId}`);
   return { ok: true };
 }
 

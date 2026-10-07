@@ -11,7 +11,9 @@ import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeFunPage } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
+import { normalizeElectionSection } from '@/lib/newspaper/election-page';
 import { LegalPage } from '@/components/newspaper/legal-page';
+import { ElectionPage } from '@/components/newspaper/election-page';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
@@ -41,6 +43,10 @@ export default async function NewspaperViewFile() {
   // Only pages checked "Include in paper", in list order.
   const [allPages, issueDate] = await Promise.all([getPages(), getIssueDate()]);
   const pages = allPages.filter((p) => p.include_in_paper !== false);
+
+  // Election Issue section data (lives on the first election page).
+  const electionPages = pages.filter((p) => p.kind === 'election');
+  const electionData = normalizeElectionSection(electionPages[0]?.template_data ?? {});
 
   // Resolve each page's render payload (cover data or flow items).
   const rendered = await Promise.all(
@@ -104,6 +110,13 @@ export default async function NewspaperViewFile() {
                       <FunPage data={normalizeFunPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
                     ) : r.kind === 'template' && templateId(page.kind) === 'legal' ? (
                       <LegalPage data={normalizeLegalPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
+                    ) : r.kind === 'template' && templateId(page.kind) === 'election' ? (
+                      <ElectionPage
+                        data={electionData}
+                        sectionIndex={electionPages.findIndex((p) => p.id === page.id)}
+                        pageNumber={ordinal}
+                        dateLabel={issueDate}
+                      />
                     ) : r.kind === 'template' ? (
                       <SectionCover
                         data={normalizeCover(page.template_data, page.kind)}

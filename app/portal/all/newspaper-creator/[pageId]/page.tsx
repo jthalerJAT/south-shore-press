@@ -13,6 +13,7 @@ import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
+import { normalizeElectionSection } from '@/lib/newspaper/election-page';
 import { getLegalNotices } from '@/lib/queries/legal-notices';
 import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
@@ -23,6 +24,7 @@ import { ClassifiedEditor } from './classified-editor';
 import { FullAdEditor } from './full-ad-editor';
 import { FunEditor } from './fun-editor';
 import { LegalEditor } from './legal-editor';
+import { ElectionEditor } from './election-editor';
 
 export const metadata: Metadata = {
   title: 'Edit Page · Newspaper Creator',
@@ -171,6 +173,32 @@ export default async function NewspaperPageEditorPage({
             dateLabel={issueDate}
             initialData={normalizeLegalPage(page.template_data)}
             savedNotices={savedNotices}
+          />
+        </PortalShell>
+      );
+    }
+
+    if (tid === 'election') {
+      // The SECTION spans every election page: one editor for all of them.
+      // Content lives on the FIRST election page's template_data.
+      const electionPages = pages.filter((p) => p.kind === 'election');
+      const first = electionPages[0] ?? page;
+      const ordinals = electionPages.map((p) => pages.findIndex((x) => x.id === p.id) + 1);
+      const issueDate = await getIssueDate();
+      return (
+        <PortalShell
+          user={user}
+          activeTab="all"
+          hideTabs
+          title="Edit — Election Coverage"
+          backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+        >
+          <ElectionEditor
+            firstPageId={first.id}
+            otherPageIds={electionPages.slice(1).map((p) => p.id)}
+            pageOrdinals={ordinals.length > 0 ? ordinals : [ordinal]}
+            dateLabel={issueDate}
+            initialData={normalizeElectionSection(first.template_data)}
           />
         </PortalShell>
       );

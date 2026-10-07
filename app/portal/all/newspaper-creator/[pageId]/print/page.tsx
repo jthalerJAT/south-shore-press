@@ -11,7 +11,9 @@ import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFunPage } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
+import { normalizeElectionSection } from '@/lib/newspaper/election-page';
 import { LegalPage } from '@/components/newspaper/legal-page';
+import { ElectionPage } from '@/components/newspaper/election-page';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
 import { PageFour } from '@/components/newspaper/page-four';
@@ -109,6 +111,15 @@ export default async function PagePrintProof({
           <FunPage data={normalizeFunPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'legal' ? (
           <LegalPage data={normalizeLegalPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
+        ) : isTemplate && tid === 'election' ? (
+          <ElectionPage
+            data={normalizeElectionSection(
+              pages.find((p) => p.kind === 'election')?.template_data ?? {}
+            )}
+            sectionIndex={pages.filter((p) => p.kind === 'election').findIndex((p) => p.id === page.id)}
+            pageNumber={ordinal}
+            dateLabel={issueDate}
+          />
         ) : isTemplate ? (
           <SectionCover
             data={normalizeCover(page.template_data, page.kind)}

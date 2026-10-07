@@ -32,6 +32,7 @@ export type NpKind =
   | 'fantasy_baseball'
   | 'betting_barton'
   | 'sports'
+  | 'election'
   | 'back';
 
 export type SlotDef = { key: string; label: string };
@@ -51,7 +52,7 @@ export type CoverConfig = {
 };
 
 /** Which bespoke template editor/renderer a template-mode page uses. */
-export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified' | 'fun' | 'legal';
+export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified' | 'fun' | 'legal' | 'election';
 
 export type NpTemplate = {
   label: string;
@@ -155,6 +156,12 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
   fantasy_baseball: { label: 'Fantasy Baseball', slots: 'open', mode: 'flow', master: true },
   betting_barton: { label: 'Betting With Barton', slots: 'open', mode: 'flow', master: true },
   sports: { label: 'Sports', slots: 'open', mode: 'flow', master: true },
+  // Election Issue voter-guide page (2026-10-07): race tiles with the SSP
+  // verdict + two candidates. The SECTION's content (intro + tiles) is edited
+  // once and lives on the FIRST election page; the rest render their slice of
+  // the tile list (whole tiles only — see components/newspaper/election-page).
+  // Deletable so the budgeted 6 pages can shrink on a light ballot.
+  election: { label: 'Election Page', slots: 'open', mode: 'template', master: false, template: 'election' },
   // The printed back page is the Sports back cover (p32 of the 2026-06-17
   // issue): sports masthead header, hero photo + stacked headline, 0–3 teaser
   // tiles with "Story on pg. X" refs, no bottom banner.
@@ -252,6 +259,70 @@ export const DEFAULT_PAGES: ReadonlyArray<{
   { kind: 'back', title: 'Back Page' },
 ];
 
+/** The ELECTION ISSUE lineup (publisher direction 2026-10-07): the voter-guide
+ *  section runs 6 election pages starting on page 3, right after the main
+ *  editorial. To keep the 40-page book, the standard lineup gives up 2 Local
+ *  News, 1 Nation & World, 2 Opinion, and 1 Professional Sports page. The
+ *  board's "Election Issue" toggle rebuilds the issue from this list. */
+export const ELECTION_DEFAULT_PAGES: ReadonlyArray<{
+  kind: NpKind;
+  title: string;
+  section?: string;
+  colophon?: boolean;
+}> = [
+  { kind: 'front', title: 'Front Page' },
+  { kind: 'page2', title: 'Newsroom / Op-Ed' },
+  // Election coverage (6) — pages 3–8
+  { kind: 'election', title: 'Election Coverage', section: 'ELECTION 2026' },
+  { kind: 'election', title: 'Election Coverage', section: 'ELECTION 2026' },
+  { kind: 'election', title: 'Election Coverage', section: 'ELECTION 2026' },
+  { kind: 'election', title: 'Election Coverage', section: 'ELECTION 2026' },
+  { kind: 'election', title: 'Election Coverage', section: 'ELECTION 2026' },
+  { kind: 'election', title: 'Election Coverage', section: 'ELECTION 2026' },
+  // Local News (2 — standard issue has 4)
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS', colophon: true },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  // Nation & World News (1 — standard issue has 2)
+  { kind: 'generic', title: 'Nation & World News', section: 'NATION & WORLD NEWS' },
+  // Business (2)
+  { kind: 'generic', title: 'Business', section: 'BUSINESS' },
+  { kind: 'generic', title: 'Business', section: 'BUSINESS' },
+  // Opinion (2 — standard issue has 4)
+  { kind: 'generic', title: 'Opinion', section: 'OPINION' },
+  { kind: 'generic', title: 'Opinion', section: 'OPINION' },
+  // Legals & Classifieds (4)
+  { kind: 'legals', title: 'Legal Notices' },
+  { kind: 'legals', title: 'Legal Notices' },
+  { kind: 'classifieds', title: 'Classifieds' },
+  { kind: 'classifieds', title: 'Classifieds' },
+  // Fun Stuff (4)
+  { kind: 'fun_box_office', title: 'Box Office', section: 'BOX OFFICE' },
+  { kind: 'fun_puzzles', title: 'Puzzles', section: 'PUZZLES' },
+  { kind: 'fun_comics', title: 'Funny Pages', section: 'FUNNY PAGES' },
+  { kind: 'fun_history', title: 'This Week in History', section: 'THIS WEEK IN HISTORY' },
+  // Professional Sports (1 — standard issue has 2)
+  { kind: 'sports', title: 'Professional Sports', section: 'PROFESSIONAL SPORTS' },
+  // Local Sports (4)
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  // Ads — fill the remainder (11)
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  // Page 40 — the Sports back cover
+  { kind: 'back', title: 'Back Page' },
+];
+
 export function templateFor(kind: string): NpTemplate {
   return NEWSPAPER_TEMPLATES[kind as NpKind] ?? NEWSPAPER_TEMPLATES.generic;
 }
@@ -294,6 +365,7 @@ export const ADDABLE_TEMPLATE_KINDS: ReadonlyArray<{ kind: NpKind; label: string
   { kind: 'oped_page', label: 'Op-Ed Page' },
   { kind: 'sports_cover', label: 'Sports Cover' },
   { kind: 'full_page_ad', label: 'Full Page Ad' },
+  { kind: 'election', label: 'Election Page' },
 ];
 
 /** Kinds an editor can convert an existing page to (the per-row "Page type"
@@ -307,6 +379,7 @@ export const ASSIGNABLE_KINDS: ReadonlyArray<{ kind: NpKind; label: string }> = 
   { kind: 'legals', label: 'Legals' },
   { kind: 'classifieds', label: 'Classifieds' },
   { kind: 'sports', label: 'Sports' },
+  { kind: 'election', label: 'Election Page' },
   { kind: 'back', label: 'Back Page (Sports cover)' },
 ];
 

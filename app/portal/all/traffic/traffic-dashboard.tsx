@@ -12,6 +12,7 @@
  */
 import { useState } from 'react';
 import type { TrafficStat, TopContentFrame } from '@/lib/queries/traffic';
+import type { VisitorStat, ReferrerRow } from '@/lib/vercel-analytics';
 
 function GrowthChip({ value, label }: { value: number | null; label: string }) {
   if (value === null) {
@@ -37,12 +38,20 @@ function GrowthChip({ value, label }: { value: number | null; label: string }) {
 export function TrafficDashboard({
   stats,
   frames,
+  visitorStats,
+  referrers,
+  vercelConfigured,
 }: {
   stats: TrafficStat[];
   frames: TopContentFrame[];
+  /** Unique visitors from Vercel Web Analytics; null = token not set / API down. */
+  visitorStats: VisitorStat[] | null;
+  referrers: ReferrerRow[] | null;
+  vercelConfigured: boolean;
 }) {
   const [frameKey, setFrameKey] = useState<TopContentFrame['key']>('month');
   const frame = frames.find((f) => f.key === frameKey) ?? frames[0];
+  const visitorsByKey = new Map((visitorStats ?? []).map((v) => [v.key, v]));
 
   return (
     <div className="space-y-8">
@@ -63,9 +72,30 @@ export function TrafficDashboard({
               <GrowthChip value={s.seqGrowth} label="vs prior period" />
               <GrowthChip value={s.yoyGrowth} label="vs last year" />
             </div>
+            {visitorsByKey.has(s.key) ? (
+              <div className="mt-3 pt-2 border-t border-zinc-100">
+                <div className="text-lg font-semibold text-zinc-900 tabular-nums">
+                  {visitorsByKey.get(s.key)!.visitors.toLocaleString()}
+                  <span className="ml-1.5 text-xs font-normal text-zinc-500">unique visitors</span>
+                </div>
+                <div className="mt-1 flex flex-col gap-0.5">
+                  <GrowthChip value={visitorsByKey.get(s.key)!.seqGrowth} label="vs prior period" />
+                  <GrowthChip value={visitorsByKey.get(s.key)!.yoyGrowth} label="vs last year" />
+                </div>
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
+
+      {!vercelConfigured ? (
+        <div className="rounded border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <span className="font-semibold">Unique visitors not connected.</span> Create a Vercel
+          account token (Account Settings → Tokens, scope: JAT Capital) and add it to the
+          south-shore-press project as the <code className="font-mono">VERCEL_ANALYTICS_TOKEN</code>{' '}
+          environment variable, then redeploy — visitor counts and referrers will appear here.
+        </div>
+      ) : null}
 
       <p className="text-xs text-zinc-400">
         Page views, bucketed by UTC day. Full-site counting began Oct 9, 2026 — earlier history
@@ -82,6 +112,28 @@ export function TrafficDashboard({
         </a>{' '}
         (Vercel login required).
       </p>
+
+      {/* ── Top referrers (Vercel Web Analytics, trailing 30 days) ── */}
+      {referrers && referrers.length > 0 ? (
+        <div>
+          <h2 className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-3">
+            Top Referrers — Trailing 30 Days
+          </h2>
+          <div className="overflow-hidden rounded border border-zinc-200">
+            <ul className="divide-y divide-zinc-100">
+              {referrers.map((r) => (
+                <li key={r.hostname} className="flex items-center justify-between px-3 py-2">
+                  <span className="text-sm text-zinc-900 truncate">{r.hostname}</span>
+                  <span className="text-sm font-semibold text-zinc-900 tabular-nums">
+                    {r.visitors.toLocaleString()}
+                    <span className="ml-1 text-xs font-normal text-zinc-400">visitors</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Top content ────────────────────────────────────── */}
       <div>

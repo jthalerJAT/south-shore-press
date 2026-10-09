@@ -76,12 +76,21 @@ export function TrafficDashboard({
               <div className="mt-3 pt-2 border-t border-zinc-100">
                 <div className="text-lg font-semibold text-zinc-900 tabular-nums">
                   {visitorsByKey.get(s.key)!.visitors.toLocaleString()}
-                  <span className="ml-1.5 text-xs font-normal text-zinc-500">unique visitors</span>
+                  <span className="ml-1.5 text-xs font-normal text-zinc-500">
+                    unique visitors
+                    {visitorsByKey.get(s.key)!.partial ? ' (since Oct 9)' : ''}
+                  </span>
                 </div>
-                <div className="mt-1 flex flex-col gap-0.5">
-                  <GrowthChip value={visitorsByKey.get(s.key)!.seqGrowth} label="vs prior period" />
-                  <GrowthChip value={visitorsByKey.get(s.key)!.yoyGrowth} label="vs last year" />
-                </div>
+                {visitorsByKey.get(s.key)!.partial ? (
+                  <div className="mt-0.5 text-[11px] text-amber-700">
+                    Partial — visitor counting began Oct 9, 2026
+                  </div>
+                ) : (
+                  <div className="mt-1 flex flex-col gap-0.5">
+                    <GrowthChip value={visitorsByKey.get(s.key)!.seqGrowth} label="vs prior period" />
+                    <GrowthChip value={visitorsByKey.get(s.key)!.yoyGrowth} label="vs last year" />
+                  </div>
+                )}
               </div>
             ) : null}
           </div>

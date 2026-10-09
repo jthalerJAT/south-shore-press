@@ -21,11 +21,18 @@ const API = 'https://api.vercel.com/v1/query/web-analytics';
 const PROJECT_ID = 'prj_S56YOc24p4cd2xx4Oif8lvOXpl7Y';
 const TEAM_ID = 'team_zkVISI9OeLigC59WKHJgpV6Y';
 
+/** The day Web Analytics was enabled — visitor data simply doesn't exist
+ *  before this, so windows starting earlier are flagged partial. */
+export const VERCEL_COLLECTION_START = '2026-10-09';
+
 export type VisitorStat = {
   key: 'today' | 'week' | 'month' | 'ytd';
   visitors: number;
   seqGrowth: number | null;
   yoyGrowth: number | null;
+  /** True when the window starts before collection began — the count only
+   *  covers the days since VERCEL_COLLECTION_START. */
+  partial: boolean;
 };
 
 export type ReferrerRow = { hostname: string; visitors: number };
@@ -131,11 +138,13 @@ export async function getVisitorStats(): Promise<VisitorStat[] | null> {
     windows.map(async (w) => {
       const [cur, seq, yoy] = await Promise.all(w.spans.map(([f, t]) => countVisitors(f, t)));
       if (cur === null) return null;
+      const windowStart = w.spans[0][0].toISOString().slice(0, 10);
       return {
         key: w.key,
         visitors: cur,
         seqGrowth: growth(cur, seq),
         yoyGrowth: growth(cur, yoy),
+        partial: windowStart < VERCEL_COLLECTION_START,
       } satisfies VisitorStat;
     })
   );

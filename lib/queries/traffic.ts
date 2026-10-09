@@ -115,10 +115,24 @@ const TOP_LIMIT = 15;
 
 export async function getTopContent(): Promise<TopContentFrame[]> {
   const admin = createAdminClient();
-  const { data, error } = await admin.from('story_views').select('story_id, day, views');
-  if (error) {
-    console.error('[getTopContent]', error);
-    return [];
+  // Supabase caps a select at 1,000 rows — page through, newest days first
+  // (so if the safety cap ever bites, it trims the oldest "All Time" data,
+  // never the current month).
+  const data: Array<{ story_id: string; day: string; views: number }> = [];
+  const PAGE = 1000;
+  const MAX_PAGES = 40;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data: chunk, error } = await admin
+      .from('story_views')
+      .select('story_id, day, views')
+      .order('day', { ascending: false })
+      .range(page * PAGE, page * PAGE + PAGE - 1);
+    if (error) {
+      console.error('[getTopContent]', error);
+      return [];
+    }
+    data.push(...((chunk ?? []) as typeof data));
+    if (!chunk || chunk.length < PAGE) break;
   }
 
   const today = dayUTC();
@@ -135,7 +149,7 @@ export async function getTopContent(): Promise<TopContentFrame[]> {
   const totals = new Map<TopContentFrame['key'], Map<string, number>>(
     frames.map((f) => [f.key, new Map()])
   );
-  for (const r of (data ?? []) as Array<{ story_id: string; day: string; views: number }>) {
+  for (const r of data) {
     for (const f of frames) {
       if (f.from === null || r.day >= f.from) {
         const m = totals.get(f.key)!;

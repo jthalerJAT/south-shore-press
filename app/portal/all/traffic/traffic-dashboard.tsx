@@ -70,7 +70,17 @@ export function TrafficDashboard({
       <p className="text-xs text-zinc-400">
         Page views, bucketed by UTC day. Full-site counting began Oct 9, 2026 — earlier history
         reflects article views only, so growth rates straddling that date run low. &ldquo;—&rdquo;
-        means the comparison window has no recorded traffic yet.
+        means the comparison window has no recorded traffic yet. For unique visitors, referrers,
+        and devices, see{' '}
+        <a
+          href="https://vercel.com/jat-capital/south-shore-press/analytics"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-brand-red hover:underline"
+        >
+          Vercel Web Analytics ↗
+        </a>{' '}
+        (Vercel login required).
       </p>
 
       {/* ── Top content ────────────────────────────────────── */}

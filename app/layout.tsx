@@ -4,6 +4,7 @@ import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
 import { SiteFooter } from '@/components/site/site-footer';
 import { GlobalJsonLd } from '@/components/seo/global-jsonld';
+import { Analytics } from '@vercel/analytics/react';
 import { SiteViewTracker } from '@/components/site-view-tracker';
 
 // v1 typography ported via next/font — self-hosted, no external Google
@@ -120,6 +121,10 @@ export default function RootLayout({
         <GlobalJsonLd />
         {/* Site-wide traffic beacon (public pages only — see the component). */}
         <SiteViewTracker />
+        {/* Vercel Web Analytics — uniques / referrers / devices, viewed in the
+            Vercel dashboard (Analytics tab). Complements the raw counters the
+            portal Traffic Stats tile reads. */}
+        <Analytics />
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />

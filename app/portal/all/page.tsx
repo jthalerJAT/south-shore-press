@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, BookOpen, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale, Sparkles } from 'lucide-react';
+import { Users, UserCheck, Database, LayoutGrid, FileEdit, FileText, Newspaper, BookOpen, Megaphone, Image as ImageIcon, Share2, ClipboardList, Mail, ArrowRight, Scale, Sparkles, BarChart3 } from 'lucide-react';
 import { requireRole, canManageCredentials, canAccessAdminStories } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { isConstantContactConfigured, isConstantContactConnected } from '@/lib/constant-contact/client';
@@ -116,6 +116,13 @@ export default async function EditorPortalLandingPage() {
       description:
         'Every printed issue as a shareable PDF, newest first — view, print, download, or email a link.',
       icon: BookOpen,
+    },
+    {
+      href: '/portal/all/traffic',
+      title: 'Traffic Stats',
+      description:
+        'Site traffic today, trailing week, trailing month, and YTD with sequential and year-over-year growth, plus the most-read stories.',
+      icon: BarChart3,
     },
     {
       href: '/portal/all/ads',

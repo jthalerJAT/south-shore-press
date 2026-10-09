@@ -4,6 +4,7 @@ import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
 import { SiteFooter } from '@/components/site/site-footer';
 import { GlobalJsonLd } from '@/components/seo/global-jsonld';
+import { SiteViewTracker } from '@/components/site-view-tracker';
 
 // v1 typography ported via next/font — self-hosted, no external Google
 // Fonts request on render, no FOUT/FOIT. The CSS variables are wired
@@ -117,6 +118,8 @@ export default function RootLayout({
     >
       <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900 font-sans">
         <GlobalJsonLd />
+        {/* Site-wide traffic beacon (public pages only — see the component). */}
+        <SiteViewTracker />
         <SiteHeader />
         <main className="flex-1">{children}</main>
         <SiteFooter />

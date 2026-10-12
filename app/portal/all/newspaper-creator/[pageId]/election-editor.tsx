@@ -25,6 +25,7 @@ import {
   type ElectionCandidate,
 } from '@/lib/newspaper/election-page';
 import { PhotoUrlField } from '../photo-url-field';
+import { useEditLock, EditLockGate } from '@/components/portal/edit-lock';
 import { saveElectionSection } from '../actions';
 
 const PREVIEW_SCALE = 0.32;
@@ -77,6 +78,7 @@ export function ElectionEditor({
   pageOrdinals,
   dateLabel,
   initialData,
+  lockScope,
 }: {
   /** The election page that stores the section data. */
   firstPageId: string;
@@ -86,8 +88,12 @@ export function ElectionEditor({
   pageOrdinals: number[];
   dateLabel?: string;
   initialData: ElectionSectionData;
+  /** Edit-lock scope. EVERY election page edits this one stored section, so
+   *  they share a single claim — one editor at a time for the whole section. */
+  lockScope: string;
 }) {
   const router = useRouter();
+  const lock = useEditLock(lockScope);
   const [data, setData] = useState<ElectionSectionData>(initialData);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -175,7 +181,8 @@ export function ElectionEditor({
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_auto] gap-8">
       {/* ── Controls ───────────────────────────────────────── */}
-      <div className="max-w-2xl space-y-5">
+      <div className="max-w-2xl">
+        <EditLockGate lock={lock} what="Election Coverage section" className="space-y-5">
         <p className="text-sm text-zinc-600">
           One set of race tiles fills all {pageCount} election page{pageCount === 1 ? '' : 's'} of
           this issue, in order. Tiles never split across a page break — when a page fills, the next
@@ -372,6 +379,7 @@ export function ElectionEditor({
           {error ? <span className="text-sm text-red-600">{error}</span> : null}
           {saved ? <span className="text-sm text-emerald-700">Saved.</span> : null}
         </div>
+        </EditLockGate>
       </div>
 
       {/* ── Live preview: every election page of the section ── */}

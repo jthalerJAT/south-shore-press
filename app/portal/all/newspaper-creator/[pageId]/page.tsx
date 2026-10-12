@@ -14,6 +14,7 @@ import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
 import { normalizeElectionSection } from '@/lib/newspaper/election-page';
+import { electionScope } from '@/lib/newspaper/edit-lock';
 import { getLegalNotices } from '@/lib/queries/legal-notices';
 import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
@@ -201,6 +202,7 @@ export default async function NewspaperPageEditorPage({
             pageOrdinals={ordinals.length > 0 ? ordinals : [ordinal]}
             dateLabel={issueDate}
             initialData={normalizeElectionSection(first.template_data)}
+            lockScope={electionScope(page.variant ?? 'standard')}
           />
         </PortalShell>
       );

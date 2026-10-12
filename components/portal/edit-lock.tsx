@@ -101,6 +101,28 @@ export function useEditLock(scope: string): EditLock {
   return { checking, readOnly: holder !== null, holder, freed };
 }
 
+/** Claim + gate in one. Lets a server component wrap any editor without the
+ *  editor itself knowing about locks: <EditLockBoundary scope={pageScope(id)}>
+ *  <SomeEditor … /></EditLockBoundary>. */
+export function EditLockBoundary({
+  scope,
+  what,
+  className,
+  children,
+}: {
+  scope: string;
+  what?: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const lock = useEditLock(scope);
+  return (
+    <EditLockGate lock={lock} what={what} className={className}>
+      {children}
+    </EditLockGate>
+  );
+}
+
 /** Banner + disabled wrapper. Children render normally when you hold the lock. */
 export function EditLockGate({
   lock,

@@ -5,6 +5,8 @@ import { PortalShell } from '@/components/portal/portal-shell';
 import { getPages, getPage, getPageItems, getIssueDate } from '@/lib/queries/newspaper';
 import { pageHeading } from '@/lib/newspaper-templates';
 import { LayoutEditor, type InitialItem } from './layout-editor';
+import { pageScope } from '@/lib/newspaper/edit-lock';
+import { EditLockBoundary } from '@/components/portal/edit-lock';
 
 export const metadata: Metadata = {
   title: 'Page layout · Newspaper Creator',
@@ -57,6 +59,7 @@ export default async function NewspaperLayoutPage({
       title={`Layout — ${displayTitle}`}
       backLink={{ href: `/portal/all/newspaper-creator/${page.id}`, label: 'Page content' }}
     >
+      <EditLockBoundary scope={pageScope(page.id)}>
       <LayoutEditor
         pageId={page.id}
         pageTitle={displayTitle}
@@ -68,6 +71,7 @@ export default async function NewspaperLayoutPage({
         showColophon={Boolean(td.show_colophon)}
         spaceScale={td.space_scale ?? 1}
       />
+      </EditLockBoundary>
     </PortalShell>
   );
 }

@@ -14,7 +14,8 @@ import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
 import { normalizeElectionSection } from '@/lib/newspaper/election-page';
-import { electionScope } from '@/lib/newspaper/edit-lock';
+import { electionScope, pageScope } from '@/lib/newspaper/edit-lock';
+import { EditLockBoundary } from '@/components/portal/edit-lock';
 import { getLegalNotices } from '@/lib/queries/legal-notices';
 import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
@@ -68,13 +69,15 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <FullAdEditor
-            pageId={page.id}
-            pageNumber={ordinal}
-            dateLabel={issueDate}
-            initialData={normalizeFullAd(page.template_data)}
-            ads={ads}
-          />
+          <EditLockBoundary scope={pageScope(page.id)}>
+            <FullAdEditor
+              pageId={page.id}
+              pageNumber={ordinal}
+              dateLabel={issueDate}
+              initialData={normalizeFullAd(page.template_data)}
+              ads={ads}
+            />
+          </EditLockBoundary>
         </PortalShell>
       );
     }
@@ -93,14 +96,16 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <OpEdEditor
-            pageId={page.id}
-            pageNumber={ordinal}
-            dateLabel={issueDate}
-            initialData={normalizeOpEd(page.template_data)}
-            stories={stories}
-            ads={ads}
-          />
+          <EditLockBoundary scope={pageScope(page.id)}>
+            <OpEdEditor
+              pageId={page.id}
+              pageNumber={ordinal}
+              dateLabel={issueDate}
+              initialData={normalizeOpEd(page.template_data)}
+              stories={stories}
+              ads={ads}
+            />
+          </EditLockBoundary>
         </PortalShell>
       );
     }
@@ -119,14 +124,16 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <PageFourEditor
-            pageId={page.id}
-            pageNumber={ordinal}
-            dateLabel={issueDate}
-            initialData={normalizePageFour(page.template_data)}
-            stories={stories}
-            ads={ads}
-          />
+          <EditLockBoundary scope={pageScope(page.id)}>
+            <PageFourEditor
+              pageId={page.id}
+              pageNumber={ordinal}
+              dateLabel={issueDate}
+              initialData={normalizePageFour(page.template_data)}
+              stories={stories}
+              ads={ads}
+            />
+          </EditLockBoundary>
         </PortalShell>
       );
     }
@@ -147,15 +154,17 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <FunEditor
-            pageId={page.id}
-            source={source}
-            pageNumber={ordinal}
-            dateLabel={funIssueDate}
-            initialData={normalizeFunPage(page.template_data)}
-            ads={ads}
-            stories={stories}
-          />
+          <EditLockBoundary scope={pageScope(page.id)}>
+            <FunEditor
+              pageId={page.id}
+              source={source}
+              pageNumber={ordinal}
+              dateLabel={funIssueDate}
+              initialData={normalizeFunPage(page.template_data)}
+              ads={ads}
+              stories={stories}
+            />
+          </EditLockBoundary>
         </PortalShell>
       );
     }
@@ -170,13 +179,15 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <LegalEditor
-            pageId={page.id}
-            pageNumber={ordinal}
-            dateLabel={issueDate}
-            initialData={normalizeLegalPage(page.template_data)}
-            savedNotices={savedNotices}
-          />
+          <EditLockBoundary scope={pageScope(page.id)}>
+            <LegalEditor
+              pageId={page.id}
+              pageNumber={ordinal}
+              dateLabel={issueDate}
+              initialData={normalizeLegalPage(page.template_data)}
+              savedNotices={savedNotices}
+            />
+          </EditLockBoundary>
         </PortalShell>
       );
     }
@@ -224,13 +235,15 @@ export default async function NewspaperPageEditorPage({
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         >
-          <ClassifiedEditor
-            pageId={page.id}
-            pageNumber={ordinal}
-            dateLabel={issueDate}
-            initialData={normalizeClassifiedPage(page.template_data)}
-            options={options}
-          />
+          <EditLockBoundary scope={pageScope(page.id)}>
+            <ClassifiedEditor
+              pageId={page.id}
+              pageNumber={ordinal}
+              dateLabel={issueDate}
+              initialData={normalizeClassifiedPage(page.template_data)}
+              options={options}
+            />
+          </EditLockBoundary>
         </PortalShell>
       );
     }
@@ -245,14 +258,16 @@ export default async function NewspaperPageEditorPage({
         title={`Edit — ${displayTitle}`}
         backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
       >
-        <CoverEditor
-          pageId={page.id}
-          variant={cfg?.variant ?? 'news'}
-          mastheadWord={cfg?.mastheadWord}
-          issueDate={coverIssueDate}
-          initialData={normalizeCover(page.template_data, page.kind)}
-          stories={stories}
-        />
+        <EditLockBoundary scope={pageScope(page.id)}>
+          <CoverEditor
+            pageId={page.id}
+            variant={cfg?.variant ?? 'news'}
+            mastheadWord={cfg?.mastheadWord}
+            issueDate={coverIssueDate}
+            initialData={normalizeCover(page.template_data, page.kind)}
+            stories={stories}
+          />
+        </EditLockBoundary>
       </PortalShell>
     );
   }
@@ -273,6 +288,7 @@ export default async function NewspaperPageEditorPage({
       title={`Edit — ${displayTitle}`}
       backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
     >
+      <EditLockBoundary scope={pageScope(page.id)}>
       <PageEditor
         pageId={page.id}
         pageTitle={displayTitle}
@@ -295,6 +311,7 @@ export default async function NewspaperPageEditorPage({
         pageNumber={ordinal}
         dateLabel={issueDate}
       />
+      </EditLockBoundary>
     </PortalShell>
   );
 }

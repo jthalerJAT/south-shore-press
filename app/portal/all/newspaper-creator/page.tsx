@@ -49,6 +49,25 @@ export default async function NewspaperCreatorPage() {
     getClassifiedsList(),
   ]);
 
+  // Election pages keep their content in the FIRST election page's
+  // template_data, not np_items, so item summaries are always empty for them —
+  // the board said "No content yet" on a full voter guide. Label them instead.
+  const electionPages = pages.filter((p) => p.kind === 'election');
+  if (electionPages.length > 0) {
+    const td = (electionPages[0].template_data ?? {}) as { tiles?: unknown[] };
+    const races = Array.isArray(td.tiles) ? td.tiles.length : 0;
+    if (races > 0) {
+      electionPages.forEach((p, i) => {
+        summaries[p.id] = [
+          {
+            type: 'story',
+            title: `Election voter guide — ${races} race${races === 1 ? '' : 's'} (page ${i + 1} of ${electionPages.length})`,
+          },
+        ];
+      });
+    }
+  }
+
   // Pre-resolve legals + classifieds to plain data so the client board doesn't
   // import the server-only query modules.
   const legals: LegalChip[] = legalsRaw.map((l) => ({

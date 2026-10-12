@@ -139,10 +139,14 @@ export function ElectionEditor({
   async function handleSave() {
     setSaving(true);
     setError(null);
+    // Passing the measured page requirement lets the server auto-grow the
+    // section: extra Election pages are inserted after the last one and the
+    // rest of the paper shifts back.
     const res = await saveElectionSection(
       firstPageId,
       data as unknown as Record<string, unknown>,
-      otherPageIds
+      otherPageIds,
+      pagesNeeded
     );
     setSaving(false);
     if (!res.ok) {
@@ -377,10 +381,11 @@ export function ElectionEditor({
           {pageCount === 1 ? '' : 's'}
         </div>
         {pagesNeeded > pageCount ? (
-          <div className="mb-2 max-w-xs text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
-            ⚠ The races need {pagesNeeded} pages but this issue has {pageCount} election page
-            {pageCount === 1 ? '' : 's'} — tiles past page {pageCount} won&apos;t print. Add
-            Election Pages from &ldquo;+ Add Page&rdquo; on the board, or trim content.
+          <div className="mb-2 max-w-xs text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
+            The races need {pagesNeeded} pages — saving will add{' '}
+            {pagesNeeded - pageCount} more Election page{pagesNeeded - pageCount === 1 ? '' : 's'}{' '}
+            after page {pageOrdinals[pageOrdinals.length - 1] ?? pageCount} and the rest of the
+            paper will shift back. (You can delete pages from the board later to slim the issue.)
           </div>
         ) : null}
         <div ref={previewRef} className="space-y-4">

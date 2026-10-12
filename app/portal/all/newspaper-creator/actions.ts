@@ -887,11 +887,19 @@ export async function saveLegalPage(pageId: string, data: Record<string, unknown
 /** Persist the Election Issue SECTION (intro + race tiles) and lock its pages.
  *  The section data lives on the FIRST election page's template_data; the
  *  other election pages render their computed slice of the same tile list, so
- *  they only get their status bumped. */
+ *  they only get their status bumped.
+ *
+ *  AUTO-GROW (publisher direction 2026-10-12): `pagesNeeded` is how many
+ *  pages the editor measured the tiles to require. When that exceeds the
+ *  issue's election pages, new Election Coverage pages are inserted directly
+ *  after the last one (later pages shift back) so the section is always as
+ *  big as the ballot needs — the paper simply gets longer. Shrinking is a
+ *  human call: election pages stay individually deletable from the board. */
 export async function saveElectionSection(
   firstPageId: string,
   data: Record<string, unknown>,
-  otherPageIds: string[]
+  otherPageIds: string[],
+  pagesNeeded = 1
 ): Promise<Result> {
   await requireRole([...EDITOR_ROLES], BASE);
   const supabase = createClient();
@@ -911,6 +919,62 @@ export async function saveElectionSection(
       .in('id', otherPageIds);
     if (othersErr) console.error('[saveElectionSection] others', othersErr);
   }
+
+  // Auto-grow: add election pages until the section can hold every tile.
+  const { data: first } = await supabase
+    .from('np_pages')
+    .select('*')
+    .eq('id', firstPageId)
+    .maybeSingle();
+  if (first) {
+    const variant: IssueVariant =
+      ((first as { variant?: string | null }).variant ?? 'standard') === 'election'
+        ? 'election'
+        : 'standard';
+    const { data: allRows } = await supabase
+      .from('np_pages')
+      .select('*')
+      .order('page_order', { ascending: true });
+    const issuePages = ((allRows ?? []) as Array<{
+      id: string;
+      kind: string;
+      page_order: number;
+      variant?: string | null;
+    }>).filter((p) => pageInVariant(p, variant));
+    const electionPages = issuePages.filter((p) => p.kind === 'election');
+    const toAdd = Math.max(0, Math.min(pagesNeeded, 40) - electionPages.length);
+    if (toAdd > 0 && electionPages.length > 0) {
+      const lastOrder = electionPages[electionPages.length - 1].page_order;
+      // Shift later pages back (descending so renumbering never collides).
+      const after = issuePages.filter((p) => p.page_order > lastOrder).reverse();
+      for (const p of after) {
+        await supabase
+          .from('np_pages')
+          .update({ page_order: p.page_order + toAdd })
+          .eq('id', p.id);
+      }
+      const firstRow = first as { title?: string | null; section_name?: string | null };
+      const { error: insErr } = await supabase.from('np_pages').insert(
+        Array.from({ length: toAdd }, (_, i) => ({
+          page_order: lastOrder + 1 + i,
+          kind: 'election',
+          title: firstRow.title ?? 'Election Coverage',
+          section_name: firstRow.section_name ?? 'ELECTION 2026',
+          template_data: {},
+          status: 'locked',
+          variant,
+        }))
+      );
+      if (insErr) {
+        console.error('[saveElectionSection] grow', insErr);
+        return {
+          ok: false,
+          error: `Saved, but could not add the ${toAdd} extra election page(s).`,
+        };
+      }
+    }
+  }
+
   revalidatePath(BASE);
   revalidatePath(`${BASE}/${firstPageId}`);
   return { ok: true };

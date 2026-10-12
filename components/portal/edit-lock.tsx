@@ -20,6 +20,25 @@ import {
 } from '@/lib/newspaper/edit-lock';
 
 const ENDPOINT = '/api/newspaper/edit-lock';
+const SESSION_KEY = 'ssp-edit-lock-window';
+
+/** Id for THIS browser window. sessionStorage is per tab, so the same login on
+ *  two terminals (or two tabs) holds two different ids and the second one gets
+ *  the read-only view instead of silently overwriting the first. */
+function windowId(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    let id = window.sessionStorage.getItem(SESSION_KEY);
+    if (!id) {
+      id = crypto.randomUUID?.() ?? `w-${Math.random().toString(36).slice(2)}-${Date.now()}`;
+      window.sessionStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+  } catch {
+    // Private mode / storage blocked: fall back to per-user locking.
+    return '';
+  }
+}
 
 export type EditLock = {
   /** True while the first claim is in flight — editors stay disabled until we
@@ -35,7 +54,7 @@ async function post(scope: string, action: 'claim' | 'heartbeat' | 'release', ke
   const res = await fetch(ENDPOINT, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ scope, action }),
+    body: JSON.stringify({ scope, action, session: windowId() }),
     keepalive,
     cache: 'no-store',
   });
@@ -145,9 +164,20 @@ export function EditLockGate({
           role="status"
           className="mb-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900"
         >
-          <strong>{lock.holder.name}</strong> has had this {what} open since{' '}
-          {describeSince(lock.holder.since)}. You are viewing it read-only — anything you type here
-          would overwrite their work, so editing is switched off until they close it.
+          {lock.holder.self ? (
+            <>
+              <strong>You already have this {what} open in another window</strong> — since{' '}
+              {describeSince(lock.holder.since)}. This one is read-only, because saving from both
+              would overwrite whichever you typed first. Edit in the other window, or close it and
+              reload here.
+            </>
+          ) : (
+            <>
+              <strong>{lock.holder.name}</strong> has had this {what} open since{' '}
+              {describeSince(lock.holder.since)}. You are viewing it read-only — anything you type
+              here would overwrite their work, so editing is switched off until they close it.
+            </>
+          )}
         </div>
       ) : null}
       {lock.freed ? (

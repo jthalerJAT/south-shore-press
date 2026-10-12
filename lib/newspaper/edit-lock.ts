@@ -33,6 +33,9 @@ export type LockHolder = {
   name: string;
   /** ISO timestamp of when they opened it. */
   since: string;
+  /** The holder is THIS user in another window/terminal (migration 052). The
+   *  banner says "you" rather than naming them like a colleague. */
+  self?: boolean;
 };
 
 export type LockState =

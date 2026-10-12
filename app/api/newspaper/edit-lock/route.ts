@@ -20,6 +20,8 @@ type Row = {
   scope: string;
   user_id: string;
   user_name: string | null;
+  /** Which browser window holds it (migration 052); null before that. */
+  session_id?: string | null;
   claimed_at: string;
   last_seen_at: string;
 };
@@ -29,20 +31,27 @@ function missingTable(error: { code?: string } | null): boolean {
   return error?.code === '42P01' || error?.code === 'PGRST205';
 }
 
+/** Migration 052 (session_id) not applied yet — write without that column. */
+function missingColumn(error: { code?: string } | null): boolean {
+  return error?.code === '42703' || error?.code === 'PGRST204';
+}
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user || !user.roles.some((r) => EDITOR_TIER_ROLES.includes(r))) {
     return NextResponse.json({ error: 'Not authorised.' }, { status: 403 });
   }
 
-  let body: { scope?: string; action?: LockAction };
+  let body: { scope?: string; action?: LockAction; session?: string };
   try {
-    body = (await request.json()) as { scope?: string; action?: LockAction };
+    body = (await request.json()) as { scope?: string; action?: LockAction; session?: string };
   } catch {
     return NextResponse.json({ error: 'Bad request.' }, { status: 400 });
   }
   const scope = (body.scope ?? '').trim();
   const action: LockAction = body.action ?? 'claim';
+  // One window per claim: the same person on two terminals must not both edit.
+  const session = (body.session ?? '').trim();
   if (!scope) return NextResponse.json({ error: 'Missing scope.' }, { status: 400 });
 
   const supabase = createClient();
@@ -51,11 +60,15 @@ export async function POST(request: Request) {
   const ok = (state: LockState) => NextResponse.json(state, noStore);
 
   if (action === 'release') {
-    const { error } = await supabase
-      .from('np_edit_locks')
-      .delete()
-      .eq('scope', scope)
-      .eq('user_id', user.id);
+    // Only the window that holds it may release it — otherwise closing your
+    // second (read-only) tab would free someone else's claim.
+    const mineQuery = () =>
+      supabase.from('np_edit_locks').delete().eq('scope', scope).eq('user_id', user.id);
+    let query = mineQuery();
+    if (session) query = query.or(`session_id.eq.${session},session_id.is.null`);
+    let { error } = await query;
+    // Migration 052 unapplied — release without the window filter.
+    if (error && missingColumn(error)) ({ error } = await mineQuery());
     if (error && !missingTable(error)) console.error('[edit-lock] release', error);
     return ok({ state: 'editing' });
   }
@@ -75,13 +88,21 @@ export async function POST(request: Request) {
   const row = data as Row | null;
   const now = Date.now();
   const stale = row ? now - new Date(row.last_seen_at).getTime() > LOCK_IDLE_MS : true;
-  const mine = row?.user_id === user.id;
+  const sameUser = row?.user_id === user.id;
+  // Before migration 052 (no session_id stored) a claim belongs to the user as
+  // a whole, so their other window counts as the same holder — 051 behaviour.
+  const sameWindow = sameUser && (!row?.session_id || !session || row.session_id === session);
 
-  // Someone else holds it and is still alive — read-only, no takeover.
-  if (row && !mine && !stale) {
+  // Held and still alive — read-only, no takeover. That includes YOUR other
+  // window: two tabs of one login overwrote each other just like two people.
+  if (row && !sameWindow && !stale) {
     return ok({
       state: 'readonly',
-      holder: { name: row.user_name || 'Another editor', since: row.claimed_at },
+      holder: {
+        name: row.user_name || 'Another editor',
+        since: row.claimed_at,
+        ...(sameUser ? { self: true } : {}),
+      },
     });
   }
 
@@ -90,17 +111,23 @@ export async function POST(request: Request) {
   if (action === 'heartbeat' && !row) return ok({ state: 'editing' });
 
   const nowIso = new Date(now).toISOString();
-  const { error: upErr } = await supabase.from('np_edit_locks').upsert(
-    {
-      scope,
-      ...me,
-      // Keep the original claim time while it stays mine, so the banner shows
-      // when editing actually started.
-      claimed_at: mine && row ? row.claimed_at : nowIso,
-      last_seen_at: nowIso,
-    },
-    { onConflict: 'scope' }
-  );
+  const base = {
+    scope,
+    ...me,
+    // Keep the original claim time while this window keeps it, so the banner
+    // shows when editing actually started.
+    claimed_at: sameWindow && row ? row.claimed_at : nowIso,
+    last_seen_at: nowIso,
+  };
+  let { error: upErr } = await supabase
+    .from('np_edit_locks')
+    .upsert({ ...base, session_id: session || null }, { onConflict: 'scope' });
+  if (upErr && missingColumn(upErr)) {
+    // Migration 052 unapplied — claim without the window id (051 behaviour).
+    ({ error: upErr } = await supabase
+      .from('np_edit_locks')
+      .upsert(base, { onConflict: 'scope' }));
+  }
   if (upErr) {
     if (missingTable(upErr)) return ok({ state: 'editing', degraded: true });
     console.error('[edit-lock] claim', upErr);

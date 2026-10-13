@@ -1,38 +1,157 @@
 'use client';
 
 /**
- * FormatTextarea — a body textarea with an inline-formatting toolbar
- * (publisher direction 2026-10-19): B / U / I buttons plus a point-size
- * dropdown, applied to the highlighted text. Ctrl+B / Ctrl+U / Ctrl+I work
- * too. Formatting is stored as plain-text markers (see lib/inline-format):
+ * FormatTextarea — WYSIWYG body editor (publisher direction 2026-10-19, v2:
+ * "the text inside the box should just be bolded/underlined, not asterisks").
  *
- *   **bold**   __underline__   *italic*   [size=20]…[/size]
+ * The box is a contentEditable surface showing real bold / underline /
+ * italic / sizes. STORAGE IS UNCHANGED: the value handed to forms is still
+ * plain text with the lib/inline-format markers (**b**, __u__, *i*,
+ * [size=N]…[/size]), which the website and the print engine already render.
+ * The component converts markers → styled DOM on load and styled DOM →
+ * markers on every edit, so markers never appear on screen and nothing
+ * downstream changes.
  *
- * The markers stay visible in the textarea — the website and the printed
- * paper render them as real styling. Buttons TOGGLE: applying bold to a
- * selection already wrapped in ** unwraps it.
+ * Toolbar B / U / I (and native Ctrl+B / Ctrl+U / Ctrl+I) format the
+ * highlighted text; the Size dropdown applies a point size. Pasting inserts
+ * PLAIN TEXT on purpose — Word/Docs formatting must not smuggle arbitrary
+ * styling into the paper.
  *
- * Works controlled (value + onChange) or uncontrolled (defaultValue + name,
- * submitting through FormData) so it can replace any existing body textarea.
+ * Works controlled (value + onChange) or uncontrolled (defaultValue + name:
+ * a hidden input carries the marker text through FormData submits).
  */
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
-  InlineText,
+  appendInlineTo,
   initialInlineState,
-  stateAfter,
-  hasInlineMarkers,
   MIN_INLINE_SIZE,
   MAX_INLINE_SIZE,
 } from '@/lib/inline-format';
 
 const SIZE_CHOICES = [18, 20, 22, 24, 28] as const;
 
-type Marker = { open: string; close: string };
-const MARKERS: Record<'b' | 'u' | 'i', Marker> = {
-  b: { open: '**', close: '**' },
-  u: { open: '__', close: '__' },
-  i: { open: '*', close: '*' },
-};
+/** Render marker text into the editable surface: one <div> per paragraph
+ *  (blank-line separated), styled spans for markers, state carried across
+ *  paragraphs — the exact model the site and print renderers use. */
+function renderMarkersInto(root: HTMLElement, text: string): void {
+  root.textContent = '';
+  const paras = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (paras.length === 0) {
+    const div = document.createElement('div');
+    div.appendChild(document.createElement('br'));
+    root.appendChild(div);
+    return;
+  }
+  let st = initialInlineState();
+  paras.forEach((p, i) => {
+    if (i > 0) {
+      // Blank line between paragraphs, as the plain-text format has.
+      const gap = document.createElement('div');
+      gap.appendChild(document.createElement('br'));
+      root.appendChild(gap);
+    }
+    const div = document.createElement('div');
+    st = appendInlineTo(div, p, st);
+    if (!div.firstChild) div.appendChild(document.createElement('br'));
+    root.appendChild(div);
+  });
+}
+
+type Fmt = { b: boolean; u: boolean; i: boolean; size: number | null };
+
+function elementFmt(el: HTMLElement, inh: Fmt): Fmt {
+  const tag = el.tagName;
+  const style = el.style;
+  let { b, u, i, size } = inh;
+  if (tag === 'B' || tag === 'STRONG') b = true;
+  if (tag === 'U') u = true;
+  if (tag === 'I' || tag === 'EM') i = true;
+  const fw = style.fontWeight;
+  if (fw === 'bold' || parseInt(fw, 10) >= 600) b = true;
+  if (style.textDecoration.includes('underline') || style.textDecorationLine.includes('underline')) u = true;
+  if (style.fontStyle === 'italic') i = true;
+  if (style.fontSize) {
+    const m = /^([\d.]+)px$/.exec(style.fontSize);
+    if (m) {
+      const n = Math.round(parseFloat(m[1]));
+      size = n >= MIN_INLINE_SIZE && n <= MAX_INLINE_SIZE && n !== 16 ? n : null;
+    }
+  }
+  return { b, u, i, size };
+}
+
+/** Serialize the editable surface back to marker text. Each top-level block
+ *  (div/p — one per line in contentEditable) becomes a paragraph; blocks with
+ *  no visible text are blank lines and emit nothing. Marker-toggle state is
+ *  threaded across paragraphs, matching how the renderers consume it. */
+function serializeToMarkers(root: HTMLElement): string {
+  const plainFmt: Fmt = { b: false, u: false, i: false, size: null };
+  // Marker-toggle state as emitted so far (shared across all paragraphs).
+  let cur: Fmt = { ...plainFmt };
+
+  /** Append the toggle markers that move `cur` to `t`, into `buf`. */
+  const emit = (buf: { s: string }, t: Fmt) => {
+    if (cur.size !== t.size) {
+      if (cur.size !== null) buf.s += '[/size]';
+      if (t.size !== null) buf.s += `[size=${t.size}]`;
+    }
+    if (cur.b !== t.b) buf.s += '**';
+    if (cur.u !== t.u) buf.s += '__';
+    if (cur.i !== t.i) buf.s += '*';
+    cur = { ...t };
+  };
+
+  const walkInline = (buf: { s: string }, node: Node, inh: Fmt) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      // Strip characters that ARE markers from typed text, so a literal
+      // asterisk can't silently toggle styling on publish.
+      const t = (node.nodeValue ?? '')
+        .replace(/\*/g, '')
+        .replace(/__/g, '')
+        .replace(/\[(\/?)size(=\d{1,2})?\]/g, '');
+      if (!t) return;
+      emit(buf, inh);
+      buf.s += t;
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    if (el.tagName === 'BR') {
+      // Mid-paragraph line break (Shift+Enter) — our model has none; a space
+      // keeps the words apart. A placeholder <br> in a blank line adds
+      // nothing visible and gets trimmed below.
+      buf.s += ' ';
+      return;
+    }
+    const fmt = elementFmt(el, inh);
+    el.childNodes.forEach((c) => walkInline(buf, c, fmt));
+  };
+
+  const paras: string[] = [];
+  root.childNodes.forEach((block) => {
+    const snapshot = { ...cur };
+    const buf = { s: '' };
+    walkInline(buf, block, plainFmt);
+    const text = buf.s.replace(/\s+/g, ' ').trim();
+    if (text) {
+      paras.push(text);
+    } else {
+      // Blank line — nothing emitted; undo any marker toggles whitespace-only
+      // content may have produced so state stays consistent.
+      cur = snapshot;
+    }
+  });
+
+  let out = paras.join('\n\n');
+  // Close anything still open so the stored text is self-contained.
+  const closer = { s: '' };
+  emit(closer, plainFmt);
+  out += closer.s;
+  return out.trim();
+}
 
 export function FormatTextarea({
   value,
@@ -55,131 +174,93 @@ export function FormatTextarea({
   className?: string;
   placeholder?: string;
 }) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-  // Uncontrolled mode keeps its own state so toolbar edits re-render while the
-  // real textarea still submits via `name`.
-  const [inner, setInner] = useState(defaultValue ?? '');
-  const controlled = value !== undefined;
-  const text = controlled ? value : inner;
+  const boxRef = useRef<HTMLDivElement | null>(null);
+  const lastEmitted = useRef<string>(value ?? defaultValue ?? '');
+  const [serialized, setSerialized] = useState(value ?? defaultValue ?? '');
 
-  function setText(next: string, selStart: number, selEnd: number) {
-    if (!controlled) setInner(next);
-    onChange?.(next);
-    // Restore the selection after React re-renders the textarea.
-    requestAnimationFrame(() => {
-      const el = ref.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(selStart, selEnd);
-    });
+  // Initial render + external changes (e.g. the AI revise flow replacing the
+  // body). While the user types, the DOM is the source of truth — only
+  // re-render when the incoming value is something we didn't just emit.
+  useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const incoming = value ?? lastEmitted.current;
+    if (incoming === lastEmitted.current && el.childNodes.length > 0) return;
+    renderMarkersInto(el, incoming);
+    lastEmitted.current = incoming;
+    setSerialized(incoming);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  function emitChange() {
+    const el = boxRef.current;
+    if (!el) return;
+    const text = serializeToMarkers(el);
+    lastEmitted.current = text;
+    setSerialized(text);
+    onChange?.(text);
   }
 
-  /** With nothing highlighted, act on the word the cursor sits in — clicking
-   *  B mid-word must never inject empty markers into it. */
-  function effectiveRange(): { a: number; b: number } | null {
-    const el = ref.current;
-    if (!el) return null;
-    let a = el.selectionStart;
-    let b = el.selectionEnd;
-    if (a !== b) return { a, b };
-    const isWord = (ch: string | undefined) => Boolean(ch && !/[\s]/.test(ch));
-    while (a > 0 && isWord(text[a - 1])) a -= 1;
-    while (b < text.length && isWord(text[b])) b += 1;
-    if (a === b) return null; // cursor in whitespace — nothing to format
-    return { a, b };
+  function exec(command: 'bold' | 'underline' | 'italic') {
+    if (disabled) return;
+    boxRef.current?.focus();
+    document.execCommand(command);
+    emitChange();
   }
 
-  /** Wrap the selection in markers — or unwrap when already wrapped. */
-  function toggleWrap(open: string, close: string) {
-    const el = ref.current;
-    if (!el || disabled) return;
-    const range = effectiveRange();
-    if (!range) return;
-    const { a, b } = range;
-    const before = text.slice(0, a);
-    const sel = text.slice(a, b);
-    const after = text.slice(b);
-
-    // Unwrap: markers inside the selection (**word**) …
-    if (sel.startsWith(open) && sel.endsWith(close) && sel.length >= open.length + close.length) {
-      const un = sel.slice(open.length, sel.length - close.length);
-      setText(before + un + after, a, a + un.length);
-      return;
-    }
-    // … or hugging the selection (user selected just the word).
-    if (before.endsWith(open) && after.startsWith(close)) {
-      setText(before.slice(0, -open.length) + sel + after.slice(close.length), a - open.length, a - open.length + sel.length);
-      return;
-    }
-    const next = before + open + sel + close + after;
-    // Keep the TEXT selected (between the markers) so a follow-up toggle works.
-    setText(next, a + open.length, a + open.length + sel.length);
-  }
-
-  /** Wrap the selection in [size=N]…[/size], replacing any size wrap that
-   *  exactly hugs or encloses it. Choosing "Normal" just removes the wrap. */
+  /** Size via the classic fontSize-7 trick: execCommand marks the selection
+   *  with <font size="7">, which we immediately rewrite to a clean px span
+   *  (or unwrap entirely for "Normal"). */
   function applySize(n: number | null) {
-    const el = ref.current;
+    const el = boxRef.current;
     if (!el || disabled) return;
-    const range = effectiveRange();
-    if (!range) return;
-    const { a, b } = range;
-    let before = text.slice(0, a);
-    let sel = text.slice(a, b);
-    let after = text.slice(b);
-
-    // Strip existing size markers from (or around) the selection first.
-    const openRe = /\[size=\d{1,2}\]$/;
-    const enclosedOpen = /^\[size=\d{1,2}\]/.exec(sel);
-    if (enclosedOpen && sel.endsWith('[/size]')) {
-      sel = sel.slice(enclosedOpen[0].length, sel.length - '[/size]'.length);
-    } else {
-      const hug = openRe.exec(before);
-      if (hug && after.startsWith('[/size]')) {
-        before = before.slice(0, before.length - hug[0].length);
-        after = after.slice('[/size]'.length);
+    el.focus();
+    document.execCommand('fontSize', false, '7');
+    el.querySelectorAll('font[size="7"]').forEach((f) => {
+      if (n === null) {
+        const parent = f.parentNode;
+        while (f.firstChild) parent?.insertBefore(f.firstChild, f);
+        f.remove();
+        return;
       }
-    }
-    sel = sel.replace(/\[size=\d{1,2}\]/g, '').replace(/\[\/size\]/g, '');
-
-    const start = before.length;
-    if (n === null) {
-      setText(before + sel + after, start, start + sel.length);
-      return;
-    }
-    const open = `[size=${n}]`;
-    setText(before + open + sel + '[/size]' + after, start + open.length, start + open.length + sel.length);
+      const span = document.createElement('span');
+      span.style.fontSize = `${n}px`;
+      while (f.firstChild) span.appendChild(f.firstChild);
+      f.replaceWith(span);
+    });
+    emitChange();
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
-    const k = e.key.toLowerCase();
-    if (k === 'b' || k === 'u' || k === 'i') {
-      e.preventDefault();
-      const m = MARKERS[k as 'b' | 'u' | 'i'];
-      toggleWrap(m.open, m.close);
-    }
+  function onPaste(e: React.ClipboardEvent) {
+    // Plain text only — outside formatting must not ride into the paper.
+    e.preventDefault();
+    const text = e.clipboardData.getData('text/plain');
+    document.execCommand('insertText', false, text);
+    emitChange();
   }
 
   const btnCls =
     'inline-flex h-7 min-w-7 items-center justify-center rounded border border-zinc-300 bg-white px-1.5 text-sm text-zinc-700 hover:bg-zinc-100 disabled:opacity-50';
 
+  const empty = serialized.trim() === '';
+
   return (
     <div>
       <div className="mb-1 flex items-center gap-1.5">
-        <button type="button" title="Bold (Ctrl+B)" disabled={disabled} onClick={() => toggleWrap('**', '**')} className={`${btnCls} font-bold`}>
+        <button type="button" title="Bold (Ctrl+B)" disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('bold')} className={`${btnCls} font-bold`}>
           B
         </button>
-        <button type="button" title="Underline (Ctrl+U)" disabled={disabled} onClick={() => toggleWrap('__', '__')} className={`${btnCls} underline`}>
+        <button type="button" title="Underline (Ctrl+U)" disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('underline')} className={`${btnCls} underline`}>
           U
         </button>
-        <button type="button" title="Italic (Ctrl+I)" disabled={disabled} onClick={() => toggleWrap('*', '*')} className={`${btnCls} italic`}>
+        <button type="button" title="Italic (Ctrl+I)" disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={() => exec('italic')} className={`${btnCls} italic`}>
           I
         </button>
         <select
           title="Point size for the highlighted text"
           disabled={disabled}
           value=""
+          onMouseDown={(e) => e.stopPropagation()}
           onChange={(e) => {
             const v = e.target.value;
             e.target.value = '';
@@ -197,50 +278,35 @@ export function FormatTextarea({
           ))}
         </select>
         <span className="text-[11px] text-zinc-400">
-          Highlight text (or put the cursor in a word), then apply. Formatting shows as markers
-          like **bold** in the box — the preview below shows how it will publish.
+          Highlight text, then apply — it formats right here and publishes the same way.
         </span>
       </div>
-      <textarea
-        ref={ref}
-        id={id}
-        name={name}
-        rows={rows}
-        value={text}
-        onChange={(e) => {
-          if (!controlled) setInner(e.target.value);
-          onChange?.(e.target.value);
-        }}
-        onKeyDown={onKeyDown}
-        disabled={disabled}
-        placeholder={placeholder}
-        className={className}
-      />
-      {hasInlineMarkers(text) ? (
-        <div className="mt-2">
-          <div className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">
-            Preview — as it will publish
+      <div className="relative">
+        {empty && placeholder ? (
+          <div aria-hidden className="pointer-events-none absolute left-3 top-2 text-zinc-400">
+            {placeholder}
           </div>
-          <div className="mt-1 max-h-64 overflow-y-auto rounded border border-zinc-200 bg-zinc-50 px-3 py-2 font-serif text-[15px] leading-relaxed text-zinc-800">
-            {(() => {
-              let st = initialInlineState();
-              return text
-                .split(/\n\s*\n/)
-                .map((p) => p.trim())
-                .filter(Boolean)
-                .map((p, i) => {
-                  const pState = st;
-                  st = stateAfter(p, st);
-                  return (
-                    <p key={i} className="mb-2 last:mb-0">
-                      <InlineText text={p} state={pState} />
-                    </p>
-                  );
-                });
-            })()}
-          </div>
-        </div>
-      ) : null}
+        ) : null}
+        <div
+          ref={boxRef}
+          id={id}
+          role="textbox"
+          aria-multiline="true"
+          contentEditable={!disabled}
+          suppressContentEditableWarning
+          onInput={emitChange}
+          onBlur={emitChange}
+          onPaste={onPaste}
+          className={className}
+          style={{
+            minHeight: `${Math.max(4, rows) * 1.55}em`,
+            whiteSpace: 'pre-wrap',
+            overflowY: 'auto',
+            outline: 'none',
+          }}
+        />
+      </div>
+      {name ? <input type="hidden" name={name} value={serialized} readOnly /> : null}
     </div>
   );
 }

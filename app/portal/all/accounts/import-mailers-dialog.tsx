@@ -11,125 +11,16 @@ import {
   assignMissingAccountNumbers,
   type ImportAccountRow,
 } from './actions';
-
-type Field =
-  | 'first_name'
-  | 'last_name'
-  | 'company'
-  | 'address_1'
-  | 'address_2'
-  | 'city'
-  | 'state'
-  | 'zip'
-  /** Parse-only: merged into `zip` as 11968-5339 and never stored on its own. */
-  | 'zip4'
-  | 'email'
-  | 'phone'
-  | 'acs_keyline'
-  | 'account_number'
-  | 'subscription_start'
-  | 'subscription_end'
-  | 'last_payment_amount';
-
-type ParsedRow = Partial<Record<Field, string>>;
-
-const FIELD_LABELS: Record<Field, string> = {
-  first_name: 'First Name',
-  last_name: 'Last Name',
-  company: 'Company',
-  address_1: 'Address 1',
-  address_2: 'Address 2',
-  city: 'City',
-  state: 'State',
-  zip: 'ZIP',
-  zip4: 'ZIP+4',
-  email: 'Email',
-  phone: 'Phone',
-  acs_keyline: 'ACS Keyline',
-  account_number: 'Account ID',
-  subscription_start: 'Start Date',
-  subscription_end: 'Expiration Date',
-  last_payment_amount: 'Amount Paid',
-};
-
-/** Map a spreadsheet header to one of our fields (order matters — address 2
- *  before address 1, etc.). Tolerant of the "Subscriber …" prefixes. */
-function matchField(header: string): Field | null {
-  const h = header.toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (/address2|addr2|addressline2/.test(h)) return 'address_2';
-  if (/address1|addr1|addressline1|streetaddress/.test(h)) return 'address_1';
-  if (/address|street/.test(h)) return 'address_1';
-  if (/firstname|fname|givenname/.test(h) || h === 'first') return 'first_name';
-  if (/lastname|lname|surname|familyname/.test(h) || h === 'last') return 'last_name';
-  if (/company|business|organization|organisation/.test(h)) return 'company';
-  if (/emailaddress|email/.test(h)) return 'email';
-  if (/phone|tel|mobile|cell/.test(h)) return 'phone';
-  if (/city|town/.test(h)) return 'city';
-  if (/state|province|region/.test(h)) return 'state';
-  // The 4-digit add-on arrives as its own column ("Zip 4", "ZIP+4", "Plus4").
-  // Must be tested BEFORE the plain zip rule, which would swallow it.
-  if (/^(zip|postal)?(code)?(plus|add|addon)?4$/.test(h) || /zip4|plus4|zipplus/.test(h)) return 'zip4';
-  if (/zip|postal/.test(h)) return 'zip';
-  if (/acs|keyline/.test(h)) return 'acs_keyline';
-  if (/accountid|accountnumber|acct/.test(h) || h === 'account') return 'account_number';
-  if (/amountpaid|paymentamount|amount/.test(h)) return 'last_payment_amount';
-  if (/paymentstart|startdate|datestarted|substart|subscriptionstart/.test(h)) return 'subscription_start';
-  if (/expir|paymentexpire|enddate|expiredate|subend|subscriptionend/.test(h)) return 'subscription_end';
-  return null;
-}
-
-/**
- * Join a "ZIP" column and a separate "ZIP 4" column into one stored ZIP:
- * 11968 + 5339 → "11968-5339" (publisher direction 2026-10-13).
- *
- * Excel stores both as numbers and drops leading zeros (06880 → 6880,
- * 0339 → 339), so each half is padded back. A ZIP that already carries its
- * add-on (9 digits, or "11968-5339") is kept as it is.
- */
-function joinZip(zip: string | undefined, zip4: string | undefined): string {
-  const z = (zip ?? '').replace(/\D/g, '');
-  const four = (zip4 ?? '').replace(/\D/g, '');
-  if (!z) return (zip ?? '').trim();
-  // "0" / "0000" in the add-on column means "none", not add-on zero.
-  const fourClean = /^0*$/.test(four) ? '' : four;
-  const five = z.length >= 9 ? z.slice(0, 5) : z.length === 4 ? `0${z}` : z;
-  const addOn =
-    z.length >= 9 ? z.slice(5, 9) : fourClean ? fourClean.padStart(4, '0').slice(-4) : '';
-  return addOn ? `${five}-${addOn}` : five;
-}
+import {
+  FIELD_LABELS,
+  parseAccountsWorkbook,
+  type Field,
+  type ParsedRow,
+  type ParseResult,
+} from '@/lib/accounts/import-parse';
+import type { WorkerIn, WorkerOut } from './import-worker';
 
 const CHUNK = 1000;
-
-/** Shrink a sheet's declared range (`!ref`) to the cells that actually hold
- *  values. Excel routinely declares ranges out to column XFD / row 1048576
- *  (stray formatting does it), and `sheet_to_json` materializes EVERY declared
- *  cell — a real mailer list declared as B2:XFD5988 is ~98 million cells and
- *  locks the browser. The sheet object is sparse, so scanning its real keys is
- *  cheap. */
-function trimSheetRange(XLSX: typeof import('xlsx'), sheet: import('xlsx').WorkSheet): void {
-  if (!sheet['!ref']) return;
-  let minR = Infinity;
-  let minC = Infinity;
-  let maxR = -1;
-  let maxC = -1;
-  for (const key of Object.keys(sheet)) {
-    if (key[0] === '!') continue;
-    const cell = sheet[key];
-    if (cell == null) continue;
-    // Blank = no usable VALUE. Formulas don't matter — the import consumes
-    // computed values only. The real-world trigger was a single cell
-    // XFD984="" (a formula evaluating to empty) declaring the full
-    // 16,384-column width.
-    if (cell.v == null || (typeof cell.v === 'string' && cell.v.trim() === '')) continue;
-    const { r, c } = XLSX.utils.decode_cell(key);
-    if (r < minR) minR = r;
-    if (c < minC) minC = c;
-    if (r > maxR) maxR = r;
-    if (c > maxC) maxC = c;
-  }
-  if (maxR < 0) return; // truly empty — leave as-is; caller reports "no data"
-  sheet['!ref'] = XLSX.utils.encode_range({ s: { r: minR, c: minC }, e: { r: maxR, c: maxC } });
-}
 
 export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
@@ -148,60 +39,69 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
 
   const typeLabel = ACCOUNT_TYPES.find((t) => t.value === importType)?.label ?? importType;
 
+  /** Parse in a Worker so a 14k-row list can't freeze the tab. Falls back to
+   *  parsing inline if the browser (or a stale bundle) can't start one. */
+  function parseInWorker(buf: ArrayBuffer, onProgress: (n: number) => void) {
+    return new Promise<ParseResult>((resolve, reject) => {
+      let worker: Worker;
+      try {
+        worker = new Worker(new URL('./import-worker.ts', import.meta.url));
+      } catch (e) {
+        reject(e);
+        return;
+      }
+      worker.onmessage = (ev: MessageEvent<WorkerOut>) => {
+        if (ev.data.type === 'progress') {
+          onProgress(ev.data.rowsDone);
+          return;
+        }
+        worker.terminate();
+        resolve(ev.data.result);
+      };
+      worker.onerror = (ev) => {
+        worker.terminate();
+        reject(ev.error ?? new Error('worker failed'));
+      };
+      // Transfer the bytes rather than copying them.
+      worker.postMessage({ buf } satisfies WorkerIn, [buf]);
+    });
+  }
+
   async function handleFile(file: File | null) {
     if (!file) return;
     setError(null);
     setDone(null);
     setRows(null);
     setFileName(file.name);
+    setProgress('');
     setParsing(true);
     try {
-      const XLSX = await import('xlsx');
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-      const sheet = wb.Sheets[wb.SheetNames[0]];
-      trimSheetRange(XLSX, sheet);
-      const json = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-        defval: '',
-        raw: false,
-      });
-      if (json.length === 0) {
-        setError('That file has no data rows.');
+      let result: ParseResult;
+      try {
+        result = await parseInWorker(await file.arrayBuffer(), (n) =>
+          setProgress(`Read ${n.toLocaleString()} rows…`)
+        );
+      } catch (workerErr) {
+        // No worker available — parse inline (slower, and the tab will sit
+        // still while it runs, but the import still works).
+        console.warn('[import] worker unavailable, parsing inline', workerErr);
+        setProgress('Reading (this can take a minute on a large file)…');
+        const XLSX = await import('xlsx');
+        result = parseAccountsWorkbook(XLSX, await file.arrayBuffer());
+      }
+      setProgress('');
+      if (!result.ok) {
+        setError(result.error);
         setParsing(false);
         return;
       }
-
-      const headerMap = new Map<string, Field>();
-      for (const key of Object.keys(json[0])) {
-        const f = matchField(key);
-        if (f && !Array.from(headerMap.values()).includes(f)) headerMap.set(key, f);
-      }
-      if (headerMap.size === 0) {
-        setError('Could not recognize any columns (name, address, city, etc.). Check the header row.');
-        setParsing(false);
-        return;
-      }
-
-      const parsed: ParsedRow[] = [];
-      for (const r of json) {
-        const row: ParsedRow = {};
-        for (const [key, field] of headerMap) {
-          const v = r[key];
-          row[field] = v == null ? '' : String(v).trim();
-        }
-        // Fold the separate 4-digit column into the ZIP; it is never stored on
-        // its own (the accounts table has no such column).
-        if (row.zip || row.zip4) row.zip = joinZip(row.zip, row.zip4);
-        delete row.zip4;
-        if (row.first_name || row.last_name || row.company || row.address_1) parsed.push(row);
-      }
-
-      setRows(parsed);
-      setMappedFields(Array.from(headerMap.values()));
+      setRows(result.rows);
+      setMappedFields(result.fields);
       setParsing(false);
     } catch (e) {
       console.error('[import parse]', e);
       setError('Could not read that file. Use an .xlsx, .xls, or .csv export.');
+      setProgress('');
       setParsing(false);
     }
   }

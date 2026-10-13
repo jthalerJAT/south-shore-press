@@ -231,6 +231,16 @@ export function FormatTextarea({
     emitChange();
   }
 
+  function onKeyDown(e: React.KeyboardEvent) {
+    // Ctrl+Enter inserts nothing in a browser editable by default — treat it
+    // as a plain Enter (new paragraph) so the habit just works.
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      document.execCommand('insertParagraph');
+      emitChange();
+    }
+  }
+
   function onPaste(e: React.ClipboardEvent) {
     // Plain text only — outside formatting must not ride into the paper.
     e.preventDefault();
@@ -296,6 +306,7 @@ export function FormatTextarea({
           suppressContentEditableWarning
           onInput={emitChange}
           onBlur={emitChange}
+          onKeyDown={onKeyDown}
           onPaste={onPaste}
           className={className}
           style={{

@@ -63,6 +63,17 @@ function GrowArea({
       rows={minRows}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        // Ctrl+Enter = plain Enter (insert a newline at the cursor).
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+          e.preventDefault();
+          const el = e.currentTarget;
+          const { selectionStart: a, selectionEnd: b } = el;
+          const next = value.slice(0, a) + '\n' + value.slice(b);
+          onChange(next);
+          requestAnimationFrame(() => el.setSelectionRange(a + 1, a + 1));
+        }
+      }}
       placeholder={placeholder}
       className={
         className ??

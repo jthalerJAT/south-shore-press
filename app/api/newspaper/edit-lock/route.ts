@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser, EDITOR_TIER_ROLES } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { LOCK_IDLE_MS, type LockAction, type LockState } from '@/lib/newspaper/edit-lock';
+import {
+  LOCK_IDLE_MS,
+  LOCK_SELF_STALE_MS,
+  type LockAction,
+  type LockState,
+} from '@/lib/newspaper/edit-lock';
 
 /**
  * Edit-lock endpoint — claim / heartbeat / release for one editor scope.
@@ -87,15 +92,21 @@ export async function POST(request: Request) {
 
   const row = data as Row | null;
   const now = Date.now();
-  const stale = row ? now - new Date(row.last_seen_at).getTime() > LOCK_IDLE_MS : true;
+  const silentMs = row ? now - new Date(row.last_seen_at).getTime() : Infinity;
+  const stale = silentMs > LOCK_IDLE_MS;
   const sameUser = row?.user_id === user.id;
   // Before migration 052 (no session_id stored) a claim belongs to the user as
   // a whole, so their other window counts as the same holder — 051 behaviour.
   const sameWindow = sameUser && (!row?.session_id || !session || row.session_id === session);
+  // Your OWN ghost window (closed/crashed without its release beacon) stops
+  // heartbeating — after a few silent minutes, let your new window reclaim
+  // rather than locking you out of your own page for the full hour. A LIVE
+  // window of yours keeps heartbeating and stays protected.
+  const selfStale = sameUser && !sameWindow && silentMs > LOCK_SELF_STALE_MS;
 
   // Held and still alive — read-only, no takeover. That includes YOUR other
   // window: two tabs of one login overwrote each other just like two people.
-  if (row && !sameWindow && !stale) {
+  if (row && !sameWindow && !stale && !selfStale) {
     return ok({
       state: 'readonly',
       holder: {

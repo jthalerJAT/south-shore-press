@@ -15,6 +15,13 @@
 export const LOCK_IDLE_MS = 60 * 60 * 1000;
 /** How often an open editor says "still here". */
 export const LOCK_HEARTBEAT_MS = 60 * 1000;
+/** A holder's OWN new window may reclaim after this much heartbeat silence
+ *  (2026-10-19: a window that died without its release beacon locked the
+ *  publisher out of his own page for the full hour). A live window heartbeats
+ *  every minute, so 3½ minutes of silence means that window is gone — and the
+ *  claim still belongs to the same person, so "whoever opened it keeps it"
+ *  holds. OTHER people still wait the full LOCK_IDLE_MS. */
+export const LOCK_SELF_STALE_MS = 3 * LOCK_HEARTBEAT_MS + 30 * 1000;
 
 export type LockScope = string;
 

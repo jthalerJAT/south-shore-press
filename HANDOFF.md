@@ -1,368 +1,116 @@
-# Handoff Notes — Design Decisions + Gotchas
+# HANDOFF — 2026-10-13 (for the next Claude session)
 
-The README tells you what's where. This file tells you **why it's like
-this**, so you don't accidentally undo a careful decision when picking
-up a new feature.
+John is moving to another terminal. This is where things stand. Everything
+below is pushed to `origin/main` and deployed unless stated otherwise.
+**Pull before doing anything** — he works from several machines.
 
-Written 2026-05-25 at the end of a long session. Updated 2026-05-26
-when reader auth landed. Update as you go.
+## 1. THE LIVE TASK: import ~14,000 names as Weekly Mailer accounts
 
----
+**What he asked for, verbatim in intent:** add the rows in
+`P:\JAT Capital\South Shore Press\Master Distribution List Updated 10-11-26 election issue.xlsx`
+to the Account Database as **Weekly Mailer** accounts, **appending** them.
+**He explicitly does NOT want the existing Weekly Mailers overwritten.**
 
-## How to resume on a fresh workstation
+- In the import dialog that means **Append**, never **Replace & Import**
+  (Replace clears every account of that type first).
+- Account count before the import: **5,513** accounts total. Expect roughly
+  19,500 after, and check the Weekly Mailer count specifically.
 
-The user works across multiple machines. Local clones often lag origin
-by days or weeks. Steps:
+**THE BLOCKER — read this before retrying:** that .xlsx is **106.8 MB** for
+~14k rows. That is 1000x what the data needs and is why the tab froze at
+"Reading…" with Chrome's "Page Unresponsive" dialog. The parse now runs in a
+Web Worker (commit `c493979`, deployed), so the page should stay responsive —
+but a 107 MB workbook may still exhaust memory while SheetJS inflates it.
 
-```bash
-# 1) pull (or re-clone)
-git pull origin main
-# or
-git clone https://github.com/jthalerJAT/south-shore-press
+Recommended order:
+1. Ask John to open the file in Excel and **Save As → CSV UTF-8**. A 14k-row
+   CSV will be ~1–2 MB and imports in seconds. The dialog accepts .csv.
+2. Only if he can't, try the .xlsx with the new worker build and watch for an
+   out-of-memory crash of the worker (the dialog falls back to inline
+   parsing, which WILL freeze the tab on a file this size — don't let it).
+3. I never managed to read the file's header row: a local Node parse of it
+   ran past 5 minutes without finishing (same cause). **Confirm the column
+   headers before importing**, especially that the ZIP add-on column is
+   present and named something like "Zip 4".
 
-# 2) install
-npm install
+**ZIP+4 is already handled** (commit `edf1dfb`): a separate "Zip 4" / "ZIP+4" /
+"Plus4" column is folded into the ZIP as `11968-5339`. Leading zeros are
+padded back on both halves (6880 + 339 → `06880-0339`), "0"/"0000" counts as
+no add-on, and a ZIP that already carries its add-on is left alone. The
+accounts table stores `zip` as text and the UI renders the full value —
+verified. After importing, spot-check one record with an add-on and one
+without.
 
-# 3) read in this order:
-# - README.md          (overview + file map)
-# - HANDOFF.md         (this file — decisions + gotchas)
-# - TODO.md            (what's left)
-# - recent commit log: git log --oneline -30
-```
+He asked me to run the import for him. I had not started it — I was still
+fixing the freeze. Doing it through the UI with Chrome automation is fine
+(he asked), but **confirm Append vs Replace with him before clicking**, and
+do not import the 107 MB file blind.
 
-You won't have local Supabase credentials by default — pull them from
-Vercel's env-vars dashboard or the Supabase project console and put in
-`.env.local`. Or just push to Vercel and test in deploy previews.
+## 2. WAITING ON JOHN: one SQL statement
 
----
-
-## Why we're using v1's Supabase
-
-v1 (the Vite SPA at `jthalerJAT/southshorepress`) is still serving
-production at `southshorepress.vercel.app`. v2 reads the same DB so
-editors don't have to dual-publish during the transition. **Don't drop
-or rename columns that v1 reads**:
-
-- `stories.*` — every field is used by both
-- `profiles.role` — still read by v1 for permissions. v2 keeps it in
-  sync (writes the highest-priv role from `roles[]` into it)
-
-What v2 added (additive only, doesn't break v1):
-- `profiles.roles text[]` — multi-role array (mig 002)
-- `'reader'` value in the role enum + first_name / last_name / phone /
-  street_address / city / state / zip_code / stripe_customer_id /
-  has_payment_method / payment_method_last4 / payment_method_brand /
-  subscription_status / subscription_tier / subscription_started_at /
-  created_at columns on `profiles` (mig 003). v1 never reads any of
-  these. The `handle_new_auth_user` trigger on `auth.users` auto-fills
-  the columns when a new account signs up via /signup.
-- `site_layout_pins` — new table, v1 doesn't know about it
-
----
-
-## RLS recursion landmine (the bug that took us down)
-
-**Date:** 2026-05-25, ~9 PM. Symptoms: homepage went blank, login
-broke, all queries failed.
-
-**Root cause:** I wrote a SELECT policy on `profiles` that did an
-inline `EXISTS (SELECT 1 FROM profiles me WHERE me.id = auth.uid()
-AND me.role IN ('admin', ...))`. PostgreSQL re-triggered the SELECT
-policy on the inner query → infinite recursion → error `42P17`.
-Cascaded across every table that touches profiles (which is
-everything — stories' RLS checks profiles for editor permissions;
-`site_layout_pins` checks profiles for the same reason; even
-`getCurrentUser` checks profiles for the role).
-
-**Fix:** wrap the admin check in a `SECURITY DEFINER` function:
+Migration 051 (edit locks) is applied. **052 is not yet** — until he runs this
+in the Supabase SQL editor, two of HIS OWN terminals can still both edit the
+same page and overwrite each other (different people are already protected):
 
 ```sql
-CREATE OR REPLACE FUNCTION public.is_credentials_admin(uid uuid)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER  -- ← key: runs as function owner (postgres), skips RLS
-STABLE
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.profiles
-    WHERE id = uid
-      AND replace(lower(role::text), '_', ' ')
-          IN ('admin', 'master admin')
-  );
-$$;
-
-CREATE POLICY "admins can read all profiles"
-  ON profiles
-  FOR SELECT
-  USING (public.is_credentials_admin(auth.uid()));
+ALTER TABLE public.np_edit_locks
+  ADD COLUMN IF NOT EXISTS session_id text;
 ```
 
-**Rule going forward:** any RLS policy on table T that needs to check
-T (or a table that itself has RLS referencing T) must use a SECURITY
-DEFINER helper. Never inline an `EXISTS (SELECT ... FROM same_table)`.
+Also untested live: the read-only banner itself. The test is two windows on
+the same Election Coverage page; the second should show an amber banner with
+fields and Save disabled. I couldn't test it without risking locking him out
+of his own paper while he was travelling.
 
----
+## 3. What shipped today (all deployed, Vercel green)
 
-## Why FK joins cast through `unknown`
+- `edf1dfb` — account import folds a separate "Zip 4" column into the ZIP.
+- `c493979` — that import parses in a Web Worker so a big list can't freeze
+  the tab (`lib/accounts/import-parse.ts` + `app/.../import-worker.ts`).
+- `a53fd14` — previous/next page links in every Newspaper Creator editor
+  (top-right of the header), and View / Print PDF on an Election Coverage
+  page now renders ALL pages of the section, not just the one you opened.
+- `0f66a93` — edit locks on every page editor; the board now labels election
+  pages "Election voter guide — N races (page X of Y)" instead of the
+  misleading "No content yet".
+- `4627bea` — locks are per browser WINDOW, not per login (needs 052).
+- `24afd9a` — the original edit lock for the Election Coverage section.
 
-`@supabase/postgrest-js` types FK relations as arrays even when the
-cardinality is many-to-one. So when we `select('id, headline,
-author:profiles!stories_author_id_fkey(display_name)')`, the inferred
-TS type has `author: { display_name }[]` — but the runtime returns a
-single object because there's exactly one author per story.
+## 4. Background on the bug that started all this
 
-If you do `as StoryDetail` directly, TS rejects with "neither type
-sufficiently overlaps." The escape hatch is:
+The Election Coverage section is stored as ONE blob on the first election
+page, and every election page edits it. Two terminals open = the later Save
+Section silently overwrote the earlier one, with no error and nothing in the
+logs. That's why John lost work. The locks exist to stop exactly this.
 
-```ts
-return ((data ?? null) as unknown as StoryDetail | null) ?? null;
-```
+Publisher's rules for the locks, which he was explicit about:
+- **No takeover button.** Whoever opened it keeps it.
+- **No version stamp / no rejected saves** — redoing 100 edits is impossible.
+- **An hour of idle before a claim expires**, so stepping away never costs
+  you the page. Released immediately when the tab closes.
 
-Used in `lib/queries/stories.ts` and `lib/queries/editor-stories.ts`.
-Don't remove these — the type assertion is correct; Supabase's
-inference is the thing that's wrong.
-
----
-
-## Why we don't use Cloudinary yet
-
-User explicitly asked to skip it. We discussed it (Cloudinary is the
-right tool for a news site — better image optimization than `next/
-image` alone, smart crop, automatic AVIF/WebP, etc.) but deferred the
-work. Today, editors paste URLs into the "Hero media URL" and "+ Add
-another photo" fields. Photos can be from anywhere (S3, Cloudinary if
-they upload manually, etc.).
-
-When picking this up: env vars needed are
-`NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` (public), `CLOUDINARY_API_KEY`
-(server only), `CLOUDINARY_API_SECRET` (server only). Use the
-`next-cloudinary` package + `CldUploadButton` with signed uploads via
-a Server Action that generates the signature.
-
----
-
-## Slug URLs (and why they have a hex suffix)
-
-URL pattern: `/<section>/<headline-slug>-<8charHex>` —
-e.g. `/local/budget-vote-passes-7a3b2c1d`.
-
-Why: the v1 `stories` table doesn't have a `slug` column. Adding one
-requires a migration + backfill + URL-builder swap, which we deferred.
-The 8-char hex (first 8 chars of the UUID) is the actual lookup key;
-the slug portion is for humans + search engines.
-
-Detail-page lookup uses a byte-range query on the uuid column
-(`id >= '<short>-0000-...' AND id <= '<short>-ffff-...'`) — Postgres
-uuid comparison is lexicographic so this matches the right range and
-uses the PK index. **Don't** try to revive `.filter('id::text', 'like',
-prefix)` — PostgREST doesn't accept `column::type` cast in `.filter()`,
-and that was the bug in commit `5bd72ff`.
-
----
-
-## Why some Server Actions return `{error}` and others throw redirect()
-
-Server Actions that mutate then redirect:
-- On success: call `redirect(...)` — Next.js throws a special
-  `NEXT_REDIRECT` error that propagates up and short-circuits rendering
-- On failure: `return { error: ... }` — the caller (a form using
-  `useFormState`) renders the error in the UI
-
-So you'll see actions that look like:
-
-```ts
-const { error } = await supabase.from(...).update(...);
-if (error) return { error: error.message };
-revalidatePath('/portal');
-redirect('/portal');
-```
-
-That's intentional. The implicit Promise return type is
-`Promise<{error: string} | never>` — the redirect path never returns
-because it throws. TypeScript handles this fine.
-
----
-
-## Why the AuthChip is a client component
-
-The masthead has the user's name + role + Sign Out button top-right.
-If we put that in a server component, it'd be baked into the ISR-cached
-HTML — every visitor of a cached page would see the SAME user info.
-Bad. So:
-
-- AuthChip is a Client Component
-- It renders `Sign In` by default (SSR-safe — same for all visitors)
-- On mount, it `fetch('/api/me')` to get the current user
-- Swaps to the signed-in view if found
-
-The `/api/me` route is marked `dynamic = 'force-dynamic'` so it's
-never cached. Tiny request — cookie-only auth check.
-
-Also: `usePathname()` is included in the useEffect dep array so the
-chip re-fetches on every SPA navigation. Without that, signing in
-wouldn't refresh the chip until a hard reload (the root layout
-persists across page navs in App Router).
-
----
-
-## Why the homepage queries fetch a broad pool
-
-`getLatestPublishedStories(50)` — we don't actually need 50 stories
-for the homepage (5 hero + 10 top stories + 4×7 sections = 43 slots
-max). But `resolveSlotStories` needs the pinned story to be IN the
-fallback pool to render it. Pinning a 6-month-old story → it won't be
-in the latest 50 → silently falls back to recency.
-
-This is a known limitation. Fix is `getStoriesByIds(pinnedIds)` and
-merge into the pool. Low priority because editors typically pin recent
-stories anyway. Documented in `TODO.md`.
-
----
-
-## Why `roles[]` doesn't include `'master admin'` in the UI
-
-The Credentials page shows 3 checkboxes (Admin / Editor / Journalist).
-Master admin is intentionally **not** a checkbox:
-- Anyone with admin tier could otherwise grant themselves master admin
-- Master admin is supposed to be a small, fixed set of trusted accounts
-
-So master admin can only be granted via direct SQL. The server action
-preserves the master admin role on any update — if the target was
-master admin before, they stay master admin after, regardless of what
-the request body says.
-
-To grant master admin to a new user, run in Supabase SQL Editor:
-
+Free a stuck page by hand:
 ```sql
-UPDATE profiles
-SET role = 'master admin',
-    roles = ARRAY['master admin']
-WHERE email = 'them@example.com';
+DELETE FROM public.np_edit_locks WHERE scope = 'election:election';
+-- or scope = 'page:<page uuid>'
 ```
 
-(Adjust `role` value to match your enum — `'master_admin'` if the
-enum uses underscore.)
+## 5. Working notes for this repo
 
----
+- `npm install` first: the other terminal added `@vercel/analytics`, and
+  `npx tsc --noEmit -p .` fails without it.
+- Checks before pushing: `npx tsc --noEmit -p .` then
+  `NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co NEXT_PUBLIC_SUPABASE_ANON_KEY=placeholder npx next build`.
+  There is no ESLint config, so lint can't gate the Vercel build.
+- Deploy status: `gh api repos/jthalerJAT/south-shore-press/commits/<sha>/status`.
+- Vercel logs: project `prj_S56YOc24p4cd2xx4Oif8lvOXpl7Y`, team
+  `team_zkVISI9OeLigC59WKHJgpV6Y`. Runtime logs are retained ONE DAY — ask
+  for a short window (`since: "30m"`) or the query 400s.
+- The portal needs John's login, so verify UI work through Claude in Chrome
+  (his real browser), not the in-app browser. Opening an EDITOR page there
+  now claims an edit lock — close the tab when done so it's released.
+- There are two coexisting issue wireframes (standard / election, migration
+  050). The board shows the ACTIVE one; work in the other is invisible until
+  toggled. The Election Issue is currently active.
 
-## Why the section list is hardcoded in two places
-
-`SITE_SECTIONS` (in `lib/site-config.ts`) is the single source of
-truth for the 9 reader-facing sections. But:
-
-- `HOMEPAGE_SECTION_SLUGS` in `app/page.tsx` is a separate ordered
-  list of which sections appear on the homepage rails. It's a
-  **subset + ordering** of `SITE_SECTIONS` — e.g. `video-vault`
-  appears first (user request), `legals` doesn't appear at all on
-  the homepage.
-
-If you add a section in `site-config.ts`, also add it to
-`HOMEPAGE_SECTION_SLUGS` if you want it on the homepage.
-
----
-
-## Things that look broken but aren't
-
-- **"Cloudinary credentials not set" never appears** — there's no
-  Cloudinary code yet. See "Why we don't use Cloudinary yet" above.
-- **404 on `/about`, `/contact`, `/advertise`, `/privacy`, `/terms`,
-  `/email-briefings/signup`, `/subscribe/plans`, `/search?q=...`** —
-  these are intentionally placeholders. Footer links go to the
-  placeholder shell pages; deeper paths 404. See `TODO.md`.
-- **Story-detail pages 404 for very-old story IDs** — the URL lookup
-  uses the first 8 hex chars of the UUID. If two stories happen to
-  share that prefix (1-in-4-billion odds), the more-recent one wins.
-  Not a real problem at current scale.
-- **Vercel "destructive command" warning when running migrations** —
-  it's because of `DROP POLICY IF EXISTS` lines. They're no-ops on
-  first run and idempotent on re-runs. Safe.
-
----
-
-## Things that ARE broken (track in TODO.md, don't be surprised)
-
-- Cloudinary not wired (paste-URL only)
-- Draft preview not built
-- Section pages don't consume their `section.<slug>` pins yet
-  (homepage does; section pages still pure recency)
-- Drag-back-to-list and slot-to-slot drag on Site Layout aren't
-  implemented (× button + drag-from-list works as a workaround)
-- Real search backend not built
-- No image upload UI; no real subscribe flow; no real email
-  briefings signup
-- Stripe webhook not built — `subscription_status` and friends on
-  `profiles` only get populated once we add `/api/stripe/webhook`
-
----
-
-## Reader auth — design decisions (shipped 2026-05-26)
-
-### Why sign-out needed a client wrapper
-
-The bare `<form action={signOutAction}>` pattern clears the auth cookie
-correctly, but the `AuthChip` is a client component whose `/api/me`
-fetch only re-runs when `pathname` changes. Sign Out from `/` redirects
-to `/` — same pathname — so the chip stayed showing "Hi, [Name]" until
-a hard refresh. Fix: `<SignOutButton>` swallows the `NEXT_REDIRECT`
-throw, then calls `router.push('/') + router.refresh()` which DOES
-trigger a re-fetch. Used in `components/site/auth-chip.tsx` and
-`components/portal/portal-shell.tsx`.
-
-### Why card collection lives on /account, not /signup
-
-Supabase Auth requires email confirmation before the session is
-established. `signUp` returns success but the user isn't logged in
-yet — they click the confirm link first. That means we can't call
-`/api/payments/setup-intent` from the signup flow (the endpoint needs
-`getCurrentUser` to return a real user). Putting card UX on
-/account → Payment sidesteps this — the user signs in once with their
-new password, then adds a card with one extra click.
-
-If we want card-at-signup later, two paths:
-1. Disable email confirmation in Supabase Auth (faster onboarding,
-   invites typo/disposable-email accounts).
-2. Accept a Stripe PaymentMethod token at signup, store transiently
-   keyed on the email, and attach it in `handle_new_auth_user` (or in
-   a one-shot first-login handler).
-
-### Why the magic-link reset over GPC's 6-digit code
-
-GPC has a 6-digit code in a custom `password_reset_tokens` table +
-its own Resend-sent email. v2 uses Supabase Auth's built-in
-`resetPasswordForEmail` instead, which sends a magic link →
-`/auth/callback?next=/reset-password` → user lands signed in with a
-recovery session, sets new password via `auth.updateUser`. This is
-the same outcome with ~1/4 the code and no schema additions. If we
-ever need to match GPC's code-input UX precisely, we'd replicate the
-custom token table + a sendResetEmail Resend wrapper.
-
-### Why /account/security verifies current password
-
-`supabase.auth.updateUser({ password })` doesn't ask for the old one
-by default — a borrowed session cookie could rotate the password
-without the legitimate owner knowing. The action in
-`app/account/security/actions.ts` re-runs `signInWithPassword` with
-the current password first; failure aborts the update.
-
-### Why the role enum extension is in its own DO block
-
-`ALTER TYPE ... ADD VALUE` can't be used in the same transaction it
-was added in (PG limitation). Supabase Studio's SQL editor auto-
-commits each statement, but if someone wraps `003_reader_profiles.sql`
-in `BEGIN/COMMIT` manually, the trigger function later in the file
-will fail to insert 'reader'. The migration's top comment calls this
-out explicitly. Defensive detection (looks up the enum's `typname`
-via `pg_type` join) handles the case where v1's enum was named
-something other than `user_role`.
-
-### Why readers excluded from the editorial Credentials table
-
-Three reasons: (1) the existing CredentialsTable's role-toggle
-checkboxes don't apply to readers; (2) Credentials is admin-tier-only
-gated, but the column structure (name/email + 3 checkboxes) doesn't
-have room for phone/address/subscription columns readers need; (3) at
-scale we'll have orders-of-magnitude more readers than editorial
-staff, so combining them would drown the editorial table. The
-`/portal/all/credentials` page now renders both: editorial users up
-top, a separate Readers table below.
+**Delete this file once the import is done and 052 is applied.**

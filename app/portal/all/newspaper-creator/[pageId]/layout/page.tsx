@@ -6,6 +6,7 @@ import { getPages, getPage, getPageItems, getIssueDate } from '@/lib/queries/new
 import { pageHeading } from '@/lib/newspaper-templates';
 import { LayoutEditor, type InitialItem } from './layout-editor';
 import { pageScope } from '@/lib/newspaper/edit-lock';
+import { PagePager } from '@/components/portal/page-pager';
 import { EditLockBoundary } from '@/components/portal/edit-lock';
 
 export const metadata: Metadata = {
@@ -29,7 +30,9 @@ export default async function NewspaperLayoutPage({
   if (!page) notFound();
 
   const [pages, items, issueDate] = await Promise.all([
-    getPages(),
+    // This page's own issue variant, so ordinals match the board even when
+    // editing the issue that isn't currently selected.
+    getPages(page.variant ?? 'standard'),
     getPageItems(params.pageId),
     getIssueDate(),
   ]);
@@ -58,6 +61,30 @@ export default async function NewspaperLayoutPage({
       hideTabs
       title={`Layout — ${displayTitle}`}
       backLink={{ href: `/portal/all/newspaper-creator/${page.id}`, label: 'Page content' }}
+      headerRight={
+        // Flipping through the deck stays in the layout editor.
+        <PagePager
+          prev={
+            ordinal > 1
+              ? {
+                  id: pages[ordinal - 2].id,
+                  ordinal: ordinal - 1,
+                  title: pageHeading(pages[ordinal - 2].title, ordinal - 1),
+                }
+              : null
+          }
+          next={
+            ordinal > 0 && ordinal < pages.length
+              ? {
+                  id: pages[ordinal].id,
+                  ordinal: ordinal + 1,
+                  title: pageHeading(pages[ordinal].title, ordinal + 1),
+                }
+              : null
+          }
+          suffix="/layout"
+        />
+      }
     >
       <EditLockBoundary scope={pageScope(page.id)}>
       <LayoutEditor

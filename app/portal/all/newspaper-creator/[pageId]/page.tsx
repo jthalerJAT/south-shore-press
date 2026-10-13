@@ -16,6 +16,7 @@ import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
 import { normalizeElectionSection } from '@/lib/newspaper/election-page';
 import { electionScope, pageScope } from '@/lib/newspaper/edit-lock';
 import { EditLockBoundary } from '@/components/portal/edit-lock';
+import { PagePager } from '@/components/portal/page-pager';
 import { getLegalNotices } from '@/lib/queries/legal-notices';
 import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
@@ -54,6 +55,24 @@ export default async function NewspaperPageEditorPage({
   const ordinal = pages.findIndex((p) => p.id === page.id) + 1;
   const displayTitle = pageHeading(page.title, ordinal);
 
+  // Flip through the deck without going back to the board between pages.
+  const prevPage = ordinal > 1 ? pages[ordinal - 2] : null;
+  const nextPage = ordinal > 0 && ordinal < pages.length ? pages[ordinal] : null;
+  const pager = (
+    <PagePager
+      prev={
+        prevPage
+          ? { id: prevPage.id, ordinal: ordinal - 1, title: pageHeading(prevPage.title, ordinal - 1) }
+          : null
+      }
+      next={
+        nextPage
+          ? { id: nextPage.id, ordinal: ordinal + 1, title: pageHeading(nextPage.title, ordinal + 1) }
+          : null
+      }
+    />
+  );
+
   // Template pages use a bespoke field editor; flow pages use the story-form
   // Page Editor + the Phase 2A layout engine.
   if (pageMode(page.kind) === 'template') {
@@ -68,6 +87,7 @@ export default async function NewspaperPageEditorPage({
           hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
         >
           <EditLockBoundary scope={pageScope(page.id)}>
             <FullAdEditor
@@ -95,6 +115,7 @@ export default async function NewspaperPageEditorPage({
           hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
         >
           <EditLockBoundary scope={pageScope(page.id)}>
             <OpEdEditor
@@ -123,6 +144,7 @@ export default async function NewspaperPageEditorPage({
           hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
         >
           <EditLockBoundary scope={pageScope(page.id)}>
             <PageFourEditor
@@ -153,6 +175,7 @@ export default async function NewspaperPageEditorPage({
           hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
         >
           <EditLockBoundary scope={pageScope(page.id)}>
             <FunEditor
@@ -178,6 +201,7 @@ export default async function NewspaperPageEditorPage({
           hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
         >
           <EditLockBoundary scope={pageScope(page.id)}>
             <LegalEditor
@@ -206,6 +230,7 @@ export default async function NewspaperPageEditorPage({
           hideTabs
           title="Edit — Election Coverage"
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
         >
           <ElectionEditor
             firstPageId={first.id}
@@ -234,6 +259,7 @@ export default async function NewspaperPageEditorPage({
           hideTabs
           title={`Edit — ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
         >
           <EditLockBoundary scope={pageScope(page.id)}>
             <ClassifiedEditor
@@ -257,6 +283,7 @@ export default async function NewspaperPageEditorPage({
         hideTabs
         title={`Edit — ${displayTitle}`}
         backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+        headerRight={pager}
       >
         <EditLockBoundary scope={pageScope(page.id)}>
           <CoverEditor
@@ -287,6 +314,7 @@ export default async function NewspaperPageEditorPage({
       hideTabs
       title={`Edit — ${displayTitle}`}
       backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+      headerRight={pager}
     >
       <EditLockBoundary scope={pageScope(page.id)}>
       <PageEditor

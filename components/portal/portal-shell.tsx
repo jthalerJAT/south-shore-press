@@ -42,6 +42,7 @@ export function PortalShell({
   children,
   title,
   backLink,
+  headerRight,
   hideTabs = false,
 }: {
   user: {
@@ -57,6 +58,9 @@ export function PortalShell({
    *  /portal/all). Omit on root portal pages if you don't want a back
    *  arrow there. */
   backLink?: BackLinkSpec;
+  /** Controls in the header's top-right, left of the user block (e.g. the
+   *  Newspaper Creator's previous/next page pager). */
+  headerRight?: React.ReactNode;
   /** Hide the Story Editor / Editor Portal tab strip (and the "Start New
    *  Story" CTA). Used by self-contained tools like the Ad Database where
    *  newsroom-story navigation is out of place; the back-link still gets
@@ -81,6 +85,7 @@ export function PortalShell({
           </h1>
         </div>
         <div className="flex items-center gap-3">
+          {headerRight}
           <div className="text-right">
             <div className="text-sm font-medium text-zinc-900">
               {user.displayName ?? user.email}

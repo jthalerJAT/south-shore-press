@@ -39,6 +39,10 @@ const PRINT_CSS = `
   @page { size: 11in 15in; margin: 0.5in; }
   .no-print { display: none !important; }
   body { background: white !important; }
+  /* The Election Coverage proof is the whole multi-page section — one sheet
+     per page, like the press export. */
+  .ssp-sheet { break-after: page; }
+  .ssp-sheet:last-child { break-after: auto; }
 }`;
 
 export default async function PagePrintProof({
@@ -78,6 +82,13 @@ export default async function PagePrintProof({
     layout: it.layout ?? {},
   }));
 
+  // The Election Coverage SECTION spans several pages from one stored tile
+  // list, so its proof shows every page of the block — not just the one you
+  // happened to open (publisher report 2026-10-13).
+  const electionPages = isTemplate && tid === 'election' ? pages.filter((p) => p.kind === 'election') : [];
+  const electionData =
+    electionPages.length > 0 ? normalizeElectionSection(electionPages[0].template_data) : null;
+
   return (
     <div className="min-h-screen bg-zinc-100">
       <style dangerouslySetInnerHTML={{ __html: PRINT_CSS }} />
@@ -94,7 +105,30 @@ export default async function PagePrintProof({
         </div>
       </div>
 
-      <div className="mx-auto bg-white my-6 p-12 shadow-sm w-fit overflow-x-auto">
+      {electionData ? (
+        electionPages.map((p, i) => {
+          const sectionOrdinal = pages.findIndex((x) => x.id === p.id) + 1;
+          return (
+            <div
+              key={p.id}
+              className="ssp-sheet mx-auto bg-white my-6 p-12 shadow-sm w-fit overflow-x-auto"
+            >
+              <div className="no-print mb-2 text-xs uppercase tracking-widest font-bold text-zinc-400">
+                Page {sectionOrdinal} of the election section ({i + 1}/{electionPages.length})
+              </div>
+              <div style={{ width: CONTENT_W_PX, height: CONTENT_H_PX, overflow: 'hidden', position: 'relative', outline: '1px solid #e4e4e7' }}>
+                <ElectionPage
+                  data={electionData}
+                  sectionIndex={i}
+                  pageNumber={sectionOrdinal}
+                  dateLabel={issueDate}
+                />
+              </div>
+            </div>
+          );
+        })
+      ) : (
+      <div className="ssp-sheet mx-auto bg-white my-6 p-12 shadow-sm w-fit overflow-x-auto">
         {/* Clip to the TRUE printable area (the 10×14in text box of an 11×15
             page). Anything past the bottom edge is cut off — exactly as it will
             be on the printed sheet — so this proof can't mislead by stretching. */}
@@ -111,15 +145,6 @@ export default async function PagePrintProof({
           <FunPage data={normalizeFunPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
         ) : isTemplate && tid === 'legal' ? (
           <LegalPage data={normalizeLegalPage(page.template_data)} pageNumber={ordinal} dateLabel={issueDate} />
-        ) : isTemplate && tid === 'election' ? (
-          <ElectionPage
-            data={normalizeElectionSection(
-              pages.find((p) => p.kind === 'election')?.template_data ?? {}
-            )}
-            sectionIndex={pages.filter((p) => p.kind === 'election').findIndex((p) => p.id === page.id)}
-            pageNumber={ordinal}
-            dateLabel={issueDate}
-          />
         ) : isTemplate ? (
           <SectionCover
             data={normalizeCover(page.template_data, page.kind)}
@@ -142,6 +167,7 @@ export default async function PagePrintProof({
         )}
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,8 @@ type Field =
   | 'city'
   | 'state'
   | 'zip'
+  /** Parse-only: merged into `zip` as 11968-5339 and never stored on its own. */
+  | 'zip4'
   | 'email'
   | 'phone'
   | 'acs_keyline'
@@ -40,6 +42,7 @@ const FIELD_LABELS: Record<Field, string> = {
   city: 'City',
   state: 'State',
   zip: 'ZIP',
+  zip4: 'ZIP+4',
   email: 'Email',
   phone: 'Phone',
   acs_keyline: 'ACS Keyline',
@@ -63,6 +66,9 @@ function matchField(header: string): Field | null {
   if (/phone|tel|mobile|cell/.test(h)) return 'phone';
   if (/city|town/.test(h)) return 'city';
   if (/state|province|region/.test(h)) return 'state';
+  // The 4-digit add-on arrives as its own column ("Zip 4", "ZIP+4", "Plus4").
+  // Must be tested BEFORE the plain zip rule, which would swallow it.
+  if (/^(zip|postal)?(code)?(plus|add|addon)?4$/.test(h) || /zip4|plus4|zipplus/.test(h)) return 'zip4';
   if (/zip|postal/.test(h)) return 'zip';
   if (/acs|keyline/.test(h)) return 'acs_keyline';
   if (/accountid|accountnumber|acct/.test(h) || h === 'account') return 'account_number';
@@ -70,6 +76,26 @@ function matchField(header: string): Field | null {
   if (/paymentstart|startdate|datestarted|substart|subscriptionstart/.test(h)) return 'subscription_start';
   if (/expir|paymentexpire|enddate|expiredate|subend|subscriptionend/.test(h)) return 'subscription_end';
   return null;
+}
+
+/**
+ * Join a "ZIP" column and a separate "ZIP 4" column into one stored ZIP:
+ * 11968 + 5339 → "11968-5339" (publisher direction 2026-10-13).
+ *
+ * Excel stores both as numbers and drops leading zeros (06880 → 6880,
+ * 0339 → 339), so each half is padded back. A ZIP that already carries its
+ * add-on (9 digits, or "11968-5339") is kept as it is.
+ */
+function joinZip(zip: string | undefined, zip4: string | undefined): string {
+  const z = (zip ?? '').replace(/\D/g, '');
+  const four = (zip4 ?? '').replace(/\D/g, '');
+  if (!z) return (zip ?? '').trim();
+  // "0" / "0000" in the add-on column means "none", not add-on zero.
+  const fourClean = /^0*$/.test(four) ? '' : four;
+  const five = z.length >= 9 ? z.slice(0, 5) : z.length === 4 ? `0${z}` : z;
+  const addOn =
+    z.length >= 9 ? z.slice(5, 9) : fourClean ? fourClean.padStart(4, '0').slice(-4) : '';
+  return addOn ? `${five}-${addOn}` : five;
 }
 
 const CHUNK = 1000;
@@ -163,6 +189,10 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
           const v = r[key];
           row[field] = v == null ? '' : String(v).trim();
         }
+        // Fold the separate 4-digit column into the ZIP; it is never stored on
+        // its own (the accounts table has no such column).
+        if (row.zip || row.zip4) row.zip = joinZip(row.zip, row.zip4);
+        delete row.zip4;
         if (row.first_name || row.last_name || row.company || row.address_1) parsed.push(row);
       }
 
@@ -239,7 +269,8 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
           <p className="text-sm text-zinc-600">
             Drop an Excel or CSV export (e.g. a SimpleCirc mailer or paid-subscriber list). Columns
             are matched by name — first/last name, company, address 1/2, city, state, zip, email,
-            phone, ACS keyline, account ID, start/expiration dates.
+            phone, ACS keyline, account ID, start/expiration dates. A separate &ldquo;Zip 4&rdquo;
+            column is added onto the ZIP (11968 + 5339 → 11968-5339).
           </p>
 
           <div className="mt-4">

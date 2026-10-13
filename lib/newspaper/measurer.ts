@@ -12,9 +12,15 @@ import {
   BODY_FONT_SIZE_PX,
   BODY_LINE_HEIGHT_PX,
   PARA_SPACING_PX,
+  SECTION_HEAD_SPACING_PX,
   type Measurer,
 } from './layout-engine';
-import { appendInlineTo, initialInlineState, type InlineState } from '@/lib/inline-format';
+import {
+  appendInlineTo,
+  initialInlineState,
+  isAllBoldParagraph,
+  type InlineState,
+} from '@/lib/inline-format';
 
 let host: HTMLDivElement | null = null;
 
@@ -57,10 +63,14 @@ export function createMeasurer(): Measurer {
       let st = state ?? initialInlineState();
       paras.forEach((text, i) => {
         const p = document.createElement('p');
+        // All-bold paragraphs are section heads: no indent, extra space above
+        // — must match BandRenderer exactly.
+        const head = isAllBoldParagraph(text, st);
         st = appendInlineTo(p, text, st);
         p.style.margin = '0';
-        p.style.textIndent = '1.2em';
-        if (i > 0) p.style.marginTop = `${PARA_SPACING_PX}px`;
+        p.style.textIndent = head ? '0' : '1.2em';
+        if (head) p.style.textAlign = 'left';
+        if (i > 0) p.style.marginTop = `${head ? SECTION_HEAD_SPACING_PX : PARA_SPACING_PX}px`;
         h.appendChild(p);
       });
       return h.getBoundingClientRect().height;

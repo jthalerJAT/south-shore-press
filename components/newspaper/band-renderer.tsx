@@ -19,7 +19,8 @@ import {
 import { adSizeLabel } from '@/lib/newspaper-templates';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 import { AdCopyView } from './ad-copy';
-import { InlineText, initialInlineState, stateAfter } from '@/lib/inline-format';
+import { InlineText, initialInlineState, stateAfter, isAllBoldParagraph } from '@/lib/inline-format';
+import { SECTION_HEAD_SPACING_PX } from '@/lib/newspaper/layout-engine';
 
 const runTextStyle: CSSProperties = {
   fontFamily: BODY_FONT_FAMILY,
@@ -131,12 +132,24 @@ export function BandRenderer({
                     const indent = !isByline && !isContinuation;
                     const pState = st;
                     st = stateAfter(p, st);
+                    // All-bold paragraph = section head (voter-guide position
+                    // titles): left-aligned so justification can't stretch the
+                    // words apart, no indent, a blank line's space above. The
+                    // measurer applies the same styles.
+                    const head = !isByline && isAllBoldParagraph(p, pState);
                     return (
                       <p
                         key={j}
                         style={
                           isByline
                             ? { margin: '0 0 6px', textIndent: 0, fontWeight: 700, fontStyle: 'italic', fontSize: 16 }
+                            : head
+                            ? {
+                                margin: 0,
+                                marginTop: j > 0 ? SECTION_HEAD_SPACING_PX : 0,
+                                textIndent: 0,
+                                textAlign: 'left',
+                              }
                             : { margin: 0, textIndent: indent ? '1.2em' : 0 }
                         }
                       >

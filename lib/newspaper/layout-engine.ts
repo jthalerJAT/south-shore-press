@@ -48,6 +48,10 @@ export const BODY_FONT_FAMILY = "var(--font-crimson), Georgia, 'Times New Roman'
 export const BODY_FONT_SIZE_PX = 14;
 export const BODY_LINE_HEIGHT_PX = 15;
 export const PARA_SPACING_PX = 2;
+/** Space above an ALL-BOLD paragraph (a section head, e.g. the voter guide's
+ *  position titles) — a blank line's worth, publisher direction 2026-10-19.
+ *  Applied identically by the measurer and BandRenderer. */
+export const SECTION_HEAD_SPACING_PX = BODY_LINE_HEIGHT_PX;
 
 /** Default embedded-photo height, as a fraction of page content height. */
 export const DEFAULT_PHOTO_HEIGHT_FRAC = 0.18;

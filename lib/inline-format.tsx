@@ -121,6 +121,18 @@ export function stateAfter(text: string, state: InlineState = initialInlineState
   return scanInline(text, state).state;
 }
 
+/** True when every visible part of the paragraph is bold — the voter-guide
+ *  "section head" pattern. Such paragraphs render left-aligned (no justify
+ *  stretch), unindented, with extra space above, on the site and in print. */
+export function isAllBoldParagraph(
+  text: string,
+  state: InlineState = initialInlineState()
+): boolean {
+  const { segments } = scanInline(text, state);
+  const visible = segments.filter((s) => s.text.trim() !== '');
+  return visible.length > 0 && visible.every((s) => s.b);
+}
+
 /** True when the text carries any marker — cheap gate before full scans. */
 export function hasInlineMarkers(text: string): boolean {
   return /\*|__|\[size=/.test(text);

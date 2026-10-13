@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
-import { InlineText, initialInlineState, stateAfter, stripInlineMarkers } from '@/lib/inline-format';
+import { InlineText, initialInlineState, stateAfter, stripInlineMarkers, isAllBoldParagraph } from '@/lib/inline-format';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HeroMedia } from '@/components/story/hero-media';
@@ -273,10 +273,17 @@ export default async function StoryPage({ params }: { params: Params }) {
             return paragraphs.map((p, i) => {
               const pState = st;
               st = stateAfter(p, st);
+              // All-bold paragraph = section head (e.g. voter-guide position
+              // titles): no indent, extra space above. Matches print.
+              const head = isAllBoldParagraph(p, pState);
               return (
                 <p
                   key={i}
-                  className="text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0 indent-[1.5em]"
+                  className={
+                    head
+                      ? 'text-[16px] leading-[1.8] text-zinc-900 mb-[10px] mt-8 first:mt-0 indent-0'
+                      : 'text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0 indent-[1.5em]'
+                  }
                 >
                   <InlineText text={p} state={pState} />
                 </p>

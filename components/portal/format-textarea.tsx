@@ -16,7 +16,14 @@
  * submitting through FormData) so it can replace any existing body textarea.
  */
 import { useRef, useState } from 'react';
-import { MIN_INLINE_SIZE, MAX_INLINE_SIZE } from '@/lib/inline-format';
+import {
+  InlineText,
+  initialInlineState,
+  stateAfter,
+  hasInlineMarkers,
+  MIN_INLINE_SIZE,
+  MAX_INLINE_SIZE,
+} from '@/lib/inline-format';
 
 const SIZE_CHOICES = [18, 20, 22, 24, 28] as const;
 
@@ -67,11 +74,28 @@ export function FormatTextarea({
     });
   }
 
+  /** With nothing highlighted, act on the word the cursor sits in — clicking
+   *  B mid-word must never inject empty markers into it. */
+  function effectiveRange(): { a: number; b: number } | null {
+    const el = ref.current;
+    if (!el) return null;
+    let a = el.selectionStart;
+    let b = el.selectionEnd;
+    if (a !== b) return { a, b };
+    const isWord = (ch: string | undefined) => Boolean(ch && !/[\s]/.test(ch));
+    while (a > 0 && isWord(text[a - 1])) a -= 1;
+    while (b < text.length && isWord(text[b])) b += 1;
+    if (a === b) return null; // cursor in whitespace — nothing to format
+    return { a, b };
+  }
+
   /** Wrap the selection in markers — or unwrap when already wrapped. */
   function toggleWrap(open: string, close: string) {
     const el = ref.current;
     if (!el || disabled) return;
-    const { selectionStart: a, selectionEnd: b } = el;
+    const range = effectiveRange();
+    if (!range) return;
+    const { a, b } = range;
     const before = text.slice(0, a);
     const sel = text.slice(a, b);
     const after = text.slice(b);
@@ -97,7 +121,9 @@ export function FormatTextarea({
   function applySize(n: number | null) {
     const el = ref.current;
     if (!el || disabled) return;
-    const { selectionStart: a, selectionEnd: b } = el;
+    const range = effectiveRange();
+    if (!range) return;
+    const { a, b } = range;
     let before = text.slice(0, a);
     let sel = text.slice(a, b);
     let after = text.slice(b);
@@ -171,7 +197,8 @@ export function FormatTextarea({
           ))}
         </select>
         <span className="text-[11px] text-zinc-400">
-          Select text, then apply. Markers like **bold** show here and print styled.
+          Highlight text (or put the cursor in a word), then apply. Formatting shows as markers
+          like **bold** in the box — the preview below shows how it will publish.
         </span>
       </div>
       <textarea
@@ -189,6 +216,31 @@ export function FormatTextarea({
         placeholder={placeholder}
         className={className}
       />
+      {hasInlineMarkers(text) ? (
+        <div className="mt-2">
+          <div className="text-[11px] font-bold uppercase tracking-widest text-zinc-400">
+            Preview — as it will publish
+          </div>
+          <div className="mt-1 max-h-64 overflow-y-auto rounded border border-zinc-200 bg-zinc-50 px-3 py-2 font-serif text-[15px] leading-relaxed text-zinc-800">
+            {(() => {
+              let st = initialInlineState();
+              return text
+                .split(/\n\s*\n/)
+                .map((p) => p.trim())
+                .filter(Boolean)
+                .map((p, i) => {
+                  const pState = st;
+                  st = stateAfter(p, st);
+                  return (
+                    <p key={i} className="mb-2 last:mb-0">
+                      <InlineText text={p} state={pState} />
+                    </p>
+                  );
+                });
+            })()}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

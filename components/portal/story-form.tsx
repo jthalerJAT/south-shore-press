@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { FormatTextarea } from '@/components/portal/format-textarea';
 import { useFormState, useFormStatus } from 'react-dom';
 import Link from 'next/link';
 import { Plus, X } from 'lucide-react';
@@ -298,7 +299,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
 
       {/* Body */}
       <Field label="Body" htmlFor="body" hint="Plain text. Blank lines separate paragraphs.">
-        <textarea
+        <FormatTextarea
           id="body"
           name="body"
           defaultValue={defaults?.body ?? ''}

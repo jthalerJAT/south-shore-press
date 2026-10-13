@@ -12,6 +12,7 @@
  * place.
  */
 import { useEffect, useRef, useState, useTransition } from 'react';
+import { FormatTextarea } from '@/components/portal/format-textarea';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Plus, X, Sparkles, ExternalLink, Send, Globe } from 'lucide-react';
@@ -295,10 +296,10 @@ export function AdminStoryForm({
       </div>
 
       <Field label="Body" htmlFor="body" hint={`Plain text. Blank lines separate paragraphs. ${wordCount} words.`}>
-        <textarea
+        <FormatTextarea
           id="body"
           value={body}
-          onChange={(e) => setBody(e.target.value)}
+          onChange={setBody}
           disabled={disabled}
           rows={18}
           className={cn(inputCls, 'font-serif')}

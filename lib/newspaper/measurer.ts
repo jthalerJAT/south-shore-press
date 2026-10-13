@@ -14,6 +14,7 @@ import {
   PARA_SPACING_PX,
   type Measurer,
 } from './layout-engine';
+import { appendInlineTo, initialInlineState, type InlineState } from '@/lib/inline-format';
 
 let host: HTMLDivElement | null = null;
 
@@ -44,14 +45,19 @@ function ensureHost(): HTMLDivElement {
 /** A DOM-backed Measurer. Safe to create many; they share one host. */
 export function createMeasurer(): Measurer {
   return {
-    measureParas(paras: string[], widthPx: number): number {
+    measureParas(paras: string[], widthPx: number, state?: InlineState): number {
       if (paras.length === 0) return 0;
       const h = ensureHost();
       h.style.width = `${Math.max(1, Math.floor(widthPx))}px`;
       h.textContent = '';
+      // Inline-format markers (**bold**, __underline__, [size=N]) must be
+      // measured exactly as BandRenderer draws them — styled spans, markers
+      // consumed — or the column fill over/undershoots. `state` is whatever
+      // formatting the text BEFORE this slice left open.
+      let st = state ?? initialInlineState();
       paras.forEach((text, i) => {
         const p = document.createElement('p');
-        p.textContent = text;
+        st = appendInlineTo(p, text, st);
         p.style.margin = '0';
         p.style.textIndent = '1.2em';
         if (i > 0) p.style.marginTop = `${PARA_SPACING_PX}px`;

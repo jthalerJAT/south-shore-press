@@ -16,6 +16,7 @@
  * The page is an 11in × 15in tabloid; we lay out + measure at print scale and
  * the editor only CSS-scales for zoom, so measurement is zoom-independent.
  */
+import { initialInlineState, stateAfter, type InlineState } from '@/lib/inline-format';
 
 // ── Page constants (print scale, 96 dpi) ──────────────────────────────────
 export const DPI = 96;
@@ -279,6 +280,10 @@ export type RunSlice = ColumnRun & {
    *  be indented). False when it continues a paragraph from the previous column
    *  — those continuations must NOT be indented. */
   startsParagraph: boolean;
+  /** Inline-format state (bold/underline/italic/size) left open by the text
+   *  before this run, so formatting split by a column break carries over.
+   *  Absent on slices from before the 2026-10-19 inline-format change. */
+  inlineState?: InlineState;
 };
 
 export type BandGeometry = {
@@ -452,8 +457,9 @@ function sliceToParas(words: ParsedBody['words'], start: number, end: number): s
 }
 
 export interface Measurer {
-  /** Rendered height (px) of these paragraphs at the given column width. */
-  measureParas(paras: string[], widthPx: number): number;
+  /** Rendered height (px) of these paragraphs at the given column width.
+   *  `state` = inline formatting left open by the text before these paras. */
+  measureParas(paras: string[], widthPx: number, state?: InlineState): number;
 }
 
 /**
@@ -470,6 +476,11 @@ export function layoutBand(body: string | undefined, geo: BandGeometry, measurer
 
   const out: RunSlice[] = [];
   let cursor = 0;
+  // Inline-format state (bold/underline/size) carried across runs so a span a
+  // column break splits keeps its styling — the measurer gets the same state
+  // so measured heights match the render. (A page-overflow continuation starts
+  // clean: formatting is not carried across pages.)
+  let inlineState = initialInlineState();
 
   for (const run of runs) {
     const col = rects[run.colIdx];
@@ -481,7 +492,7 @@ export function layoutBand(body: string | undefined, geo: BandGeometry, measurer
     const startsParagraph =
       cursor === 0 || cursor >= total || parsed.words[cursor].p !== parsed.words[cursor - 1].p;
     if (cursor >= total) {
-      out.push({ ...run, x: rect.x, w: rect.w, text: '', startsParagraph });
+      out.push({ ...run, x: rect.x, w: rect.w, text: '', startsParagraph, inlineState });
       continue;
     }
     // Binary search the largest end (cursor..total] that fits run height.
@@ -494,7 +505,7 @@ export function layoutBand(body: string | undefined, geo: BandGeometry, measurer
         lo = cursor + 1;
         continue;
       }
-      const h = measurer.measureParas(sliceToParas(parsed.words, cursor, mid), rect.w);
+      const h = measurer.measureParas(sliceToParas(parsed.words, cursor, mid), rect.w, inlineState);
       if (h <= run.heightPx) {
         best = mid;
         lo = mid + 1;
@@ -503,7 +514,8 @@ export function layoutBand(body: string | undefined, geo: BandGeometry, measurer
       }
     }
     const text = sliceToParas(parsed.words, cursor, best).join('\n\n');
-    out.push({ ...run, x: rect.x, w: rect.w, text, startsParagraph });
+    out.push({ ...run, x: rect.x, w: rect.w, text, startsParagraph, inlineState });
+    inlineState = stateAfter(text, inlineState);
     cursor = best;
   }
 

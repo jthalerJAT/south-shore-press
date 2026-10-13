@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
+import { InlineText, initialInlineState, stateAfter, stripInlineMarkers } from '@/lib/inline-format';
 import Link from 'next/link';
 import Image from 'next/image';
 import { HeroMedia } from '@/components/story/hero-media';
@@ -57,7 +58,7 @@ export async function generateMetadata({
   });
 
   const description =
-    story.subline ?? story.body?.slice(0, 160) ?? SITE.tagline;
+    story.subline ?? (story.body ? stripInlineMarkers(story.body).slice(0, 160) : undefined) ?? SITE.tagline;
 
   // Hero image for OG/Twitter cards. YouTube → use the thumbnail.
   const ytId = parseYouTubeId(story.hero_photo_url);
@@ -265,14 +266,23 @@ export default async function StoryPage({ params }: { params: Params }) {
         {paragraphs.length === 0 ? (
           <p className="text-zinc-500 italic">No body content.</p>
         ) : (
-          paragraphs.map((p, i) => (
-            <p
-              key={i}
-              className="text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0 indent-[1.5em]"
-            >
-              {p}
-            </p>
-          ))
+          // Inline-format state threads paragraph to paragraph so a span left
+          // open across a blank line keeps its styling.
+          (() => {
+            let st = initialInlineState();
+            return paragraphs.map((p, i) => {
+              const pState = st;
+              st = stateAfter(p, st);
+              return (
+                <p
+                  key={i}
+                  className="text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0 indent-[1.5em]"
+                >
+                  <InlineText text={p} state={pState} />
+                </p>
+              );
+            });
+          })()
         )}
       </div>
 

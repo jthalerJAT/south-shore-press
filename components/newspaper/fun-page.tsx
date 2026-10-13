@@ -13,6 +13,7 @@
  * route — so screen == print.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { InlineText } from '@/lib/inline-format';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { imagePublicUrl } from '@/lib/newspaper-images';
 import { adFilePublicUrl } from '@/lib/ad-files';
@@ -396,7 +397,7 @@ function FunBlockView({ block, editing }: { block: FunBlock; editing: boolean })
       ) : null}
       {block.body ? (
         <div style={{ fontFamily: 'Georgia, serif', fontSize: 11, lineHeight: 1.35, color: '#27272a', overflow: 'hidden' }}>
-          {block.body}
+          <InlineText text={block.body} />
         </div>
       ) : null}
     </div>

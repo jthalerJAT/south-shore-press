@@ -19,6 +19,7 @@ import {
 import { adSizeLabel } from '@/lib/newspaper-templates';
 import type { NpStoryData, NpAdData } from '@/lib/queries/newspaper';
 import { AdCopyView } from './ad-copy';
+import { InlineText, initialInlineState, stateAfter } from '@/lib/inline-format';
 
 const runTextStyle: CSSProperties = {
   fontFamily: BODY_FONT_FAMILY,
@@ -115,26 +116,35 @@ export function BandRenderer({
             }}
           >
             {run.text
-              ? run.text.split('\n\n').map((p, j) => {
-                  const isByline = bylineLead && i === 0 && j === 0;
-                  // First chunk of a run is a paragraph CONTINUATION (no indent)
-                  // unless the run starts a fresh paragraph. Later chunks (after
-                  // a blank line within the run) are always new paragraphs.
-                  const isContinuation = j === 0 && !run.startsParagraph;
-                  const indent = !isByline && !isContinuation;
-                  return (
-                    <p
-                      key={j}
-                      style={
-                        isByline
-                          ? { margin: '0 0 6px', textIndent: 0, fontWeight: 700, fontStyle: 'italic', fontSize: 16 }
-                          : { margin: 0, textIndent: indent ? '1.2em' : 0 }
-                      }
-                    >
-                      {p}
-                    </p>
-                  );
-                })
+              ? (() => {
+                  // Inline-format markers: each paragraph starts from the state
+                  // the previous text left open (run.inlineState covers what
+                  // earlier runs consumed), so bold/underline/size spans survive
+                  // column breaks exactly as the measurer measured them.
+                  let st = run.inlineState ?? initialInlineState();
+                  return run.text.split('\n\n').map((p, j) => {
+                    const isByline = bylineLead && i === 0 && j === 0;
+                    // First chunk of a run is a paragraph CONTINUATION (no indent)
+                    // unless the run starts a fresh paragraph. Later chunks (after
+                    // a blank line within the run) are always new paragraphs.
+                    const isContinuation = j === 0 && !run.startsParagraph;
+                    const indent = !isByline && !isContinuation;
+                    const pState = st;
+                    st = stateAfter(p, st);
+                    return (
+                      <p
+                        key={j}
+                        style={
+                          isByline
+                            ? { margin: '0 0 6px', textIndent: 0, fontWeight: 700, fontStyle: 'italic', fontSize: 16 }
+                            : { margin: 0, textIndent: indent ? '1.2em' : 0 }
+                        }
+                      >
+                        <InlineText text={p} state={pState} />
+                      </p>
+                    );
+                  });
+                })()
               : null}
           </div>
         ))}

@@ -232,9 +232,15 @@ export function FormatTextarea({
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    // Ctrl+Enter inserts nothing in a browser editable by default — treat it
-    // as a plain Enter (new paragraph) so the habit just works.
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    // EVERY Enter starts a new paragraph, whatever is held down with it.
+    //
+    // Ctrl/Cmd+Enter inserts nothing in a browser editable by default.
+    // Shift+Enter is worse: the browser inserts a <br>, which LOOKS like a
+    // break in the box but our stored format has no mid-paragraph break, so
+    // it serializes to a space and the break silently disappears on save
+    // (publisher report 2026-10-19). Paragraphs are the only break the paper
+    // has, so give the publisher one either way.
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey || e.shiftKey)) {
       e.preventDefault();
       document.execCommand('insertParagraph');
       emitChange();
@@ -245,7 +251,14 @@ export function FormatTextarea({
     // Plain text only — outside formatting must not ride into the paper.
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
-    document.execCommand('insertText', false, text);
+    // Every line break in the pasted copy becomes a PARAGRAPH. Pasting it as
+    // one string lets the browser insert <br>s, which serialize to spaces —
+    // a story pasted from Word would arrive as a single wall of text.
+    const paras = text.split(/\r?\n+/).map((p) => p.trim()).filter(Boolean);
+    paras.forEach((p, i) => {
+      if (i > 0) document.execCommand('insertParagraph');
+      document.execCommand('insertText', false, p);
+    });
     emitChange();
   }
 

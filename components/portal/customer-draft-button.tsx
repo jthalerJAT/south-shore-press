@@ -21,6 +21,7 @@ export function CustomerDraftButton({
   footerLine,
   startDate,
   endDate,
+  affidavit = false,
   notary,
   label = 'Customer Draft',
   disabled = false,
@@ -34,6 +35,9 @@ export function CustomerDraftButton({
   /** ISO YYYY-MM-DD */
   startDate: string;
   endDate: string;
+  /** Affidavit of publication required (scanned copy emailed). */
+  affidavit?: boolean;
+  /** Physical notarized copy to be mailed (+$10). */
   notary: boolean;
   label?: string;
   disabled?: boolean;
@@ -170,7 +174,16 @@ export function CustomerDraftButton({
               value={footerLine || '—'}
               mono
             />
-            <DraftField label="Notarized copy to be mailed" value={notary ? 'Yes' : 'No'} />
+            <div style={{ display: 'flex', gap: 48 }}>
+              <DraftField
+                label="Affidavit of publication required"
+                value={affidavit || notary ? 'Yes' : 'No'}
+              />
+              <DraftField
+                label="Physical notarized copy to be mailed"
+                value={notary ? 'Yes' : 'No'}
+              />
+            </div>
           </div>
           {/* Page 2: the newspaper preview at natural print size */}
           <div ref={previewRef} style={{ width: CONTENT_W_PX, background: '#fff' }}>

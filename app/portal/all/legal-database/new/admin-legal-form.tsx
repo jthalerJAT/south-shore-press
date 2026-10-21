@@ -38,6 +38,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
   const [lNumber, setLNumber] = useState(reservedLNumber);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [affidavit, setAffidavit] = useState(false);
   const [notary, setNotary] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -92,6 +93,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
       l_number: lNumber.trim().toUpperCase(),
       start_date: startDate,
       end_date: endDate,
+      affidavit_required: affidavit || notary,
       notary_required: notary,
     });
     setSaving(false);
@@ -186,15 +188,30 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
         </div>
       </div>
 
-      <label className="flex items-start gap-2 text-sm text-zinc-800">
-        <input
-          type="checkbox"
-          checked={notary}
-          onChange={(e) => setNotary(e.target.checked)}
-          className="mt-0.5"
-        />
-        Does the customer require a notarized copy of this legal to be mailed?
-      </label>
+      <div className="space-y-2">
+        <label className="flex items-start gap-2 text-sm text-zinc-800">
+          <input
+            type="checkbox"
+            checked={affidavit || notary}
+            disabled={notary}
+            onChange={(e) => setAffidavit(e.target.checked)}
+            className="mt-0.5"
+          />
+          Affidavit of publication required (scanned copy emailed)
+        </label>
+        <label className="flex items-start gap-2 text-sm text-zinc-800">
+          <input
+            type="checkbox"
+            checked={notary}
+            onChange={(e) => {
+              setNotary(e.target.checked);
+              if (e.target.checked) setAffidavit(true);
+            }}
+            className="mt-0.5"
+          />
+          Physical notarized copy to be mailed (+$10)
+        </label>
+      </div>
 
       <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-zinc-200">
         <button
@@ -221,6 +238,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
           footerLine={footerLine}
           startDate={startDate}
           endDate={endDate}
+          affidavit={affidavit || notary}
           notary={notary}
           disabled={saving}
           beforeDraft={validate}

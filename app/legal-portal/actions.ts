@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser, type AuthenticatedUser } from '@/lib/auth';
@@ -8,7 +8,7 @@ import { sendCustomerLegalEmail } from '@/lib/email/resend';
 import { legalNoticeLabel } from '@/lib/newspaper/legal-page';
 import { isWednesday, wednesdaysBetween, legalFooterLine } from '@/lib/legal-dates';
 
-/** Legal Portal server actions — customer-facing. */
+/** Legal Portal server actions â€” customer-facing. */
 
 const MAX_BODY_WORDS = 1000;
 const LEGALS_NOTIFY_EMAIL =
@@ -42,6 +42,7 @@ export async function saveCustomerLegal(input: {
   l_number: string;
   start_date: string;
   end_date: string;
+  affidavit_required: boolean;
   notary_required: boolean;
 }): Promise<{ ok: boolean; error?: string; l_number?: string }> {
   const ctx = await requireLegalCustomer();
@@ -59,7 +60,7 @@ export async function saveCustomerLegal(input: {
     return { ok: false, error: 'Select a Start Date and an End Date.' };
   }
   if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-    return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
+    return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
   }
   if (input.end_date < input.start_date) {
     return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -76,7 +77,7 @@ export async function saveCustomerLegal(input: {
       const { data: fresh, error: seqErr } = await admin.rpc('next_legal_number');
       if (seqErr || !fresh) {
         console.error('[saveCustomerLegal] next_legal_number', seqErr);
-        return { ok: false, error: 'Could not assign a legal number — try again.' };
+        return { ok: false, error: 'Could not assign a legal number â€” try again.' };
       }
       lNumber = String(fresh);
     }
@@ -101,12 +102,13 @@ export async function saveCustomerLegal(input: {
       start_date: input.start_date,
       end_date: input.end_date,
       run_dates: runDates,
+      affidavit_required: Boolean(input.affidavit_required) || Boolean(input.notary_required),
       notary_required: Boolean(input.notary_required),
     });
 
     if (insErr) {
       if (insErr.code === '23505') {
-        // L# already taken — regenerate and retry.
+        // L# already taken â€” regenerate and retry.
         lNumber = '';
         continue;
       }
@@ -115,7 +117,7 @@ export async function saveCustomerLegal(input: {
     }
 
     // Mirror into the editors' Legal Notices library so the newspaper
-    // creator's legal pages can place it directly — with the L# + run-dates
+    // creator's legal pages can place it directly â€” with the L# + run-dates
     // line already appended, exactly as it must print.
     const printBody = `${body}\n${legalFooterLine(lNumber, runDates)}`;
     const { error: libErr } = await admin.from('legal_notices').insert({
@@ -125,7 +127,7 @@ export async function saveCustomerLegal(input: {
     });
     if (libErr) console.error('[saveCustomerLegal] legal_notices mirror', libErr);
 
-    // Best-effort email to the legals desk — never blocks success.
+    // Best-effort email to the legals desk â€” never blocks success.
     try {
       const siteUrl =
         process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ??
@@ -149,5 +151,5 @@ export async function saveCustomerLegal(input: {
     return { ok: true, l_number: lNumber };
   }
 
-  return { ok: false, error: 'Could not assign a unique legal number — try again.' };
+  return { ok: false, error: 'Could not assign a unique legal number â€” try again.' };
 }

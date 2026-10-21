@@ -39,6 +39,9 @@ export type CustomerLegal = {
   start_date: string;
   end_date: string;
   run_dates: string[];
+  /** Affidavit of publication needed (scanned PDF emailed). */
+  affidavit_required: boolean;
+  /** Physical notarized copy to be mailed (+$10, any client). */
   notary_required: boolean;
   created_at: string;
 };

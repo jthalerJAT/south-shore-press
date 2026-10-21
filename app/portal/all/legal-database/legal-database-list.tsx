@@ -17,6 +17,9 @@ export type LegalRow = {
   customer: string | null;
   body: string;
   l_number: string | null;
+  /** Affidavit of publication needed; null = unknown (library rows). */
+  affidavit: boolean | null;
+  /** Physical notarized copy mailed (+$10); null = unknown (library rows). */
   notary: boolean | null;
   /** Reference quote under the adopted rate card; null when the run count
    *  isn't derivable. Hover shows the math. */
@@ -78,7 +81,7 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
           <div>Customer</div>
           <div>Copy</div>
           <div>L#</div>
-          <div>Notary</div>
+          <div>Affid.</div>
           <div className="text-right">Card rate</div>
         </div>
         {visible.length === 0 ? (
@@ -102,12 +105,14 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
                   <div className="text-sm text-zinc-600 truncate">{firstWords(l.body)}</div>
                   <div className="text-sm font-mono text-zinc-700">{l.l_number ?? '—'}</div>
                   <div className="text-sm font-semibold">
-                    {l.notary === null ? (
-                      <span className="text-zinc-300">—</span>
+                    {l.notary === null && l.affidavit === null ? (
+                      <span className="text-zinc-300" title="Not tracked for library notices">—</span>
                     ) : l.notary ? (
-                      <span className="text-brand-red">Y</span>
+                      <span className="text-brand-red" title="Physical notarized copy mailed (+$10)">M</span>
+                    ) : l.affidavit ? (
+                      <span className="text-zinc-700" title="Affidavit required (scanned copy emailed)">A</span>
                     ) : (
-                      <span className="text-zinc-400">N</span>
+                      <span className="text-zinc-400" title="No affidavit requested">N</span>
                     )}
                   </div>
                   <div
@@ -133,9 +138,11 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
       </div>
       <p className="mt-2 text-xs text-zinc-400">
         Sorted by L#, highest first. “Library notice” rows come from the Legal Notices library
-        used by the newspaper creator — click one to edit its copy. Card rate is the reference
-        quote under the rate card adopted 10/21/2026 (hover for the math; PB = public-body
-        statutory rate, no fee). Display jobs and wide-set notices are quoted by hand.
+        used by the newspaper creator — click one to edit its copy. Affid.: A = affidavit
+        required (scanned copy emailed), M = physical notarized copy mailed (+$10), N = none.
+        Card rate is the reference quote under the rate card adopted 10/21/2026 (hover for the
+        math; PB = public-body statutory rate, no fee). Display jobs and wide-set notices are
+        quoted by hand.
       </p>
     </div>
   );

@@ -62,6 +62,7 @@ export default async function LegalDatabasePage() {
       customer: l.customer_name,
       body: l.body,
       l_number: l.l_number as string | null,
+      affidavit: (Boolean(l.affidavit_required) || l.notary_required) as boolean | null,
       notary: l.notary_required as boolean | null,
       quote: quoteLegal({
         words: wordCount(l.body),
@@ -82,6 +83,7 @@ export default async function LegalDatabasePage() {
         customer: null,
         body: n.body,
         l_number: parseLNumber(n.body),
+        affidavit: null,
         notary: null,
         quote: quoteLegal({
           words: wordCount(parsed.copy),

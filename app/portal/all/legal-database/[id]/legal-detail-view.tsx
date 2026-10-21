@@ -15,6 +15,7 @@ export function LegalDetailView({ legal }: { legal: CustomerLegal }) {
         lNumber: legal.l_number,
         startDate: legal.start_date,
         endDate: legal.end_date,
+        affidavit: Boolean(legal.affidavit_required),
         notary: legal.notary_required,
       }}
       onSave={async (v) => {
@@ -30,6 +31,7 @@ export function LegalDetailView({ legal }: { legal: CustomerLegal }) {
           l_number: v.lNumber,
           start_date: v.startDate,
           end_date: v.endDate,
+          affidavit_required: v.affidavit,
           notary_required: v.notary,
         });
       }}

@@ -27,6 +27,9 @@ export type LegalRecordValues = {
   lNumber: string;
   startDate: string; // ISO or ''
   endDate: string; // ISO or ''
+  /** Affidavit of publication needed (scanned PDF emailed). */
+  affidavit: boolean;
+  /** Physical notarized copy to be mailed (+$10, any client). */
   notary: boolean;
 };
 
@@ -54,6 +57,7 @@ export function LegalRecordView({
   const [lNumber, setLNumber] = useState(initial.lNumber);
   const [startDate, setStartDate] = useState(initial.startDate);
   const [endDate, setEndDate] = useState(initial.endDate);
+  const [affidavit, setAffidavit] = useState(initial.affidavit);
   const [notary, setNotary] = useState(initial.notary);
   const [saving, setSaving] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
@@ -108,6 +112,7 @@ export function LegalRecordView({
       lNumber: lNumber.trim().toUpperCase(),
       startDate,
       endDate,
+      affidavit: affidavit || notary,
       notary,
     });
     setSaving(false);
@@ -132,6 +137,7 @@ export function LegalRecordView({
     setLNumber(initial.lNumber);
     setStartDate(initial.startDate);
     setEndDate(initial.endDate);
+    setAffidavit(initial.affidavit);
     setNotary(initial.notary);
     setError(null);
     setEditing(false);
@@ -237,19 +243,39 @@ export function LegalRecordView({
       </Field>
 
       {editing ? (
-        <label className="flex items-start gap-2 text-sm text-zinc-800">
-          <input
-            type="checkbox"
-            checked={notary}
-            onChange={(e) => setNotary(e.target.checked)}
-            className="mt-0.5"
-          />
-          Notarized copy to be mailed
-        </label>
+        <div className="space-y-2">
+          <label className="flex items-start gap-2 text-sm text-zinc-800">
+            <input
+              type="checkbox"
+              checked={affidavit || notary}
+              disabled={notary}
+              onChange={(e) => setAffidavit(e.target.checked)}
+              className="mt-0.5"
+            />
+            Affidavit of publication required (scanned copy emailed)
+          </label>
+          <label className="flex items-start gap-2 text-sm text-zinc-800">
+            <input
+              type="checkbox"
+              checked={notary}
+              onChange={(e) => {
+                setNotary(e.target.checked);
+                if (e.target.checked) setAffidavit(true);
+              }}
+              className="mt-0.5"
+            />
+            Physical notarized copy to be mailed (+$10)
+          </label>
+        </div>
       ) : (
-        <Field label="Notarized copy to be mailed">
-          <ReadOnlyValue value={notary ? 'Yes' : 'No'} />
-        </Field>
+        <div className="grid grid-cols-2 gap-4 max-w-lg">
+          <Field label="Affidavit required">
+            <ReadOnlyValue value={affidavit || notary ? 'Yes' : 'No'} />
+          </Field>
+          <Field label="Physical copy mailed (+$10)">
+            <ReadOnlyValue value={notary ? 'Yes' : 'No'} />
+          </Field>
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-zinc-200">
@@ -301,6 +327,7 @@ export function LegalRecordView({
           footerLine={footerLine}
           startDate={startDate}
           endDate={endDate}
+          affidavit={affidavit || notary}
           notary={notary}
         />
         {error ? <span className="text-sm text-red-600">{error}</span> : null}

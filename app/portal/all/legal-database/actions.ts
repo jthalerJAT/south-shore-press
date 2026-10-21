@@ -1,4 +1,4 @@
-'use server';
+﻿'use server';
 
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth';
@@ -7,10 +7,10 @@ import { legalNoticeLabel } from '@/lib/newspaper/legal-page';
 import { isWednesday, wednesdaysBetween, legalFooterLine } from '@/lib/legal-dates';
 
 /**
- * Legal Database server actions — staff-facing. Mirrors the customer
+ * Legal Database server actions â€” staff-facing. Mirrors the customer
  * saveCustomerLegal flow (same validation, same L# collision retry, same
  * legal_notices mirror) but is gated on editor+ roles, takes the customer
- * name as a typed field, and skips the legals-desk notification email —
+ * name as a typed field, and skips the legals-desk notification email â€”
  * the person entering it IS the legals desk.
  */
 
@@ -23,6 +23,7 @@ export async function saveAdminLegal(input: {
   l_number: string;
   start_date: string;
   end_date: string;
+  affidavit_required: boolean;
   notary_required: boolean;
 }): Promise<{ ok: boolean; error?: string; l_number?: string; id?: string }> {
   const user = await getCurrentUser();
@@ -45,7 +46,7 @@ export async function saveAdminLegal(input: {
     return { ok: false, error: 'Select a Start Date and an End Date.' };
   }
   if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-    return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
+    return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
   }
   if (input.end_date < input.start_date) {
     return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -55,7 +56,7 @@ export async function saveAdminLegal(input: {
   const admin = createAdminClient();
 
   // A typed L# is intentional (entering an existing legal under its original
-  // number) — a collision on it must surface as an error, never be silently
+  // number) â€” a collision on it must surface as an error, never be silently
   // renumbered. Only an absent/invalid L# draws fresh numbers from the
   // sequence, with retries on collision.
   const typedLNumber = /^L\d{5,}$/.test((input.l_number ?? '').trim())
@@ -67,7 +68,7 @@ export async function saveAdminLegal(input: {
       const { data: fresh, error: seqErr } = await admin.rpc('next_legal_number');
       if (seqErr || !fresh) {
         console.error('[saveAdminLegal] next_legal_number', seqErr);
-        return { ok: false, error: 'Could not assign a legal number — try again.' };
+        return { ok: false, error: 'Could not assign a legal number â€” try again.' };
       }
       lNumber = String(fresh);
     }
@@ -83,6 +84,7 @@ export async function saveAdminLegal(input: {
         start_date: input.start_date,
         end_date: input.end_date,
         run_dates: runDates,
+        affidavit_required: Boolean(input.affidavit_required) || Boolean(input.notary_required),
         notary_required: Boolean(input.notary_required),
       })
       .select('id')
@@ -93,7 +95,7 @@ export async function saveAdminLegal(input: {
         if (typedLNumber) {
           return { ok: false, error: `${typedLNumber} is already used by another legal.` };
         }
-        // Auto-drawn L# collided — regenerate and retry.
+        // Auto-drawn L# collided â€” regenerate and retry.
         lNumber = '';
         continue;
       }
@@ -115,10 +117,10 @@ export async function saveAdminLegal(input: {
     return { ok: true, l_number: lNumber, id: (inserted as { id: string }).id };
   }
 
-  return { ok: false, error: 'Could not assign a unique legal number — try again.' };
+  return { ok: false, error: 'Could not assign a unique legal number â€” try again.' };
 }
 
-/** Edit an existing legal in place — everything is editable, including the
+/** Edit an existing legal in place â€” everything is editable, including the
  *  L# (entering legals that already ran elsewhere keeps their numbers). The
  *  Legal Notices library mirror is updated to match, so the newspaper
  *  creator always places the current version. */
@@ -130,6 +132,7 @@ export async function updateAdminLegal(input: {
   l_number: string;
   start_date: string;
   end_date: string;
+  affidavit_required: boolean;
   notary_required: boolean;
 }): Promise<{ ok: boolean; error?: string }> {
   const user = await getCurrentUser();
@@ -155,7 +158,7 @@ export async function updateAdminLegal(input: {
     return { ok: false, error: 'Select a Start Date and an End Date.' };
   }
   if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-    return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
+    return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
   }
   if (input.end_date < input.start_date) {
     return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -180,7 +183,8 @@ export async function updateAdminLegal(input: {
       start_date: input.start_date,
       end_date: input.end_date,
       run_dates: runDates,
-      notary_required: Boolean(input.notary_required),
+      affidavit_required: Boolean(input.affidavit_required) || Boolean(input.notary_required),
+        notary_required: Boolean(input.notary_required),
     })
     .eq('id', input.id);
   if (updErr) {
@@ -230,7 +234,7 @@ export async function updateAdminLegal(input: {
 
 /** Save a Legal Notices LIBRARY entry edited through the Legal Database's
  *  record screen (same fields as a filed legal). When the record is complete
- *  — customer, valid L#, Wednesday run dates — it is PROMOTED to a full
+ *  â€” customer, valid L#, Wednesday run dates â€” it is PROMOTED to a full
  *  customer_legals row (so every field persists) and the library copy is
  *  updated to match. Otherwise only the library text (header + copy + footer
  *  line) is saved and the extra fields stay blank. */
@@ -242,6 +246,7 @@ export async function saveLibraryNotice(input: {
   l_number: string;
   start_date: string; // ISO or ''
   end_date: string; // ISO or ''
+  affidavit_required: boolean;
   notary_required: boolean;
 }): Promise<{ ok: boolean; error?: string; promotedId?: string }> {
   const user = await getCurrentUser();
@@ -272,11 +277,11 @@ export async function saveLibraryNotice(input: {
 
   const admin = createAdminClient();
 
-  // Complete record → promote into customer_legals so Customer, dates and
+  // Complete record â†’ promote into customer_legals so Customer, dates and
   // notary actually persist.
   if (customerName && lNumber && hasDates) {
     if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-      return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
+      return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
     }
     if (input.end_date < input.start_date) {
       return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -292,6 +297,7 @@ export async function saveLibraryNotice(input: {
         start_date: input.start_date,
         end_date: input.end_date,
         run_dates: runDates,
+        affidavit_required: Boolean(input.affidavit_required) || Boolean(input.notary_required),
         notary_required: Boolean(input.notary_required),
       })
       .select('id')
@@ -313,7 +319,7 @@ export async function saveLibraryNotice(input: {
     return { ok: true, promotedId: (inserted as { id: string }).id };
   }
 
-  // Incomplete record → save the library text; blank fields stay blank.
+  // Incomplete record â†’ save the library text; blank fields stay blank.
   const { error } = await admin
     .from('legal_notices')
     .update({ header, body: printBody, label })

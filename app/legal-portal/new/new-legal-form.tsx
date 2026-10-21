@@ -31,6 +31,7 @@ export function NewLegalForm({ reservedLNumber }: { reservedLNumber: string }) {
   const [body, setBody] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [affidavit, setAffidavit] = useState(false);
   const [notary, setNotary] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -76,6 +77,7 @@ export function NewLegalForm({ reservedLNumber }: { reservedLNumber: string }) {
       l_number: reservedLNumber,
       start_date: startDate,
       end_date: endDate,
+      affidavit_required: affidavit || notary,
       notary_required: notary,
     });
     setSaving(false);
@@ -147,15 +149,30 @@ export function NewLegalForm({ reservedLNumber }: { reservedLNumber: string }) {
         </div>
       </div>
 
-      <label className="flex items-start gap-2 text-sm text-zinc-800">
-        <input
-          type="checkbox"
-          checked={notary}
-          onChange={(e) => setNotary(e.target.checked)}
-          className="mt-0.5"
-        />
-        Do you require a notarized copy of this legal to be mailed to you?
-      </label>
+      <div className="space-y-2">
+        <label className="flex items-start gap-2 text-sm text-zinc-800">
+          <input
+            type="checkbox"
+            checked={affidavit || notary}
+            disabled={notary}
+            onChange={(e) => setAffidavit(e.target.checked)}
+            className="mt-0.5"
+          />
+          Do you require an affidavit of publication? (scanned copy emailed)
+        </label>
+        <label className="flex items-start gap-2 text-sm text-zinc-800">
+          <input
+            type="checkbox"
+            checked={notary}
+            onChange={(e) => {
+              setNotary(e.target.checked);
+              if (e.target.checked) setAffidavit(true);
+            }}
+            className="mt-0.5"
+          />
+          Do you require a physical notarized copy mailed to you? ($10 mailing fee)
+        </label>
+      </div>
 
       <div className="flex items-center gap-3 pt-2 border-t border-zinc-200">
         <button

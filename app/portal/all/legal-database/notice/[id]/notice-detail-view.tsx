@@ -24,6 +24,7 @@ export function NoticeDetailView({ notice }: { notice: LegalNotice }) {
         lNumber: parsed.lNumber,
         startDate: parsed.startDate,
         endDate: parsed.endDate,
+        affidavit: false,
         notary: false,
       }}
       note="This legal lives in the Legal Notices library the newspaper creator places from. Blank fields aren't on file for it — fill in the Customer (and dates, if missing) and save to file it as a full legal record."
@@ -36,6 +37,7 @@ export function NoticeDetailView({ notice }: { notice: LegalNotice }) {
           l_number: v.lNumber,
           start_date: v.startDate,
           end_date: v.endDate,
+          affidavit_required: v.affidavit,
           notary_required: v.notary,
         });
         if (res.ok && res.promotedId) {

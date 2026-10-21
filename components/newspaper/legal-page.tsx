@@ -213,9 +213,11 @@ export function LegalPage({
       ) : null}
 
       {/* ── Footer ─────────────────────────────────────────── */}
+      {/* 28 (not the 34px content box): calibrated against html2canvas's
+          baseline placement for this font — 34 drew the line low. */}
       <div
         className="flex items-center justify-center shrink-0"
-        data-pdf-vcenter="34"
+        data-pdf-vcenter="28"
         style={{
           borderTop: `3px solid ${NAVY}`,
           borderBottom: `3px solid ${NAVY}`,

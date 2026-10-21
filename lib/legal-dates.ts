@@ -32,29 +32,49 @@ export function legalFooterLine(lNumber: string, runDates: string[]): string {
 }
 
 /** Split a Legal Notices LIBRARY print text back into its parts: the copy,
- *  and — when the last line is the standard "L40001 8/5/26, 8/12/26" footer —
- *  the L# and first/last run dates (ISO). Anything unparseable comes back
- *  blank; the copy is returned untouched in that case. */
+ *  the L#, and the first/last run dates (ISO). Footers appear in the wild in
+ *  several shapes — "L40001 8/5/26, 8/12/26" on its own line, or inline at
+ *  the end of the last paragraph like "… Coram NY 11727. L19599 - 9/23/2026
+ *  & 9/30/2026" — so this takes the LAST L# in the text and accepts it as a
+ *  footer only when nothing but dates and separators follow it. Anything
+ *  unparseable comes back blank with the copy untouched. */
 export function parseLegalPrint(print: string): {
   copy: string;
   lNumber: string;
   startDate: string;
   endDate: string;
 } {
-  const lines = print.trimEnd().split('\n');
-  const last = (lines[lines.length - 1] ?? '').trim();
-  const m = last.match(/^(L\d{5,})\b\s*(.*)$/);
-  if (!m) return { copy: print, lNumber: '', startDate: '', endDate: '' };
-  const lNumber = m[1];
-  const copy = lines.slice(0, -1).join('\n').trimEnd();
-  const dateTokens = (m[2] ?? '').match(/\b\d{1,2}\/\d{1,2}\/\d{2}\b/g) ?? [];
-  const iso = dateTokens.map((t) => {
-    const [mo, d, y] = t.split('/').map(Number);
-    return `20${String(y).padStart(2, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  });
+  const none = { copy: print, lNumber: '', startDate: '', endDate: '' };
+  const text = print.trimEnd();
+  const lnRe = /\bL\d{5,}\b/g;
+  let m: RegExpExecArray | null;
+  let last: RegExpExecArray | null = null;
+  while ((m = lnRe.exec(text))) last = m;
+  if (!last) return none;
+
+  const tail = text.slice(last.index + last[0].length);
+  const dateRe = /\b(\d{1,2})\/(\d{1,2})\/(\d{4}|\d{2})\b/g;
+  // After the L#, only run dates and separators may remain — otherwise that
+  // L# was a reference inside the copy, not the footer.
+  const leftover = tail
+    .replace(dateRe, '')
+    .replace(/&amp;/g, '')
+    .replace(/\band\b/gi, '')
+    .replace(/[\s,.;:&()–—-]+/g, '');
+  if (leftover) return none;
+
+  const iso: string[] = [];
+  let d: RegExpExecArray | null;
+  dateRe.lastIndex = 0;
+  while ((d = dateRe.exec(tail))) {
+    const mo = Number(d[1]);
+    const day = Number(d[2]);
+    const y = d[3].length === 2 ? 2000 + Number(d[3]) : Number(d[3]);
+    iso.push(`${y}-${String(mo).padStart(2, '0')}-${String(day).padStart(2, '0')}`);
+  }
   return {
-    copy,
-    lNumber,
+    copy: text.slice(0, last.index).replace(/[\s]+$/, ''),
+    lNumber: last[0],
     startDate: iso[0] ?? '',
     endDate: iso[iso.length - 1] ?? '',
   };

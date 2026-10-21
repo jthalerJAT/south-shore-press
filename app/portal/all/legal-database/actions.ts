@@ -228,33 +228,98 @@ export async function updateAdminLegal(input: {
   return { ok: true };
 }
 
-/** Edit a Legal Notices LIBRARY entry (a notice that exists only in the
- *  library, not filed in customer_legals) — header and full print copy,
- *  which carries its own L# + run-dates line. The picker label is rebuilt
- *  from the new text. */
-export async function updateLegalNotice(input: {
+/** Save a Legal Notices LIBRARY entry edited through the Legal Database's
+ *  record screen (same fields as a filed legal). When the record is complete
+ *  — customer, valid L#, Wednesday run dates — it is PROMOTED to a full
+ *  customer_legals row (so every field persists) and the library copy is
+ *  updated to match. Otherwise only the library text (header + copy + footer
+ *  line) is saved and the extra fields stay blank. */
+export async function saveLibraryNotice(input: {
   id: string;
+  customer_name: string;
   header: string;
-  body: string;
-}): Promise<{ ok: boolean; error?: string }> {
+  body: string; // copy WITHOUT the footer line
+  l_number: string;
+  start_date: string; // ISO or ''
+  end_date: string; // ISO or ''
+  notary_required: boolean;
+}): Promise<{ ok: boolean; error?: string; promotedId?: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: 'Not signed in.' };
   if (!['editor', 'admin', 'master admin'].includes(user.role)) {
     return { ok: false, error: 'Your account cannot edit legals.' };
   }
 
+  const customerName = input.customer_name?.trim() ?? '';
   const header = input.header?.trim();
   const body = input.body?.trim();
+  const lNumber = (input.l_number ?? '').trim().toUpperCase();
   if (!header) return { ok: false, error: 'Enter the Legal Header.' };
   if (!body) return { ok: false, error: 'Enter the Legal Copy.' };
+  if (body.split(/\s+/).length > MAX_BODY_WORDS) {
+    return { ok: false, error: `Legal Copy is limited to ${MAX_BODY_WORDS} words.` };
+  }
+  if (lNumber && !/^L\d{5,}$/.test(lNumber)) {
+    return { ok: false, error: 'The L# must be an L followed by at least 5 digits (e.g. L40001).' };
+  }
+
+  const hasDates =
+    /^\d{4}-\d{2}-\d{2}$/.test(input.start_date) && /^\d{4}-\d{2}-\d{2}$/.test(input.end_date);
+  const runDates = hasDates ? wednesdaysBetween(input.start_date, input.end_date) : [];
+  const footer = lNumber && runDates.length ? legalFooterLine(lNumber, runDates) : lNumber;
+  const printBody = footer ? `${body}\n${footer}` : body;
+  const label = legalNoticeLabel(`${header} ${body}`);
 
   const admin = createAdminClient();
+
+  // Complete record → promote into customer_legals so Customer, dates and
+  // notary actually persist.
+  if (customerName && lNumber && hasDates) {
+    if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
+      return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
+    }
+    if (input.end_date < input.start_date) {
+      return { ok: false, error: 'End Date must be on or after Start Date.' };
+    }
+    const { data: inserted, error: insErr } = await admin
+      .from('customer_legals')
+      .insert({
+        user_id: user.id,
+        customer_name: customerName,
+        header,
+        body,
+        l_number: lNumber,
+        start_date: input.start_date,
+        end_date: input.end_date,
+        run_dates: runDates,
+        notary_required: Boolean(input.notary_required),
+      })
+      .select('id')
+      .single();
+    if (insErr) {
+      if (insErr.code === '23505') {
+        return { ok: false, error: `${lNumber} is already used by another legal.` };
+      }
+      console.error('[saveLibraryNotice] promote', insErr);
+      return { ok: false, error: 'Could not save the legal. Please try again.' };
+    }
+    const { error: mErr } = await admin
+      .from('legal_notices')
+      .update({ header, body: printBody, label })
+      .eq('id', input.id);
+    if (mErr) console.error('[saveLibraryNotice] mirror update', mErr);
+
+    revalidatePath('/portal/all/legal-database');
+    return { ok: true, promotedId: (inserted as { id: string }).id };
+  }
+
+  // Incomplete record → save the library text; blank fields stay blank.
   const { error } = await admin
     .from('legal_notices')
-    .update({ header, body, label: legalNoticeLabel(`${header} ${body}`) })
+    .update({ header, body: printBody, label })
     .eq('id', input.id);
   if (error) {
-    console.error('[updateLegalNotice]', error);
+    console.error('[saveLibraryNotice]', error);
     return { ok: false, error: 'Could not save the changes. Please try again.' };
   }
 

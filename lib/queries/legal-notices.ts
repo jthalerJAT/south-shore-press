@@ -27,6 +27,28 @@ export async function getLegalNotice(id: string): Promise<LegalNotice | null> {
   return data as LegalNotice;
 }
 
+/** The WHOLE library, newest first, paginated past Supabase's 1000-row cap —
+ *  feeds the Legal Database merge, which must see every L# ever filed. */
+export async function getAllLegalNotices(): Promise<LegalNotice[]> {
+  const supabase = createClient();
+  const out: LegalNotice[] = [];
+  const PAGE = 1000;
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('legal_notices')
+      .select(COLS)
+      .order('created_at', { ascending: false })
+      .range(from, from + PAGE - 1);
+    if (error) {
+      console.error('[getAllLegalNotices]', error);
+      break;
+    }
+    out.push(...((data ?? []) as LegalNotice[]));
+    if (!data || data.length < PAGE) break;
+  }
+  return out;
+}
+
 /** All saved notices, newest first — feeds the "Add New Legal" picker. */
 export async function getLegalNotices(): Promise<LegalNotice[]> {
   const supabase = createClient();

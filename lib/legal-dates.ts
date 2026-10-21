@@ -30,3 +30,32 @@ export function shortLegalDate(iso: string): string {
 export function legalFooterLine(lNumber: string, runDates: string[]): string {
   return `${lNumber} ${runDates.map(shortLegalDate).join(', ')}`;
 }
+
+/** Split a Legal Notices LIBRARY print text back into its parts: the copy,
+ *  and — when the last line is the standard "L40001 8/5/26, 8/12/26" footer —
+ *  the L# and first/last run dates (ISO). Anything unparseable comes back
+ *  blank; the copy is returned untouched in that case. */
+export function parseLegalPrint(print: string): {
+  copy: string;
+  lNumber: string;
+  startDate: string;
+  endDate: string;
+} {
+  const lines = print.trimEnd().split('\n');
+  const last = (lines[lines.length - 1] ?? '').trim();
+  const m = last.match(/^(L\d{5,})\b\s*(.*)$/);
+  if (!m) return { copy: print, lNumber: '', startDate: '', endDate: '' };
+  const lNumber = m[1];
+  const copy = lines.slice(0, -1).join('\n').trimEnd();
+  const dateTokens = (m[2] ?? '').match(/\b\d{1,2}\/\d{1,2}\/\d{2}\b/g) ?? [];
+  const iso = dateTokens.map((t) => {
+    const [mo, d, y] = t.split('/').map(Number);
+    return `20${String(y).padStart(2, '0')}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  });
+  return {
+    copy,
+    lNumber,
+    startDate: iso[0] ?? '',
+    endDate: iso[iso.length - 1] ?? '',
+  };
+}

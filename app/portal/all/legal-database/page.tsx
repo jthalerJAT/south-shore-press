@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getAllCustomerLegals } from '@/lib/queries/customer';
-import { getLegalNotices } from '@/lib/queries/legal-notices';
+import { getAllLegalNotices } from '@/lib/queries/legal-notices';
 import { legalFooterLine } from '@/lib/legal-dates';
 import { LegalDatabaseList, type LegalRow } from './legal-database-list';
 
@@ -25,7 +25,7 @@ export default async function LegalDatabasePage() {
     ['editor', 'admin', 'master admin'],
     '/portal/all/legal-database'
   );
-  const [legals, notices] = await Promise.all([getAllCustomerLegals(), getLegalNotices()]);
+  const [legals, notices] = await Promise.all([getAllCustomerLegals(), getAllLegalNotices()]);
 
   // One merged list: filed legals (customer_legals) plus the Legal Notices
   // library the newspaper creator places from. Library rows that are just
@@ -35,6 +35,19 @@ export default async function LegalDatabasePage() {
   const filedPrintBodies = new Set(
     legals.map((l) => `${l.body}\n${legalFooterLine(l.l_number, l.run_dates ?? [])}`.trim())
   );
+
+  // A legal that ran several weeks was saved into the library once per issue
+  // — same L#, several rows. The database shows ONE file per L#: the newest
+  // library copy wins. Notices without a detectable L# dedupe on their text.
+  const libraryByKey = new Map<string, (typeof notices)[number]>();
+  for (const n of notices) {
+    const ln = parseLNumber(n.body);
+    if (ln && filedLNumbers.has(ln)) continue;
+    if (!ln && filedPrintBodies.has(n.body.trim())) continue;
+    const key = ln ?? `body:${n.body.trim()}`;
+    const kept = libraryByKey.get(key);
+    if (!kept || n.created_at > kept.created_at) libraryByKey.set(key, n);
+  }
 
   const rows: LegalRow[] = [
     ...legals.map((l) => ({
@@ -47,22 +60,16 @@ export default async function LegalDatabasePage() {
       l_number: l.l_number as string | null,
       notary: l.notary_required as boolean | null,
     })),
-    ...notices
-      .filter((n) => {
-        const ln = parseLNumber(n.body);
-        if (ln && filedLNumbers.has(ln)) return false;
-        return !filedPrintBodies.has(n.body.trim());
-      })
-      .map((n) => ({
-        kind: 'notice' as const,
-        id: n.id,
-        href: `/portal/all/legal-database/notice/${n.id}`,
-        created_at: n.created_at,
-        customer: null,
-        body: n.body,
-        l_number: parseLNumber(n.body),
-        notary: null,
-      })),
+    ...[...libraryByKey.values()].map((n) => ({
+      kind: 'notice' as const,
+      id: n.id,
+      href: `/portal/all/legal-database/notice/${n.id}`,
+      created_at: n.created_at,
+      customer: null,
+      body: n.body,
+      l_number: parseLNumber(n.body),
+      notary: null,
+    })),
   ];
 
   // Sorted by L# (highest first); entries without one sink to the bottom,

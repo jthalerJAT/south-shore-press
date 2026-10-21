@@ -32,6 +32,10 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
   const [customer, setCustomer] = useState('');
   const [header, setHeader] = useState('');
   const [body, setBody] = useState('');
+  // Pre-filled with the number reserved on page load, but editable — existing
+  // legals get entered under their original L#. A typed L# that's already in
+  // use errors on save rather than being silently renumbered.
+  const [lNumber, setLNumber] = useState(reservedLNumber);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [notary, setNotary] = useState(false);
@@ -45,8 +49,8 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
     [startDate, endDate]
   );
   const footerLine = useMemo(
-    () => (reservedLNumber ? legalFooterLine(reservedLNumber, runDates) : ''),
-    [reservedLNumber, runDates]
+    () => (lNumber ? legalFooterLine(lNumber, runDates) : ''),
+    [lNumber, runDates]
   );
 
   const previewData = useMemo(
@@ -69,6 +73,8 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
     if (!header.trim()) return 'Enter the Legal Header.';
     if (!body.trim()) return 'Enter the Legal Copy.';
     if (bodyWords > MAX_BODY_WORDS) return `Legal Copy is limited to ${MAX_BODY_WORDS} words.`;
+    if (!/^L\d{5,}$/.test(lNumber.trim().toUpperCase()))
+      return 'The L# must be an L followed by at least 5 digits (e.g. L40001).';
     if (!startDate) return 'Select a Start Date.';
     if (!endDate) return 'Select an End Date.';
     return null;
@@ -83,7 +89,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
       customer_name: customer,
       header,
       body,
-      l_number: reservedLNumber,
+      l_number: lNumber.trim().toUpperCase(),
       start_date: startDate,
       end_date: endDate,
       notary_required: notary,
@@ -107,6 +113,19 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
           placeholder="Customer or firm name"
           className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
         />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-zinc-700">L#</label>
+        <input
+          value={lNumber}
+          onChange={(e) => setLNumber(e.target.value.toUpperCase())}
+          className="mt-1 block w-full max-w-[12rem] rounded border border-zinc-300 px-3 py-2 text-sm font-mono focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+        />
+        <p className="mt-1 text-xs text-zinc-400">
+          Auto-assigned for new legals — change it only when entering an existing legal that
+          already has a number.
+        </p>
       </div>
 
       <div>

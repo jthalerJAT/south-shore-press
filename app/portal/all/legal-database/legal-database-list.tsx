@@ -1,11 +1,23 @@
 'use client';
 
-/** Admin Legal Database: every customer-uploaded legal, reverse-chron, with
- *  search. Click a row → the read-only filled version of the create screen. */
+/** Admin Legal Database: every legal — filed customer/staff legals AND the
+ *  Legal Notices library the paper places from — in one list sorted by L#,
+ *  with search. Click a row to view/edit it. */
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
-import type { CustomerLegal } from '@/lib/queries/customer';
+
+export type LegalRow = {
+  /** 'legal' = filed in customer_legals; 'notice' = Legal Notices library. */
+  kind: 'legal' | 'notice';
+  id: string;
+  href: string;
+  created_at: string;
+  customer: string | null;
+  body: string;
+  l_number: string | null;
+  notary: boolean | null;
+};
 
 function fmtDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', {
@@ -20,19 +32,19 @@ function firstWords(s: string, n = 8): string {
   return words.slice(0, n).join(' ') + (words.length > n ? '…' : '');
 }
 
-export function LegalDatabaseList({ legals }: { legals: CustomerLegal[] }) {
+export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
   const [searchQ, setSearchQ] = useState('');
 
   const visible = useMemo(() => {
     const needle = searchQ.trim().toLowerCase();
-    if (!needle) return legals;
-    return legals.filter((l) =>
-      [l.customer_name ?? '', l.header, l.body, l.l_number]
+    if (!needle) return rows;
+    return rows.filter((l) =>
+      [l.customer ?? '', l.body, l.l_number ?? '']
         .join(' ')
         .toLowerCase()
         .includes(needle)
     );
-  }, [legals, searchQ]);
+  }, [rows, searchQ]);
 
   return (
     <div>
@@ -66,24 +78,28 @@ export function LegalDatabaseList({ legals }: { legals: CustomerLegal[] }) {
         </div>
         {visible.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-zinc-400">
-            {legals.length === 0 ? 'No customer legals yet.' : 'No legals match your search.'}
+            {rows.length === 0 ? 'No legals yet.' : 'No legals match your search.'}
           </p>
         ) : (
           <ul className="divide-y divide-zinc-100">
             {visible.map((l) => (
-              <li key={l.id}>
+              <li key={`${l.kind}-${l.id}`}>
                 <Link
-                  href={`/portal/all/legal-database/${l.id}`}
+                  href={l.href}
                   className="grid grid-cols-[7rem_1fr_1fr_6rem_5rem] items-center gap-3 px-4 py-3 hover:bg-zinc-50 transition-colors"
                 >
                   <div className="text-sm text-zinc-500">{fmtDate(l.created_at)}</div>
                   <div className="text-sm font-medium text-zinc-900 truncate">
-                    {l.customer_name || '—'}
+                    {l.customer || (
+                      <span className="italic text-zinc-400 font-normal">Library notice</span>
+                    )}
                   </div>
                   <div className="text-sm text-zinc-600 truncate">{firstWords(l.body)}</div>
-                  <div className="text-sm font-mono text-zinc-700">{l.l_number}</div>
+                  <div className="text-sm font-mono text-zinc-700">{l.l_number ?? '—'}</div>
                   <div className="text-sm font-semibold">
-                    {l.notary_required ? (
+                    {l.notary === null ? (
+                      <span className="text-zinc-300">—</span>
+                    ) : l.notary ? (
                       <span className="text-brand-red">Y</span>
                     ) : (
                       <span className="text-zinc-400">N</span>
@@ -95,6 +111,10 @@ export function LegalDatabaseList({ legals }: { legals: CustomerLegal[] }) {
           </ul>
         )}
       </div>
+      <p className="mt-2 text-xs text-zinc-400">
+        Sorted by L#, highest first. “Library notice” rows come from the Legal Notices library
+        used by the newspaper creator — click one to edit its copy.
+      </p>
     </div>
   );
 }

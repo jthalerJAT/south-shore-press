@@ -82,6 +82,10 @@ function repaintVCenteredBars(
 ): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
+  // html2canvas leaves its render scale on the context — reset to identity
+  // so the canvas-pixel coordinates below land where computed.
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   const rootRect = rootEl.getBoundingClientRect();
   rootEl.querySelectorAll<HTMLElement>('[data-pdf-vcenter]').forEach((el) => {
     const cs = getComputedStyle(el);
@@ -134,6 +138,7 @@ function repaintVCenteredBars(
     }
     if (canSpace) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '0px';
   });
+  ctx.restore();
 }
 
 /**

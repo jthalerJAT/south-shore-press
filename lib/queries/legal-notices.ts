@@ -12,6 +12,21 @@ export type LegalNotice = {
 
 const COLS = 'id, label, header, body, created_at';
 
+/** One saved notice — the Legal Database's library-entry edit view. */
+export async function getLegalNotice(id: string): Promise<LegalNotice | null> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from('legal_notices')
+    .select(COLS)
+    .eq('id', id)
+    .maybeSingle();
+  if (error || !data) {
+    if (error) console.error('[getLegalNotice]', error);
+    return null;
+  }
+  return data as LegalNotice;
+}
+
 /** All saved notices, newest first — feeds the "Add New Legal" picker. */
 export async function getLegalNotices(): Promise<LegalNotice[]> {
   const supabase = createClient();

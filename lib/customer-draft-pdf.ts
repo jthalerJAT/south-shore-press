@@ -68,6 +68,75 @@ function addCanvasSliced(doc: jsPDF, canvas: HTMLCanvasElement, first: boolean):
 }
 
 /**
+ * html2canvas places flex-centered text by font metrics it computes itself,
+ * which sits visibly off-center with the condensed newspaper font. For bars
+ * marked data-pdf-vcenter we don't fight it: after capture, the bar's text
+ * area is repainted directly on the canvas with textBaseline:'middle', which
+ * IS exact. Backgrounds/borders from the capture are kept; only the content
+ * box is cleared and the text redrawn, run by run so per-span weights hold.
+ */
+function repaintVCenteredBars(
+  canvas: HTMLCanvasElement,
+  rootEl: HTMLElement,
+  scale: number
+): void {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  const rootRect = rootEl.getBoundingClientRect();
+  rootEl.querySelectorAll<HTMLElement>('[data-pdf-vcenter]').forEach((el) => {
+    const cs = getComputedStyle(el);
+    const r = el.getBoundingClientRect();
+    const bt = parseFloat(cs.borderTopWidth) || 0;
+    const bb = parseFloat(cs.borderBottomWidth) || 0;
+    const bl = parseFloat(cs.borderLeftWidth) || 0;
+    const br = parseFloat(cs.borderRightWidth) || 0;
+    const x = (r.left - rootRect.left + bl) * scale;
+    const y = (r.top - rootRect.top + bt) * scale;
+    const w = (r.width - bl - br) * scale;
+    const h = (r.height - bt - bb) * scale;
+
+    // Clear the content box with the bar's own background.
+    const bg = cs.backgroundColor;
+    ctx.fillStyle = !bg || bg === 'rgba(0, 0, 0, 0)' || bg === 'transparent' ? '#ffffff' : bg;
+    ctx.fillRect(x, y, w, h);
+
+    // Gather text runs (keeps the footer's mixed span weights).
+    type Run = { text: string; font: string };
+    const runs: Run[] = [];
+    const fontFor = (node: HTMLElement) => {
+      const s = getComputedStyle(node);
+      return `${s.fontStyle} ${s.fontWeight} ${parseFloat(s.fontSize) * scale}px ${s.fontFamily}`;
+    };
+    el.childNodes.forEach((n) => {
+      const text = n.textContent ?? '';
+      if (!text) return;
+      runs.push({ text, font: fontFor(n.nodeType === 1 ? (n as HTMLElement) : el) });
+    });
+    if (runs.length === 0) return;
+
+    const spacing = (parseFloat(cs.letterSpacing) || 0) * scale;
+    const canSpace = 'letterSpacing' in ctx;
+    if (canSpace) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${spacing}px`;
+    let total = 0;
+    for (const run of runs) {
+      ctx.font = run.font;
+      total += ctx.measureText(run.text).width;
+    }
+    ctx.fillStyle = cs.color;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    let cx = x + (w - total) / 2;
+    const cy = y + h / 2;
+    for (const run of runs) {
+      ctx.font = run.font;
+      ctx.fillText(run.text, cx, cy);
+      cx += ctx.measureText(run.text).width;
+    }
+    if (canSpace) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = '0px';
+  });
+}
+
+/**
  * Build the draft from the two capture nodes and open it. Call
  * `window.open('', '_blank')` synchronously in the click handler and pass it
  * as `target` — opening after the async captures would hit popup blockers.
@@ -79,27 +148,15 @@ export async function openCustomerDraftPdf(opts: {
 }): Promise<void> {
   await settleRender();
 
-  // html2canvas draws flex-centered text low with the condensed newspaper
-  // font. Elements marked data-pdf-vcenter (their content-box height) get
-  // swapped to line-height centering in the capture clone — which it renders
-  // accurately — leaving the live page untouched.
-  const onclone = (doc: Document) => {
-    doc.querySelectorAll<HTMLElement>('[data-pdf-vcenter]').forEach((el) => {
-      el.style.display = 'block';
-      el.style.textAlign = 'center';
-      el.style.lineHeight = `${el.getAttribute('data-pdf-vcenter')}px`;
-    });
-  };
   const fieldsCanvas = await html2canvas(opts.fieldsEl, {
     scale: 2,
     backgroundColor: '#ffffff',
-    onclone,
   });
   const previewCanvas = await html2canvas(opts.previewEl, {
     scale: 1.5,
     backgroundColor: '#ffffff',
-    onclone,
   });
+  repaintVCenteredBars(previewCanvas, opts.previewEl, 1.5);
 
   const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
 

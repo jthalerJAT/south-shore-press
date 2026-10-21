@@ -69,6 +69,7 @@ export default async function LegalDatabasePage() {
         header: l.header,
         body: l.body,
         customer: l.customer_name,
+        mailedAffidavit: l.notary_required,
       }),
     })),
     ...[...libraryByKey.values()].map((n) => {

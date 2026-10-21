@@ -5,10 +5,13 @@
  *
  *   Public bodies   words × ($0.085 × weeks + $0.025) — statute-safe
  *                   per-word form of the §70-a line rate (circ. 6,000,
- *                   5,000–7,499 band); no processing fee.
+ *                   5,000–7,499 band); no processing fee; scanned notarized
+ *                   affidavit emailed free.
  *   Everyone else   words × $0.19 × weeks + $25 fee, minimum $35/run.
  *   LLC/PLLC/LLP    $125 flat per 6-week statutory run.
  *   Liquor license  $125 flat per 2-week run.
+ *   Mailed affidavit +$10 for ANY client (a mailing charge) when a physical
+ *                   notarized original is requested — the notary checkbox.
  *
  * Display/scanned exhibits ($500/page/run) and wide-set notices (>~300
  * agate lines, quoted by space) can't be detected from text alone and are
@@ -45,13 +48,28 @@ export function quoteLegal(input: {
   header?: string | null;
   body?: string | null;
   customer?: string | null;
+  /** "Notarized copy to be mailed" — adds the $10 mailing charge, any tier. */
+  mailedAffidavit?: boolean;
 }): RateQuote | null {
+  const withMailing = (q: RateQuote): RateQuote =>
+    input.mailedAffidavit
+      ? { ...q, amount: round2(q.amount + 10), basis: `${q.basis} + $10 mailed affidavit` }
+      : q;
+
   const text = `${input.header ?? ''} ${input.body ?? ''}`;
   if (LIQUOR_RE.test(text)) {
-    return { amount: 125, tier: 'liquor', basis: 'Liquor-license flat rate: $125 per 2-week run' };
+    return withMailing({
+      amount: 125,
+      tier: 'liquor',
+      basis: 'Liquor-license flat rate: $125 per 2-week run',
+    });
   }
   if (LLC_RE.test(text)) {
-    return { amount: 125, tier: 'llc', basis: 'LLC/PLLC/LLP formation flat rate: $125 per 6-week run' };
+    return withMailing({
+      amount: 125,
+      tier: 'llc',
+      basis: 'LLC/PLLC/LLP formation flat rate: $125 per 6-week run',
+    });
   }
   const { words, weeks } = input;
   if (!words || !weeks) return null;
@@ -59,20 +77,20 @@ export function quoteLegal(input: {
   const isPublic =
     PUBLIC_CUSTOMER_RE.test(input.customer ?? '') || PUBLIC_BODY_TEXT_RE.test(text);
   if (isPublic) {
-    return {
+    return withMailing({
       amount: round2(words * (0.085 * weeks + 0.025)),
       tier: 'public',
-      basis: `Public body: ${words} words × ($0.085 × ${weeks} wk + $0.025) — statutory rate, no fee`,
-    };
+      basis: `Public body: ${words} words × ($0.085 × ${weeks} wk + $0.025) — statutory rate, no fee, scanned affidavit free`,
+    });
   }
   const raw = words * 0.19 * weeks + 25;
-  return {
+  return withMailing({
     amount: round2(Math.max(35, raw)),
     tier: 'market',
     basis:
       `Market: ${words} words × $0.19 × ${weeks} wk + $25 fee` +
       (raw < 35 ? ' (minimum $35)' : ''),
-  };
+  });
 }
 
 export function wordCount(s: string | null | undefined): number {

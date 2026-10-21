@@ -4,7 +4,7 @@
  *  search. Click a row → the read-only filled version of the create screen. */
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
-import { Search } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import type { CustomerLegal } from '@/lib/queries/customer';
 
 function fmtDate(iso: string): string {
@@ -36,15 +36,24 @@ export function LegalDatabaseList({ legals }: { legals: CustomerLegal[] }) {
 
   return (
     <div>
-      <div className="relative max-w-md mb-4">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
-        <input
-          type="search"
-          value={searchQ}
-          onChange={(e) => setSearchQ(e.target.value)}
-          placeholder="Search by customer, L#, or copy…"
-          className="block w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 rounded focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
-        />
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 pointer-events-none" />
+          <input
+            type="search"
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            placeholder="Search by customer, L#, or copy…"
+            className="block w-full pl-9 pr-3 py-2 text-sm border border-zinc-300 rounded focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          />
+        </div>
+        <Link
+          href="/portal/all/legal-database/new"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-brand-red hover:bg-brand-red-dark text-white text-sm font-semibold rounded transition-colors"
+        >
+          <Plus className="w-4 h-4" />
+          Create New Legal
+        </Link>
       </div>
 
       <div className="overflow-hidden rounded border border-zinc-200 bg-white">

@@ -79,8 +79,27 @@ export async function openCustomerDraftPdf(opts: {
 }): Promise<void> {
   await settleRender();
 
-  const fieldsCanvas = await html2canvas(opts.fieldsEl, { scale: 2, backgroundColor: '#ffffff' });
-  const previewCanvas = await html2canvas(opts.previewEl, { scale: 1.5, backgroundColor: '#ffffff' });
+  // html2canvas draws flex-centered text low with the condensed newspaper
+  // font. Elements marked data-pdf-vcenter (their content-box height) get
+  // swapped to line-height centering in the capture clone — which it renders
+  // accurately — leaving the live page untouched.
+  const onclone = (doc: Document) => {
+    doc.querySelectorAll<HTMLElement>('[data-pdf-vcenter]').forEach((el) => {
+      el.style.display = 'block';
+      el.style.textAlign = 'center';
+      el.style.lineHeight = `${el.getAttribute('data-pdf-vcenter')}px`;
+    });
+  };
+  const fieldsCanvas = await html2canvas(opts.fieldsEl, {
+    scale: 2,
+    backgroundColor: '#ffffff',
+    onclone,
+  });
+  const previewCanvas = await html2canvas(opts.previewEl, {
+    scale: 1.5,
+    backgroundColor: '#ffffff',
+    onclone,
+  });
 
   const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
 

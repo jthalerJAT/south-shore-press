@@ -57,8 +57,13 @@ export function LegalPage({
       <PageHeader pageNumber={pageNumber} dateLabel={dateLabel} />
 
       {/* ── Banner ─────────────────────────────────────────── */}
+      {/* data-pdf-vcenter: content-box height — the Customer Draft PDF's
+          html2canvas capture swaps flex centering (which it draws low with
+          the condensed font) for line-height centering. On-screen/print
+          rendering is untouched. */}
       <div
         className="flex items-center justify-center shrink-0"
+        data-pdf-vcenter="40"
         style={{
           background: NAVY,
           color: '#fff',
@@ -210,6 +215,7 @@ export function LegalPage({
       {/* ── Footer ─────────────────────────────────────────── */}
       <div
         className="flex items-center justify-center shrink-0"
+        data-pdf-vcenter="34"
         style={{
           borderTop: `3px solid ${NAVY}`,
           borderBottom: `3px solid ${NAVY}`,

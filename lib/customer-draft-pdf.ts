@@ -27,7 +27,20 @@ async function settleRender(): Promise<void> {
   } catch {
     /* fonts API unavailable */
   }
-  await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+  // Double-rAF lets the capture nodes paint — but rAF never fires in a
+  // hidden tab, so race it against a timeout or the build hangs the moment
+  // the user switches tabs.
+  await new Promise<void>((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (!done) {
+        done = true;
+        resolve();
+      }
+    };
+    requestAnimationFrame(() => requestAnimationFrame(finish));
+    setTimeout(finish, 400);
+  });
 }
 
 /** Add `canvas` to `doc`, slicing it vertically across as many letter pages

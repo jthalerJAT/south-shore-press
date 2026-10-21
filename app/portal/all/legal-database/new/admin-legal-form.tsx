@@ -10,14 +10,14 @@
  *   Customer Draft  a 2-page PDF (fields sheet + newspaper preview) opened
  *                   in a new tab for the customer to review/download.
  */
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';
 import { LegalPage } from '@/components/newspaper/legal-page';
 import { LEGAL_PAGE_COLUMNS } from '@/lib/newspaper/legal-page';
-import { wednesdaysBetween, legalFooterLine, shortLegalDate } from '@/lib/legal-dates';
+import { wednesdaysBetween, legalFooterLine } from '@/lib/legal-dates';
 import { WednesdayCalendar } from '@/components/portal/wednesday-calendar';
-import { openCustomerDraftPdf } from '@/lib/customer-draft-pdf';
+import { CustomerDraftButton } from '@/components/portal/customer-draft-button';
 import { saveAdminLegal } from '../actions';
 
 const MAX_BODY_WORDS = 1000;
@@ -37,15 +37,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
   const [notary, setNotary] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [drafting, setDrafting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // Hidden capture nodes for the Customer Draft PDF — only mounted while
-  // generating. The popup window must be opened synchronously in the click
-  // handler (popup blockers), so it's stashed in a ref for the effect.
-  const fieldsRef = useRef<HTMLDivElement | null>(null);
-  const previewRef = useRef<HTMLDivElement | null>(null);
-  const draftWinRef = useRef<Window | null>(null);
 
   const bodyWords = wordCount(body);
   const runDates = useMemo(
@@ -104,56 +96,6 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
     router.push('/portal/all/legal-database');
     router.refresh();
   }
-
-  function handleCustomerDraft() {
-    const problem = validate();
-    if (problem) return setError(problem);
-    setError(null);
-    // Open the tab NOW, while still inside the click — the PDF build is
-    // async and a late window.open would be popup-blocked.
-    draftWinRef.current = window.open('', '_blank');
-    try {
-      draftWinRef.current?.document.write(
-        '<title>Customer Draft</title><p style="font-family:sans-serif;color:#555;padding:2rem">Preparing customer draft…</p>'
-      );
-    } catch {
-      /* cross-origin quirk — harmless */
-    }
-    setDrafting(true);
-  }
-
-  useEffect(() => {
-    if (!drafting) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const fieldsEl = fieldsRef.current;
-        const previewEl = previewRef.current;
-        if (!fieldsEl || !previewEl) throw new Error('capture nodes missing');
-        await openCustomerDraftPdf({ fieldsEl, previewEl, target: draftWinRef.current });
-      } catch (err) {
-        console.error('[CustomerDraft]', err);
-        try {
-          draftWinRef.current?.close();
-        } catch {
-          /* ignore */
-        }
-        if (!cancelled) setError('Could not generate the customer draft. Please try again.');
-      } finally {
-        draftWinRef.current = null;
-        if (!cancelled) setDrafting(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [drafting]);
-
-  const draftDateLabel = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 
   return (
     <div className="space-y-5 max-w-2xl">
@@ -239,7 +181,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving || drafting}
+          disabled={saving}
           className="inline-flex items-center px-5 py-2.5 bg-brand-red hover:bg-brand-red-dark disabled:opacity-60 text-white text-sm font-semibold uppercase tracking-wide rounded transition-colors"
         >
           {saving ? 'Saving…' : 'Save Legal'}
@@ -252,14 +194,18 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
         >
           Preview Legal
         </button>
-        <button
-          type="button"
-          onClick={handleCustomerDraft}
-          disabled={saving || drafting}
-          className="inline-flex items-center px-4 py-2 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50 text-sm font-medium text-zinc-700 rounded transition-colors"
-        >
-          {drafting ? 'Building PDF…' : 'Customer Draft'}
-        </button>
+        <CustomerDraftButton
+          customer={customer}
+          lNumber={reservedLNumber}
+          header={header}
+          body={body}
+          footerLine={footerLine}
+          startDate={startDate}
+          endDate={endDate}
+          notary={notary}
+          disabled={saving}
+          beforeDraft={validate}
+        />
         {error ? <span className="text-sm text-red-600">{error}</span> : null}
       </div>
 
@@ -297,96 +243,6 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
           </div>
         </div>
       ) : null}
-
-      {/* ── Offscreen capture nodes for the Customer Draft PDF ─────────── */}
-      {drafting ? (
-        <div
-          aria-hidden="true"
-          style={{ position: 'fixed', left: -12000, top: 0, pointerEvents: 'none' }}
-        >
-          {/* Page 1: the fields sheet, 8.5in wide at 96dpi */}
-          <div
-            ref={fieldsRef}
-            style={{ width: 816, background: '#fff', color: '#18181b', padding: 56 }}
-          >
-            <div style={{ borderBottom: '3px solid #1e3a8a', paddingBottom: 12, marginBottom: 24 }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#1e3a8a' }}>
-                The South Shore Press
-              </div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  color: '#52525b',
-                  marginTop: 2,
-                }}
-              >
-                Legal Notice — Customer Draft · {draftDateLabel}
-              </div>
-            </div>
-            <DraftField label="Customer" value={customer.trim() || '—'} />
-            <DraftField label="Legal Number" value={reservedLNumber || '—'} />
-            <DraftField label="Legal Header" value={header.trim() || '—'} />
-            <DraftField label="Legal Copy" value={body.trim() || '—'} pre />
-            <div style={{ display: 'flex', gap: 48 }}>
-              <DraftField label="Start Date" value={startDate ? shortLegalDate(startDate) : '—'} />
-              <DraftField label="End Date" value={endDate ? shortLegalDate(endDate) : '—'} />
-            </div>
-            <DraftField label="To be included at the end of the legal" value={footerLine || '—'} mono />
-            <DraftField label="Notarized copy to be mailed" value={notary ? 'Yes' : 'No'} />
-          </div>
-          {/* Page 2: the newspaper preview at natural print size */}
-          <div ref={previewRef} style={{ width: CONTENT_W_PX, background: '#fff' }}>
-            <LegalPage data={previewData} pageNumber={21} />
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function DraftField({
-  label,
-  value,
-  pre = false,
-  mono = false,
-}: {
-  label: string;
-  value: string;
-  pre?: boolean;
-  mono?: boolean;
-}) {
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 700,
-          letterSpacing: '0.1em',
-          textTransform: 'uppercase',
-          color: '#71717a',
-          marginBottom: 4,
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 14,
-          lineHeight: 1.5,
-          color: '#18181b',
-          whiteSpace: pre ? 'pre-wrap' : 'normal',
-          fontFamily: mono ? 'ui-monospace, Menlo, Consolas, monospace' : undefined,
-          border: '1px solid #e4e4e7',
-          borderRadius: 4,
-          background: '#fafafa',
-          padding: '8px 12px',
-        }}
-      >
-        {value}
-      </div>
     </div>
   );
 }

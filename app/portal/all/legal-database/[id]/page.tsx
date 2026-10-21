@@ -4,6 +4,7 @@ import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getCustomerLegal } from '@/lib/queries/customer';
 import { legalFooterLine, shortLegalDate } from '@/lib/legal-dates';
+import { CustomerDraftButton } from '@/components/portal/customer-draft-button';
 import { LegalDetailPreview } from './legal-detail-preview';
 
 export const metadata: Metadata = {
@@ -59,7 +60,20 @@ export default async function LegalDetailPage({ params }: { params: { id: string
           value={legal.notary_required ? 'Yes' : 'No'}
         />
 
-        <LegalDetailPreview header={legal.header} body={legal.body} footer={footer} />
+        <div className="flex flex-wrap items-center gap-3">
+          <LegalDetailPreview header={legal.header} body={legal.body} footer={footer} />
+          <CustomerDraftButton
+            label="Download Customer Draft"
+            customer={legal.customer_name ?? ''}
+            lNumber={legal.l_number}
+            header={legal.header}
+            body={legal.body}
+            footerLine={footer}
+            startDate={legal.start_date}
+            endDate={legal.end_date}
+            notary={legal.notary_required}
+          />
+        </div>
       </div>
     </PortalShell>
   );

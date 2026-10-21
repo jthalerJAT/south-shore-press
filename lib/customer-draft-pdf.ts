@@ -103,7 +103,25 @@ export async function openCustomerDraftPdf(opts: {
 
   const doc = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
 
-  addCanvasSliced(doc, fieldsCanvas, true);
+  // Fields sheet: a typical legal fits one page at full width. When it runs
+  // modestly over, shrink the whole sheet to fit (like printing at <100%) —
+  // readable down to this cap — and only slice onto a second page beyond it.
+  const MAX_FIELDS_SHRINK = 1.4;
+  const onePageHpx = USABLE_H * (fieldsCanvas.width / USABLE_W);
+  if (fieldsCanvas.height > onePageHpx && fieldsCanvas.height <= onePageHpx * MAX_FIELDS_SHRINK) {
+    const h = USABLE_H;
+    const w = h * (fieldsCanvas.width / fieldsCanvas.height);
+    doc.addImage(
+      fieldsCanvas.toDataURL('image/jpeg', 0.92),
+      'JPEG',
+      MARGIN + (USABLE_W - w) / 2,
+      MARGIN,
+      w,
+      h
+    );
+  } else {
+    addCanvasSliced(doc, fieldsCanvas, true);
+  }
 
   // Preview page: fit the 1056×1440 newspaper page inside the margins,
   // centered horizontally.

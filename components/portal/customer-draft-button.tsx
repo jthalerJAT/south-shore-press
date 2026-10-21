@@ -133,13 +133,15 @@ export function CustomerDraftButton({
           aria-hidden="true"
           style={{ position: 'fixed', left: -12000, top: 0, pointerEvents: 'none' }}
         >
-          {/* Page 1: the fields sheet, 8.5in wide at 96dpi */}
+          {/* Page 1: the fields sheet, 8.5in wide at 96dpi. Kept compact so a
+              typical legal fits one page; the PDF builder also shrinks a
+              modest overflow to fit before resorting to a second page. */}
           <div
             ref={fieldsRef}
-            style={{ width: 816, background: '#fff', color: '#18181b', padding: 56 }}
+            style={{ width: 816, background: '#fff', color: '#18181b', padding: 40 }}
           >
-            <div style={{ borderBottom: '3px solid #1e3a8a', paddingBottom: 12, marginBottom: 24 }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#1e3a8a' }}>
+            <div style={{ borderBottom: '3px solid #1e3a8a', paddingBottom: 8, marginBottom: 16 }}>
+              <div style={{ fontSize: 22, fontWeight: 800, color: '#1e3a8a' }}>
                 The South Shore Press
               </div>
               <div
@@ -192,30 +194,30 @@ function DraftField({
   mono?: boolean;
 }) {
   return (
-    <div style={{ marginBottom: 18 }}>
+    <div style={{ marginBottom: 11 }}>
       <div
         style={{
-          fontSize: 11,
+          fontSize: 10,
           fontWeight: 700,
           letterSpacing: '0.1em',
           textTransform: 'uppercase',
           color: '#71717a',
-          marginBottom: 4,
+          marginBottom: 3,
         }}
       >
         {label}
       </div>
       <div
         style={{
-          fontSize: 14,
-          lineHeight: 1.5,
+          fontSize: 13,
+          lineHeight: 1.4,
           color: '#18181b',
           whiteSpace: pre ? 'pre-wrap' : 'normal',
           fontFamily: mono ? 'ui-monospace, Menlo, Consolas, monospace' : undefined,
           border: '1px solid #e4e4e7',
           borderRadius: 4,
           background: '#fafafa',
-          padding: '8px 12px',
+          padding: '5px 10px',
         }}
       >
         {value}

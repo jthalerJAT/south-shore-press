@@ -130,7 +130,9 @@ function repaintVCenteredBars(
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     let cx = x + (w - total) / 2;
-    const cy = y + h / 2;
+    // All-caps text centered by its em box reads slightly high (no
+    // descenders) — nudge down a hair for optical centering.
+    const cy = y + h / 2 + parseFloat(cs.fontSize) * scale * 0.07;
     for (const run of runs) {
       ctx.font = run.font;
       ctx.fillText(run.text, cx, cy);
@@ -153,13 +155,23 @@ export async function openCustomerDraftPdf(opts: {
 }): Promise<void> {
   await settleRender();
 
+  // Marked bars: hide their text in the capture clone (html2canvas draws it
+  // off-center AND spills it past the bar) — the repaint below draws the only
+  // copy of that text, exactly centered.
+  const onclone = (doc: Document) => {
+    doc.querySelectorAll<HTMLElement>('[data-pdf-vcenter]').forEach((el) => {
+      el.style.color = 'transparent';
+    });
+  };
   const fieldsCanvas = await html2canvas(opts.fieldsEl, {
     scale: 2,
     backgroundColor: '#ffffff',
+    onclone,
   });
   const previewCanvas = await html2canvas(opts.previewEl, {
     scale: 1.5,
     backgroundColor: '#ffffff',
+    onclone,
   });
   repaintVCenteredBars(previewCanvas, opts.previewEl, 1.5);
 

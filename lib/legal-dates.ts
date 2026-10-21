@@ -43,8 +43,10 @@ export function parseLegalPrint(print: string): {
   lNumber: string;
   startDate: string;
   endDate: string;
+  /** How many run dates the footer listed (0 when unparseable). */
+  runCount: number;
 } {
-  const none = { copy: print, lNumber: '', startDate: '', endDate: '' };
+  const none = { copy: print, lNumber: '', startDate: '', endDate: '', runCount: 0 };
   const text = print.trimEnd();
   const lnRe = /\bL\d{5,}\b/g;
   let m: RegExpExecArray | null;
@@ -77,5 +79,6 @@ export function parseLegalPrint(print: string): {
     lNumber: last[0],
     startDate: iso[0] ?? '',
     endDate: iso[iso.length - 1] ?? '',
+    runCount: iso.length,
   };
 }

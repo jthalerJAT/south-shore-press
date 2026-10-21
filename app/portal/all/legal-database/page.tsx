@@ -3,7 +3,8 @@ import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getAllCustomerLegals } from '@/lib/queries/customer';
 import { getAllLegalNotices } from '@/lib/queries/legal-notices';
-import { legalFooterLine } from '@/lib/legal-dates';
+import { legalFooterLine, parseLegalPrint } from '@/lib/legal-dates';
+import { quoteLegal, wordCount } from '@/lib/legal-rates';
 import { LegalDatabaseList, type LegalRow } from './legal-database-list';
 
 export const metadata: Metadata = {
@@ -49,6 +50,9 @@ export default async function LegalDatabasePage() {
     if (!kept || n.created_at > kept.created_at) libraryByKey.set(key, n);
   }
 
+  // Rate-card reference quote (adopted 10/21/2026) for every legal, historic
+  // included — computed from each legal's own words and run count, so no
+  // backfill is needed. Rows missing a run count show no quote.
   const rows: LegalRow[] = [
     ...legals.map((l) => ({
       kind: 'legal' as const,
@@ -59,17 +63,34 @@ export default async function LegalDatabasePage() {
       body: l.body,
       l_number: l.l_number as string | null,
       notary: l.notary_required as boolean | null,
+      quote: quoteLegal({
+        words: wordCount(l.body),
+        weeks: l.run_dates?.length || null,
+        header: l.header,
+        body: l.body,
+        customer: l.customer_name,
+      }),
     })),
-    ...[...libraryByKey.values()].map((n) => ({
-      kind: 'notice' as const,
-      id: n.id,
-      href: `/portal/all/legal-database/notice/${n.id}`,
-      created_at: n.created_at,
-      customer: null,
-      body: n.body,
-      l_number: parseLNumber(n.body),
-      notary: null,
-    })),
+    ...[...libraryByKey.values()].map((n) => {
+      const parsed = parseLegalPrint(n.body);
+      return {
+        kind: 'notice' as const,
+        id: n.id,
+        href: `/portal/all/legal-database/notice/${n.id}`,
+        created_at: n.created_at,
+        customer: null,
+        body: n.body,
+        l_number: parseLNumber(n.body),
+        notary: null,
+        quote: quoteLegal({
+          words: wordCount(parsed.copy),
+          weeks: parsed.runCount || null,
+          header: n.header,
+          body: parsed.copy,
+          customer: null,
+        }),
+      };
+    }),
   ];
 
   // Sorted by L# (highest first); entries without one sink to the bottom,

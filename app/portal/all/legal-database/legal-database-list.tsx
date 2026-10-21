@@ -6,6 +6,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { Plus, Search } from 'lucide-react';
+import type { RateQuote } from '@/lib/legal-rates';
 
 export type LegalRow = {
   /** 'legal' = filed in customer_legals; 'notice' = Legal Notices library. */
@@ -17,6 +18,9 @@ export type LegalRow = {
   body: string;
   l_number: string | null;
   notary: boolean | null;
+  /** Reference quote under the adopted rate card; null when the run count
+   *  isn't derivable. Hover shows the math. */
+  quote: RateQuote | null;
 };
 
 function fmtDate(iso: string): string {
@@ -69,12 +73,13 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
       </div>
 
       <div className="overflow-hidden rounded border border-zinc-200 bg-white">
-        <div className="grid grid-cols-[7rem_1fr_1fr_6rem_5rem] items-center gap-3 px-4 py-2 bg-zinc-50 border-b border-zinc-200 text-[11px] uppercase tracking-widest font-bold text-zinc-500">
+        <div className="grid grid-cols-[7rem_1fr_1fr_6rem_4rem_6rem] items-center gap-3 px-4 py-2 bg-zinc-50 border-b border-zinc-200 text-[11px] uppercase tracking-widest font-bold text-zinc-500">
           <div>Date</div>
           <div>Customer</div>
           <div>Copy</div>
           <div>L#</div>
           <div>Notary</div>
+          <div className="text-right">Card rate</div>
         </div>
         {visible.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-zinc-400">
@@ -86,7 +91,7 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
               <li key={`${l.kind}-${l.id}`}>
                 <Link
                   href={l.href}
-                  className="grid grid-cols-[7rem_1fr_1fr_6rem_5rem] items-center gap-3 px-4 py-3 hover:bg-zinc-50 transition-colors"
+                  className="grid grid-cols-[7rem_1fr_1fr_6rem_4rem_6rem] items-center gap-3 px-4 py-3 hover:bg-zinc-50 transition-colors"
                 >
                   <div className="text-sm text-zinc-500">{fmtDate(l.created_at)}</div>
                   <div className="text-sm font-medium text-zinc-900 truncate">
@@ -105,6 +110,21 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
                       <span className="text-zinc-400">N</span>
                     )}
                   </div>
+                  <div
+                    className="text-sm text-right tabular-nums text-zinc-700"
+                    title={l.quote?.basis}
+                  >
+                    {l.quote ? (
+                      <>
+                        ${l.quote.amount.toFixed(2)}
+                        {l.quote.tier === 'public' ? (
+                          <span className="ml-1 text-[10px] font-bold text-zinc-400 align-middle">PB</span>
+                        ) : null}
+                      </>
+                    ) : (
+                      <span className="text-zinc-300">—</span>
+                    )}
+                  </div>
                 </Link>
               </li>
             ))}
@@ -113,7 +133,9 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
       </div>
       <p className="mt-2 text-xs text-zinc-400">
         Sorted by L#, highest first. “Library notice” rows come from the Legal Notices library
-        used by the newspaper creator — click one to edit its copy.
+        used by the newspaper creator — click one to edit its copy. Card rate is the reference
+        quote under the rate card adopted 10/21/2026 (hover for the math; PB = public-body
+        statutory rate, no fee). Display jobs and wide-set notices are quoted by hand.
       </p>
     </div>
   );

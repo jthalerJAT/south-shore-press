@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * PhotoOverlay — the draggable/resizable handle layer drawn over a story band's
+ * PhotoOverlay - the draggable/resizable handle layer drawn over a story band's
  * embedded photo in the layout editor. It moves a transient CSS box during the
  * gesture (no text reflow per-pixel) and, on release, snaps horizontally to the
- * column grid and commits the new geometry — at which point the parent re-runs
+ * column grid and commits the new geometry - at which point the parent re-runs
  * the flow so text wraps around the new position.
  *
  * All pointer deltas are divided by `zoom` because the overlay lives inside the

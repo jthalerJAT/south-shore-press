@@ -57,7 +57,7 @@ export function FolderView({
       </div>
       {files.length === 0 ? (
         <p className="px-4 py-8 text-center text-sm text-zinc-400">
-          Nothing here yet — use the &ldquo;+ New&rdquo; button on the client page.
+          Nothing here yet - use the &ldquo;+ New&rdquo; button on the client page.
         </p>
       ) : (
         <ul className="divide-y divide-zinc-100">

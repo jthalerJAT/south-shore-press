@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 /**
- * Account Database — the internal master list of every subscriber, mailer,
+ * Account Database - the internal master list of every subscriber, mailer,
  * advertiser and login. Admin-only. Search / sort / filter every field,
  * multi-select to permanently delete (e.g. stale weekly mailers), and add or
  * edit accounts by hand.

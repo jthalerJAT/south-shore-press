@@ -17,7 +17,7 @@ export function OwnedImagesList({ images }: { images: Img[] }) {
   // Inline rename state: which row is being renamed + the draft name.
   const [renaming, setRenaming] = useState<string | null>(null);
   const [draftName, setDraftName] = useState('');
-  // Direct-to-library upload (same pipeline the photo fields use — signed
+  // Direct-to-library upload (same pipeline the photo fields use - signed
   // upload to the newspaper-images bucket + automatic library indexing).
   const fileRef = useRef<HTMLInputElement | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -32,11 +32,11 @@ export function OwnedImagesList({ images }: { images: Img[] }) {
       if (!res.ok) failed.push(`${file.name}: ${res.error ?? 'upload failed'}`);
     }
     setUploading(false);
-    if (failed.length > 0) setError(failed.join(' · '));
+    if (failed.length > 0) setError(failed.join(' - '));
     router.refresh();
   }
 
-  // Live filter — every keystroke narrows the list to all matches.
+  // Live filter - every keystroke narrows the list to all matches.
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return images;
@@ -89,7 +89,7 @@ export function OwnedImagesList({ images }: { images: Img[] }) {
     <>
       {error ? <p className="mb-3 text-sm text-red-600">{error}</p> : null}
 
-      {/* Search + upload — the search filters live; the button uploads from
+      {/* Search + upload - the search filters live; the button uploads from
           the PC straight into the library. */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
         <div className="relative flex-1 max-w-md">
@@ -126,7 +126,7 @@ export function OwnedImagesList({ images }: { images: Img[] }) {
       {images.length === 0 ? (
         <p className="text-sm text-zinc-500">
           No uploaded images yet. Use “+ Upload New Image” above, or any “+ Upload Photo” button on
-          a story or cover field — everything lands here.
+          a story or cover field - everything lands here.
         </p>
       ) : visible.length === 0 ? (
         <p className="text-sm text-zinc-500">No images match “{query.trim()}”.</p>

@@ -8,7 +8,7 @@ import { canManageAllStories } from '@/lib/auth';
 /**
  * Server Actions for editing the site_layout_pins table from the Site
  * Layout page. All gated to editor / admin / master admin via
- * canManageAllStories — the RLS policy enforces the same on the DB
+ * canManageAllStories - the RLS policy enforces the same on the DB
  * side as a defense-in-depth backstop.
  *
  * After every mutation we revalidate '/' so the homepage picks up the
@@ -18,7 +18,7 @@ import { canManageAllStories } from '@/lib/auth';
 type Result = { error: string | null };
 
 /** Pin a story to a slot position. Replaces any existing pin at that
- *  same (slot_key, position) via ON CONFLICT — the table has a unique
+ *  same (slot_key, position) via ON CONFLICT - the table has a unique
  *  constraint on those two columns, so upsert is one statement. */
 export async function setPinAction(
   slotKey: string,
@@ -62,7 +62,7 @@ export async function setPinAction(
       error:
         [error.message, error.details, error.hint]
           .filter(Boolean)
-          .join(' — ') || 'Failed to set pin.',
+          .join(' - ') || 'Failed to set pin.',
     };
   }
 

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PhotoUrlField — a photo input that keeps the URL text field (paste a
+ * PhotoUrlField - a photo input that keeps the URL text field (paste a
  * Cloudinary / external URL) AND adds a "+ Upload Photo" button beside it for
  * proprietary images. Uploaded files go to the newspaper-images bucket and are
  * indexed in the Owned Images library; the field is set to the resulting URL

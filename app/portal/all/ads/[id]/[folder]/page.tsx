@@ -6,7 +6,7 @@ import { getAdClient, type AdFileKind } from '@/lib/queries/ad-clients';
 import { FolderView } from './folder-view';
 
 export const metadata: Metadata = {
-  title: 'Files · Ad Database',
+  title: 'Files - Ad Database',
   robots: { index: false, follow: false },
 };
 
@@ -38,7 +38,7 @@ export default async function AdClientFolderPage({
     <PortalShell
       user={user}
       activeTab="all"
-      title={`${client.business_name} — ${folder.label}`}
+      title={`${client.business_name} - ${folder.label}`}
       backLink={{ href: `/portal/all/ads/${client.id}`, label: client.business_name }}
       hideTabs
     >

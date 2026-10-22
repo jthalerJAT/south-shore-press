@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Admin "Create New Legal" form — the staff twin of the customer Legal Portal
+ * Admin "Create New Legal" form - the staff twin of the customer Legal Portal
  * form, reached from the Legal Database. Same fields as the read-only detail
- * view (Customer · Legal Header · Legal Copy · Wednesday-only run dates ·
- * auto L# footer line · notary), plus:
+ * view (Customer - Legal Header - Legal Copy - Wednesday-only run dates  - 
+ * auto L# footer line - notary), plus:
  *   Preview Legal   the real newspaper legal-page renderer (as everywhere),
  *   Save Legal      files it in customer_legals + the Legal Notices library,
  *   Customer Draft  a 2-page PDF (fields sheet + newspaper preview) opened
@@ -35,7 +35,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
   const [contactPhone, setContactPhone] = useState('');
   const [header, setHeader] = useState('');
   const [body, setBody] = useState('');
-  // Pre-filled with the number reserved on page load, but editable — existing
+  // Pre-filled with the number reserved on page load, but editable - existing
   // legals get entered under their original L#. A typed L# that's already in
   // use errors on save rather than being silently renumbered.
   const [lNumber, setLNumber] = useState(reservedLNumber);
@@ -160,7 +160,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
           className="mt-1 block w-full max-w-[12rem] rounded border border-zinc-300 px-3 py-2 text-sm font-mono focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
         />
         <p className="mt-1 text-xs text-zinc-400">
-          Auto-assigned for new legals — change it only when entering an existing legal that
+          Auto-assigned for new legals - change it only when entering an existing legal that
           already has a number.
         </p>
       </div>
@@ -216,7 +216,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
         <div className="mt-1 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-mono text-zinc-800 min-h-[2.4rem]">
           {footerLine || (
             <span className="text-zinc-400 font-sans">
-              Select the run dates above — the legal number and every Wednesday it runs will
+              Select the run dates above - the legal number and every Wednesday it runs will
               appear here automatically.
             </span>
           )}
@@ -294,7 +294,7 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
           <div className="bg-white rounded-lg shadow-xl p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-zinc-900">
-                Preview — how the legal will appear in the paper
+                Preview - how the legal will appear in the paper
               </h3>
               <button
                 type="button"

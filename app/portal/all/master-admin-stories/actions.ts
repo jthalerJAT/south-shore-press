@@ -9,7 +9,7 @@ import { isMissingTable, isMissingAiThread, type AiTurn } from '@/lib/queries/ad
 import { getHouseStyle, houseStyleBlock, HOUSE_STYLE_KEY } from '@/lib/house-style';
 
 /**
- * Master Admin Stories — server actions. Every action re-checks that the
+ * Master Admin Stories - server actions. Every action re-checks that the
  * caller is the pinned master admin; RLS on admin_stories enforces the same
  * in the database (migration 044).
  *
@@ -19,7 +19,7 @@ import { getHouseStyle, houseStyleBlock, HOUSE_STYLE_KEY } from '@/lib/house-sty
  *   deleteAdminStory    remove an admin row (a pushed Story Editor draft is
  *                       untouched)
  *   reviseWithAi        apply the master admin's instruction to the article
- *                       via the LLM; returns the revised fields — nothing is
+ *                       via the LLM; returns the revised fields - nothing is
  *                       saved until he clicks Save / Push
  */
 
@@ -88,7 +88,7 @@ function clean(input: AdminStoryInput) {
 
 function friendlyDbError(error: { code?: string; message?: string } | null): string {
   if (isMissingTable(error)) {
-    return 'The admin_stories table does not exist yet — run migration 044 in Supabase.';
+    return 'The admin_stories table does not exist yet - run migration 044 in Supabase.';
   }
   return error?.message || 'Database error.';
 }
@@ -189,7 +189,7 @@ export async function pushToStoryEditor(id: string | null, input: AdminStoryInpu
     adminId = data.id as string;
   }
 
-  // Already pushed? Don't create a second Story Editor draft — point at the
+  // Already pushed? Don't create a second Story Editor draft - point at the
   // existing one (the Story Editor copy is the live one after a push).
   const { data: existing } = await supabase
     .from('admin_stories')
@@ -199,7 +199,7 @@ export async function pushToStoryEditor(id: string | null, input: AdminStoryInpu
   if (existing?.status === 'pushed' && existing.pushed_story_id) {
     return {
       ok: false,
-      error: 'This story was already pushed to the Story Editor — edit it there.',
+      error: 'This story was already pushed to the Story Editor - edit it there.',
       id: existing.pushed_story_id as string,
     };
   }
@@ -228,7 +228,7 @@ export async function pushToStoryEditor(id: string | null, input: AdminStoryInpu
   }
 
   // Mark pushed and dispose of the AI conversation (it belonged to the
-  // drafting stage). Pre-046 the column is absent — retry without it.
+  // drafting stage). Pre-046 the column is absent - retry without it.
   const pushedPatch = {
     status: 'pushed',
     pushed_story_id: story.id,
@@ -282,7 +282,7 @@ export async function saveHouseStyle(content: string): Promise<Result> {
     );
   if (error) {
     if (/house_style/i.test(error.message) && /could not find|does not exist/i.test(error.message)) {
-      return { ok: false, error: 'The house_style table does not exist yet — run migration 045 in Supabase.' };
+      return { ok: false, error: 'The house_style table does not exist yet - run migration 045 in Supabase.' };
     }
     return { ok: false, error: error.message };
   }
@@ -295,7 +295,7 @@ export async function saveHouseStyle(content: string): Promise<Result> {
 export type AskAiResult =
   | {
       ok: true;
-      /** The assistant's visible reply — an answer, or an explanation of the edit. */
+      /** The assistant's visible reply - an answer, or an explanation of the edit. */
       reply: string;
       /** Present only when the publisher asked for a change to the text. */
       edit: { headline: string; subline: string; body: string } | null;
@@ -309,22 +309,22 @@ const ASK_SYSTEM_BASE = `You are the publisher's editorial assistant and copy de
 
 The publisher will send two kinds of messages. Tell them apart:
 - A QUESTION or request for judgment ("is this quote dual-sourced?", "is the lede too long?", "what's weak here?"). ANSWER it in "reply". Do NOT change the article. Set "edit" to null.
-- An EDIT INSTRUCTION ("tighten the lede", "cut the second quote", "add a paragraph on…"). Make the change AND, in "reply", explain concisely what you changed and why — so the publisher can see your reasoning, not just the result.
+- An EDIT INSTRUCTION ("tighten the lede", "cut the second quote", "add a paragraph on…"). Make the change AND, in "reply", explain concisely what you changed and why - so the publisher can see your reasoning, not just the result.
 If a message is ambiguous, answer the question and propose the edit rather than silently making it.
 
 What you know and don't know:
-- By default you know ONLY the article text and this conversation — not the reporter's notes, the wire, or the web. When the publisher turns on WEB LOOKUP for a message (you will be told below), you can and should search the live web and X to answer: find whether a quote or fact appears publicly, who reported it, whether the numbers match, what is missing — and say what you found, naming the outlets/pages. Without web lookup, if asked to verify sourcing, facts, attribution, or a quote, say plainly that you cannot verify it from the text alone, explain what you CAN observe (e.g. whether the quote is attributed and to whom), and remind the publisher they can turn on Web lookup for that message. NEVER delete or alter material on the grounds that you could not verify it unless the publisher explicitly tells you to.
+- By default you know ONLY the article text and this conversation - not the reporter's notes, the wire, or the web. When the publisher turns on WEB LOOKUP for a message (you will be told below), you can and should search the live web and X to answer: find whether a quote or fact appears publicly, who reported it, whether the numbers match, what is missing - and say what you found, naming the outlets/pages. Without web lookup, if asked to verify sourcing, facts, attribution, or a quote, say plainly that you cannot verify it from the text alone, explain what you CAN observe (e.g. whether the quote is attributed and to whom), and remind the publisher they can turn on Web lookup for that message. NEVER delete or alter material on the grounds that you could not verify it unless the publisher explicitly tells you to.
 - Never invent facts, names, numbers, dates, or quotes. If an instruction asks for something the article's facts cannot support, do the closest thing the facts allow and say so in "reply".
 
 Editing rules (when you do edit):
-- Change what was asked and keep everything else intact — same facts, same voice, same structure — unless told otherwise.
+- Change what was asked and keep everything else intact - same facts, same voice, same structure - unless told otherwise.
 - Keep AP style and the paper's voice. Body = plain-text paragraphs separated by blank lines; no bullets, no headings. The ONLY inline markers allowed are the ones already in the text: **bold**, __underline__, *italic*, [size=N]…[/size]. PRESERVE any such markers the current body has exactly where they are; never add new ones unless asked.
 
 Output: STRICT JSON and nothing else:
 {"reply": "...", "edit": null}
 or
 {"reply": "...", "edit": {"headline": "...", "subline": "...", "body": "..."}}
-"reply" is plain text (a few sentences; longer if a question needs it). In "edit", return the COMPLETE headline, subline and body — not a diff.`;
+"reply" is plain text (a few sentences; longer if a question needs it). In "edit", return the COMPLETE headline, subline and body - not a diff.`;
 
 const MAX_HISTORY_TURNS = 14;
 
@@ -371,7 +371,7 @@ export async function askAi(input: {
   const style = await getHouseStyle();
   const system =
     (persona
-      ? `${ASK_SYSTEM_BASE}\n\nThe article's author profile (VOICE) — keep every edit in this voice:\n${persona}`
+      ? `${ASK_SYSTEM_BASE}\n\nThe article's author profile (VOICE) - keep every edit in this voice:\n${persona}`
       : ASK_SYSTEM_BASE) + houseStyleBlock(style, 'voice');
 
   const history = cleanThread(input.history).slice(-MAX_HISTORY_TURNS);
@@ -396,7 +396,7 @@ ${message}
 ${
   input.webLookup
     ? '\nWEB LOOKUP IS ON for this message: search the web / X as needed to answer, and base your reply on what you actually find. Name the outlets or pages you relied on in your reply.'
-    : '\n(Web lookup is OFF for this message — answer from the article text and this conversation only.)'
+    : '\n(Web lookup is OFF for this message - answer from the article text and this conversation only.)'
 }
 Respond as JSON now.`;
 
@@ -415,13 +415,13 @@ Respond as JSON now.`;
       const body = (obj.edit.body ?? '').trim();
       if (headline && body) edit = { headline, subline: (obj.edit.subline ?? '').trim(), body };
     }
-    if (!reply && !edit) return { ok: false, error: 'The model returned an unusable reply — try again.' };
+    if (!reply && !edit) return { ok: false, error: 'The model returned an unusable reply - try again.' };
     return { ok: true, reply: reply || 'Done.', edit, model, citations: res.citations };
   } catch {
-    // Not JSON — treat the whole thing as a plain reply rather than failing.
+    // Not JSON - treat the whole thing as a plain reply rather than failing.
     const text = res.text.trim();
     if (text) return { ok: true, reply: text.slice(0, 4000), edit: null, model, citations: res.citations };
     console.error('[askAi] unparseable', res.text.slice(0, 300));
-    return { ok: false, error: 'The model returned an unusable reply — try again.' };
+    return { ok: false, error: 'The model returned an unusable reply - try again.' };
   }
 }

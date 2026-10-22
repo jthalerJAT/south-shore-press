@@ -6,13 +6,13 @@ import { getCustomerLegal } from '@/lib/queries/customer';
 import { LegalDetailView } from './legal-detail-view';
 
 export const metadata: Metadata = {
-  title: 'Legal · Legal Database',
+  title: 'Legal - Legal Database',
   robots: { index: false, follow: false },
 };
 
 export const dynamic = 'force-dynamic';
 
-/** One customer legal — read-only until Edit Legal unlocks the fields. */
+/** One customer legal - read-only until Edit Legal unlocks the fields. */
 export default async function LegalDetailPage({ params }: { params: { id: string } }) {
   const user = await requireRole(
     ['editor', 'admin', 'master admin'],
@@ -26,7 +26,7 @@ export default async function LegalDetailPage({ params }: { params: { id: string
       user={user}
       activeTab="all"
       hideTabs
-      title={`${legal.l_number} — ${legal.customer_name ?? 'Customer legal'}`}
+      title={`${legal.l_number} - ${legal.customer_name ?? 'Customer legal'}`}
       backLink={{ href: '/portal/all/legal-database', label: 'Legal Database' }}
     >
       <LegalDetailView legal={legal} />

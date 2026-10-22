@@ -4,7 +4,7 @@ import { PortalShell } from '@/components/portal/portal-shell';
 import { AdminStoryForm } from '../admin-story-form';
 
 export const metadata: Metadata = {
-  title: 'New · Master Admin Stories',
+  title: 'New - Master Admin Stories',
   robots: { index: false, follow: false },
 };
 

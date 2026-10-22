@@ -1,12 +1,12 @@
 import type { StoryAuditEntry } from '@/lib/queries/story-audit';
 
 /**
- * StoryHistory — the audit trail panel on the story edit page (editor-tier
+ * StoryHistory - the audit trail panel on the story edit page (editor-tier
  * only; journalists get an empty list from RLS and the panel hides).
  *
  * Every row answers "who did what, when": created / published / unpublished /
  * deleted, the acting account, and the timestamp. Rows with no actor were
- * written OUTSIDE the portal (service key or direct SQL) — flagged loudly,
+ * written OUTSIDE the portal (service key or direct SQL) - flagged loudly,
  * because that's exactly the scenario the trail exists to expose.
  */
 
@@ -47,7 +47,7 @@ export function StoryHistory({ entries }: { entries: StoryAuditEntry[] }) {
               </span>
             ) : (
               <span className="font-semibold text-red-600">
-                no portal user — service key or direct database write
+                no portal user - service key or direct database write
               </span>
             )}
           </li>

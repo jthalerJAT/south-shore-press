@@ -8,7 +8,7 @@ import { SITE_SECTIONS, SPORTS_SUBCATEGORIES, PRINT_ONLY_SLUG } from '@/lib/site
 
 /**
  * Server Actions for the newsroom portal. Every mutation flows through
- * here — no client-side Supabase writes. Auth + role gating enforced
+ * here - no client-side Supabase writes. Auth + role gating enforced
  * per-action; pages also gate via requireUser / requireRole.
  *
  * Status transitions mirror v1:
@@ -31,7 +31,7 @@ const VALID_SECTIONS = new Set([
 const SPORTS_SUBCATEGORY_SLUGS = new Set(SPORTS_SUBCATEGORIES.map((s) => s.slug));
 
 // Only category slugs that correspond to actual page routes get a
-// revalidatePath() call. Sub-cats like 'pro-sports' are tags only —
+// revalidatePath() call. Sub-cats like 'pro-sports' are tags only -
 // they don't have their own /pro-sports page, so revalidatePath would
 // either no-op (fine) or in some edge cases blow up the server action
 // and leave the client's useFormState in an undefined state.
@@ -59,7 +59,7 @@ function parseStoryFormData(formData: FormData) {
     .filter(Boolean);
 
   // Categories are a set of checkboxes; FormData.getAll('categories')
-  // returns every checked one. Always an array — DB column is NOT NULL.
+  // returns every checked one. Always an array - DB column is NOT NULL.
   // If any sports sub-category is checked, auto-add 'sports' so the
   // story shows in the parent Sports rail + page (single source of
   // truth: editor picks the most specific tag, system maintains the
@@ -147,7 +147,7 @@ function parseBackdate(formData: FormData, role: UserRole): string | null {
 }
 
 /**
- * Create a new story. Intent determines the resulting status — most
+ * Create a new story. Intent determines the resulting status - most
  * commonly 'save' (draft) for journalists, 'publish' for editors.
  */
 export async function createStoryAction(
@@ -208,7 +208,7 @@ export async function createStoryAction(
     const detail =
       [error?.message, error?.details, error?.hint]
         .filter(Boolean)
-        .join(' — ') || 'Failed to create story.';
+        .join(' - ') || 'Failed to create story.';
     return { error: detail };
   }
 
@@ -265,7 +265,7 @@ export async function updateStoryAction(
   // author check above already restricts them to their own work).
 
   // A backdate (editor-tier) overrides published_at whenever the story ends up
-  // published — covers fixing the date on an already-published archive piece.
+  // published - covers fixing the date on an already-published archive piece.
   const backdate = parseBackdate(formData, user.role);
   let published_at =
     next.setPublishedAt === 'now'
@@ -299,7 +299,7 @@ export async function updateStoryAction(
     const detail =
       [updErr.message, updErr.details, updErr.hint]
         .filter(Boolean)
-        .join(' — ') || 'Failed to save story.';
+        .join(' - ') || 'Failed to save story.';
     return { error: detail };
   }
 
@@ -309,7 +309,7 @@ export async function updateStoryAction(
   // Revalidate the public section pages affected by the story so freshly
   // edited content surfaces immediately instead of waiting for the 60s
   // ISR window. Only sections with their own /[section] route get
-  // revalidated — sports sub-cats like /pro-sports don't have a route
+  // revalidated - sports sub-cats like /pro-sports don't have a route
   // and revalidatePath() against a non-existent path can blow up the
   // action in some Next 14 edge cases.
   if (parsed.categories) {

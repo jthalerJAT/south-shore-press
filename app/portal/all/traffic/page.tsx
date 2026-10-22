@@ -6,7 +6,7 @@ import { getVisitorStats, getTopReferrers, isVercelAnalyticsConfigured } from '@
 import { TrafficDashboard } from './traffic-dashboard';
 
 export const metadata: Metadata = {
-  title: 'Traffic Stats · Editor Portal',
+  title: 'Traffic Stats - Editor Portal',
   robots: { index: false, follow: false },
 };
 

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Wednesday-only month calendar — the paper runs on Wednesdays, so legal run
+ * Wednesday-only month calendar - the paper runs on Wednesdays, so legal run
  * dates may only land on one. Shared by the customer Legal Portal form and
  * the admin Legal Database create form.
  */
@@ -17,7 +17,7 @@ export function WednesdayCalendar({
 }: {
   label: string;
   value: string;
-  /** Earliest selectable date (ISO) — the End Date calendar passes the
+  /** Earliest selectable date (ISO) - the End Date calendar passes the
    *  selected Start Date. */
   minDate?: string;
   onSelect: (iso: string) => void;
@@ -104,7 +104,7 @@ export function WednesdayCalendar({
         )}
       </div>
       <p className="mt-2 text-[10px] text-zinc-400">
-        The paper runs on Wednesdays — only Wednesdays are selectable.
+        The paper runs on Wednesdays - only Wednesdays are selectable.
       </p>
     </div>
   );

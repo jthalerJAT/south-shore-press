@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Editor Portal landing — three-card hub per v1 spec.
+ * Editor Portal landing - three-card hub per v1 spec.
  *
  *   Credentials   → designate user roles (journalist / editor / admin)
  *   Site Layout   → assign stories to specific slots on the public site
@@ -25,12 +25,12 @@ export default async function EditorPortalLandingPage() {
     '/portal/all'
   );
 
-  // Only admins manage credentials / email briefings — editors see every other
+  // Only admins manage credentials / email briefings - editors see every other
   // tile but not these.
   const isAdmin = canManageCredentials(user);
   const showCredentials = isAdmin;
 
-  // Constant Contact (Email Briefings) connection status — drives the tile
+  // Constant Contact (Email Briefings) connection status - drives the tile
   // badge so an admin sees at a glance if it needs attention.
   const ccConfigured = isAdmin && isConstantContactConfigured();
   const ccConnected = ccConfigured ? await isConstantContactConnected() : false;
@@ -93,7 +93,7 @@ export default async function EditorPortalLandingPage() {
       href: '/portal/all/legal-database',
       title: 'Legal Database',
       description:
-        'Every legal uploaded by customers through the Legal Portal — searchable, with L#, run dates, and notary flags.',
+        'Every legal uploaded by customers through the Legal Portal - searchable, with L#, run dates, and notary flags.',
       icon: Scale,
     },
     {
@@ -107,14 +107,14 @@ export default async function EditorPortalLandingPage() {
       href: '/portal/all/newspaper-creator',
       title: 'Newspaper Creator',
       description:
-        'Build the weekly print issue — drag stories onto pages, edit content, and lay out the paper.',
+        'Build the weekly print issue - drag stories onto pages, edit content, and lay out the paper.',
       icon: Newspaper,
     },
     {
       href: '/portal/all/digital-paper',
       title: 'Digital Paper',
       description:
-        'Every printed issue as a shareable PDF, newest first — view, print, download, or email a link.',
+        'Every printed issue as a shareable PDF, newest first - view, print, download, or email a link.',
       icon: BookOpen,
     },
     {
@@ -135,7 +135,7 @@ export default async function EditorPortalLandingPage() {
       href: '/portal/all/subscribers',
       title: 'Subscriber View',
       description:
-        'The active paid subscribers from the Account Database — sortable, with a running total count.',
+        'The active paid subscribers from the Account Database - sortable, with a running total count.',
       icon: UserCheck,
     },
     ...(isAdmin
@@ -153,7 +153,7 @@ export default async function EditorPortalLandingPage() {
       href: '/portal/all/owned-images',
       title: 'Owned Images',
       description:
-        'Every proprietary photo uploaded through the editor, newest first — reuse or delete them.',
+        'Every proprietary photo uploaded through the editor, newest first - reuse or delete them.',
       icon: ImageIcon,
     },
     {

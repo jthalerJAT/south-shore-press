@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { SITE_SECTIONS } from '@/lib/site-config';
 
 /**
- * StoryFillPicker — the "Fill from story" control used across the newspaper
+ * StoryFillPicker - the "Fill from story" control used across the newspaper
  * editors. Adds a "Fill From Section" dropdown above it: choose a section (or
  * "All Sections", the default) and the story dropdown below is filtered to
  * stories tagged with that section.

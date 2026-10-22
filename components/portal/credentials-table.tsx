@@ -22,7 +22,7 @@ import type { UserRole } from '@/lib/auth';
  *   Editor, losing Journalist") for a single batch confirm
  * - Master admin users are shown as locked (no toggleable checkboxes,
  *   a MASTER ADMIN badge instead)
- * - Self-row is locked too — admins can't accidentally remove their
+ * - Self-row is locked too - admins can't accidentally remove their
  *   own Admin role
  */
 
@@ -38,7 +38,7 @@ const ROLE_KEYS: ReadonlyArray<RoleKey> = [
   'advertiser',
   'legal',
 ];
-/** Customer credentials — gate the Ad / Legal portals, no editorial power. */
+/** Customer credentials - gate the Ad / Legal portals, no editorial power. */
 const CUSTOMER_KEYS: ReadonlyArray<RoleKey> = ['advertiser', 'legal'];
 
 const ROLE_LABELS: Record<RoleKey, string> = {
@@ -61,12 +61,12 @@ function isRoleKey(n: string): n is RoleKey {
   return (ROLE_KEYS as ReadonlyArray<string>).includes(n);
 }
 
-/** Machine-generated-name heuristic — long low-vowel strings or 5+ letter
+/** Machine-generated-name heuristic - long low-vowel strings or 5+ letter
  *  consonant runs ("Dfaakmnozgprbywzit"). Drives the "Select suspicious"
  *  bulk-delete helper; never auto-deletes anything on its own. */
 function looksGibberish(name: string): boolean {
   const t = (name ?? '').trim();
-  if (!t || t === '—') return false;
+  if (!t || t === '-') return false;
   if (t.length >= 14 && (t.match(/[aeiou]/gi) ?? []).length / t.length < 0.38) return true;
   return /[bcdfghjklmnpqrstvwxz]{5,}/i.test(t);
 }
@@ -102,10 +102,10 @@ export function CredentialsTable({
 }: {
   initialProfiles: ProfileForCredentials[];
   currentUserId: string;
-  /** Viewer's roles — drives the hierarchy locks (master admin sees
+  /** Viewer's roles - drives the hierarchy locks (master admin sees
    *  more rows as editable than a regular admin does). */
   currentUserRoles: UserRole[];
-  /** Ad Database client files — the "Link User to Advertiser File" options. */
+  /** Ad Database client files - the "Link User to Advertiser File" options. */
   adClients?: Array<{ id: string; business_name: string }>;
   /** The single account the Master Admin credential is pinned to (shown in
    *  the locked Master Admin column's tooltip). */
@@ -159,7 +159,7 @@ export function CredentialsTable({
       );
       const isSelf = p.id === currentUserId;
 
-      // Row-level lock — true if NO cell on this row is editable
+      // Row-level lock - true if NO cell on this row is editable
       const rowLocked = isSelf || master || (isAdminRow && !viewerIsMaster);
 
       const originalRoles = new Set<RoleKey>();
@@ -169,7 +169,7 @@ export function CredentialsTable({
       }
 
       // Per-role disabled map. Customer credentials (advertiser / legal)
-      // are toggleable by any admin — only the row-level locks apply.
+      // are toggleable by any admin - only the row-level locks apply.
       const roleDisabled: Record<RoleKey, boolean> = {
         admin: rowLocked || !viewerIsMaster,
         editor: rowLocked,
@@ -183,7 +183,7 @@ export function CredentialsTable({
       // Badge to show next to the email. Lock badges win when a row is
       // locked; otherwise a READER tag flags self-signed-up users who
       // haven't been promoted to any editorial role yet (informational
-      // only — those rows ARE editable).
+      // only - those rows ARE editable).
       const hasAnyEditorialRole =
         originalRoles.has('admin') ||
         originalRoles.has('editor') ||
@@ -193,7 +193,7 @@ export function CredentialsTable({
       let isReaderBadge = false;
       if (master) lockBadge = 'MASTER ADMIN';
       else if (isSelf) lockBadge = 'YOU';
-      else if (isAdminRow && !viewerIsMaster) lockBadge = 'ADMIN — MASTER ONLY';
+      else if (isAdminRow && !viewerIsMaster) lockBadge = 'ADMIN - MASTER ONLY';
       else if (!hasAnyEditorialRole) {
         lockBadge = 'READER';
         isReaderBadge = true;
@@ -202,7 +202,7 @@ export function CredentialsTable({
       // Legacy-role drift: the RLS policies (and, for empty roles[],
       // getCurrentUser) read the legacy single `role` column, so an
       // editorial value there that roles[] doesn't carry still GRANTS
-      // access these checkboxes don't show. Surface it loudly — Bob
+      // access these checkboxes don't show. Surface it loudly - Bob
       // Chartuk kept publishing for days while this table read READER
       // (2026-07-15).
       const legacy = normalize(String(p.role ?? ''));
@@ -362,7 +362,7 @@ export function CredentialsTable({
         }
       }
       if (errors.length > 0) {
-        setError(errors.join(' · '));
+        setError(errors.join(' - '));
       }
       router.refresh();
       // Note: we don't need to update local state here because the
@@ -433,7 +433,7 @@ export function CredentialsTable({
       }
       setBulkProgress(null);
       setSelected(new Set());
-      if (errors.length > 0) setError(errors.slice(0, 5).join(' · ') + (errors.length > 5 ? ` (+${errors.length - 5} more)` : ''));
+      if (errors.length > 0) setError(errors.slice(0, 5).join(' - ') + (errors.length > 5 ? ` (+${errors.length - 5} more)` : ''));
       router.refresh();
     });
   }
@@ -505,7 +505,7 @@ export function CredentialsTable({
           onClick={() => setSelected(new Set(suspiciousVisible.map((p) => p.id)))}
           disabled={isPending || suspiciousVisible.length === 0}
           className="px-3 py-1.5 border border-amber-300 bg-amber-50 text-amber-900 rounded font-medium hover:bg-amber-100 disabled:opacity-50"
-          title="Selects visible reader-only accounts whose first/last names look machine-generated. Review before deleting — nothing is removed until you confirm."
+          title="Selects visible reader-only accounts whose first/last names look machine-generated. Review before deleting - nothing is removed until you confirm."
         >
           Select suspicious ({suspiciousVisible.length})
         </button>
@@ -589,13 +589,13 @@ export function CredentialsTable({
                 />
                 <th
                   className="w-24 px-4 py-2.5 text-center font-semibold text-zinc-700"
-                  title="Every account holds the Reader credential — it can never be revoked, only the whole account deleted."
+                  title="Every account holds the Reader credential - it can never be revoked, only the whole account deleted."
                 >
                   Reader
                 </th>
                 <th
                   className="w-28 px-4 py-2.5 text-center font-semibold text-zinc-700"
-                  title={`Master Admin is a single credential pinned to ${masterAdminEmail ?? 'the publisher account'}. It cannot be granted or revoked here — it unlocks Master Admin Stories and every other privilege.`}
+                  title={`Master Admin is a single credential pinned to ${masterAdminEmail ?? 'the publisher account'}. It cannot be granted or revoked here - it unlocks Master Admin Stories and every other privilege.`}
                 >
                   Master Admin
                 </th>
@@ -645,8 +645,8 @@ export function CredentialsTable({
                           onChange={() => toggleSelected(p.id)}
                         />
                       </td>
-                      <td className="px-4 py-3 text-zinc-900">{p.first || '—'}</td>
-                      <td className="px-4 py-3 text-zinc-900">{p.last || '—'}</td>
+                      <td className="px-4 py-3 text-zinc-900">{p.first || '-'}</td>
+                      <td className="px-4 py-3 text-zinc-900">{p.last || '-'}</td>
                       <td className="px-4 py-3 text-zinc-700">
                         <div className="flex items-center gap-2">
                           <span>{p.email}</span>
@@ -668,7 +668,7 @@ export function CredentialsTable({
                           ) : null}
                           {p.legacyDrift ? (
                             <span
-                              title={`The database's legacy role column still says "${p.legacyDrift}" — the site and its security policies honor THAT when no roles are checked, so this user still has ${p.legacyDrift} access. Grant any role, save, revoke it, and save again to clear it (or reset via SQL for a master admin).`}
+                              title={`The database's legacy role column still says "${p.legacyDrift}" - the site and its security policies honor THAT when no roles are checked, so this user still has ${p.legacyDrift} access. Grant any role, save, revoke it, and save again to clear it (or reset via SQL for a master admin).`}
                               className="inline-block px-1.5 py-0.5 text-[9px] uppercase tracking-widest font-bold rounded bg-red-600 text-white"
                             >
                               ⚠ Legacy access: {p.legacyDrift}
@@ -683,11 +683,11 @@ export function CredentialsTable({
                               day: 'numeric',
                               year: 'numeric',
                             })
-                          : '—'}
+                          : '-'}
                       </td>
                       <td
                         className="px-4 py-3 text-center"
-                        title="Every account holds the Reader credential — read the site, manage their own profile. It can never be revoked; delete the account to remove the user entirely."
+                        title="Every account holds the Reader credential - read the site, manage their own profile. It can never be revoked; delete the account to remove the user entirely."
                       >
                         <RoleCheckbox checked disabled />
                       </td>
@@ -695,7 +695,7 @@ export function CredentialsTable({
                         className="px-4 py-3 text-center"
                         title={
                           p.master
-                            ? 'The master admin — pinned to this account; changeable only via SQL.'
+                            ? 'The master admin - pinned to this account; changeable only via SQL.'
                             : `Reserved for ${masterAdminEmail ?? 'the publisher account'}; not grantable.`
                         }
                       >
@@ -775,7 +775,7 @@ export function CredentialsTable({
               Delete {selected.size} account{selected.size === 1 ? '' : 's'}?
             </h3>
             <p className="mt-2 text-sm text-zinc-600">
-              Each account is removed entirely — sign-in, profile, and credentials. Stories keep
+              Each account is removed entirely - sign-in, profile, and credentials. Stories keep
               their content (author becomes blank). This cannot be undone.
             </p>
             <div className="mt-3 max-h-40 overflow-y-auto rounded border border-zinc-200 bg-zinc-50 p-2 text-xs text-zinc-600 ssp-scroll">
@@ -784,7 +784,7 @@ export function CredentialsTable({
                 .slice(0, 40)
                 .map((p) => (
                   <div key={p.id} className="truncate">
-                    {(p.display_name?.trim() || `${p.first} ${p.last}`.trim() || '—') + ' · ' + p.email}
+                    {(p.display_name?.trim() || `${p.first} ${p.last}`.trim() || '-') + ' - ' + p.email}
                   </div>
                 ))}
               {selected.size > 40 ? <div>…and {selected.size - 40} more</div> : null}
@@ -825,7 +825,7 @@ export function CredentialsTable({
           adClients={adClients}
           onCancel={() => {
             setLinkQueue([]);
-            setError('Save cancelled — advertiser credential requires a linked file.');
+            setError('Save cancelled - advertiser credential requires a linked file.');
           }}
           onSubmit={handleLinkSubmit}
         />
@@ -951,7 +951,7 @@ function DeleteModal({
           </h2>
           <p className="mt-1 text-sm text-zinc-600">
             This permanently removes <span className="font-medium">{target.email}</span> from the
-            system — sign-in, profile, and all credentials. Their published stories stay on the
+            system - sign-in, profile, and all credentials. Their published stories stay on the
             site (with no linked account). This cannot be undone.
           </p>
         </div>

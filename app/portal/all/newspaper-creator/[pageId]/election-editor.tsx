@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * ElectionEditor — the Election Issue voter-guide SECTION editor. Opening any
+ * ElectionEditor - the Election Issue voter-guide SECTION editor. Opening any
  * election page lands here: the section (intro + race tiles) is edited once
  * and spans every election page in the issue. Tiles are packed onto pages in
- * order, whole tiles only — when a page fills, the next tile starts the next
+ * order, whole tiles only - when a page fills, the next tile starts the next
  * page (see components/newspaper/election-page.tsx). The live preview shows
  * all the section's pages; a warning appears when the tiles need more pages
  * than the issue has.
@@ -100,7 +100,7 @@ export function ElectionEditor({
   dateLabel?: string;
   initialData: ElectionSectionData;
   /** Edit-lock scope. EVERY election page edits this one stored section, so
-   *  they share a single claim — one editor at a time for the whole section. */
+   *  they share a single claim - one editor at a time for the whole section. */
   lockScope: string;
 }) {
   const router = useRouter();
@@ -175,7 +175,7 @@ export function ElectionEditor({
   }
 
   // The print component reports how many pages the tiles actually need via a
-  // data attribute — poll it after each change settles.
+  // data attribute - poll it after each change settles.
   useEffect(() => {
     const t = setTimeout(() => {
       const el = previewRef.current?.querySelector('[data-election-pages-needed]');
@@ -196,7 +196,7 @@ export function ElectionEditor({
         <EditLockGate lock={lock} what="Election Coverage section" className="space-y-5">
         <p className="text-sm text-zinc-600">
           One set of race tiles fills all {pageCount} election page{pageCount === 1 ? '' : 's'} of
-          this issue, in order. Tiles never split across a page break — when a page fills, the next
+          this issue, in order. Tiles never split across a page break - when a page fills, the next
           race starts the following page. Text boxes grow as you type; headshots stay a fixed size.
         </p>
 
@@ -242,7 +242,7 @@ export function ElectionEditor({
             </>
           ) : (
             <p className="text-xs text-zinc-400">
-              Removed — the first race tile starts at the top of the page.
+              Removed - the first race tile starts at the top of the page.
             </p>
           )}
         </div>
@@ -275,7 +275,7 @@ export function ElectionEditor({
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">
                 Race {i + 1}
-                {t.race.trim() ? ` — ${t.race.trim().toUpperCase()}` : ''}
+                {t.race.trim() ? ` - ${t.race.trim().toUpperCase()}` : ''}
               </span>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={() => moveTile(t.id, -1)} disabled={i === 0} className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-30">↑</button>
@@ -396,12 +396,12 @@ export function ElectionEditor({
       {/* ── Live preview: every election page of the section ── */}
       <div className="xl:sticky xl:top-6 xl:self-start">
         <div className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">
-          Preview — fills {Math.min(pagesNeeded, pageCount)} of {pageCount} page
+          Preview - fills {Math.min(pagesNeeded, pageCount)} of {pageCount} page
           {pageCount === 1 ? '' : 's'}
         </div>
         {pagesNeeded > pageCount ? (
           <div className="mb-2 max-w-xs text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
-            The races need {pagesNeeded} pages — saving will add{' '}
+            The races need {pagesNeeded} pages - saving will add{' '}
             {pagesNeeded - pageCount} more Election page{pagesNeeded - pageCount === 1 ? '' : 's'}{' '}
             after page {pageOrdinals[pageOrdinals.length - 1] ?? pageCount} and the rest of the
             paper will shift back. (You can delete pages from the board later to slim the issue.)

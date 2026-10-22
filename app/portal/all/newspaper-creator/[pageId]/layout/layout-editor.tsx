@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * LayoutEditor — the visual "Edit Page Layout" tool. The canvas is drawn by
- * FlowPage — the SAME renderer as the page editor preview, View / Print PDF and
+ * LayoutEditor - the visual "Edit Page Layout" tool. The canvas is drawn by
+ * FlowPage - the SAME renderer as the page editor preview, View / Print PDF and
  * the press export (header, section flag, publication-info rail, corner quarter
- * ads, bottom-pinned third ads, spacing) — with selection and photo handles
+ * ads, bottom-pinned third ads, spacing) - with selection and photo handles
  * layered on top. Per-story geometry (column count, photo placement/fit) lives
  * here; Save Layout writes it with custom: true so it prints exactly as shown.
  */
@@ -57,7 +57,7 @@ function clamp(n: number, lo: number, hi: number) {
 }
 
 /** Apply the page-wide Columns / Photo size levers to a story not yet arranged
- *  in this editor — the same reshaping ProofBands does at print time. */
+ *  in this editor - the same reshaping ProofBands does at print time. */
 function withPageFit(
   s: StoredStoryLayout,
   fit: { columns: number | null; photoScale: number } | undefined
@@ -99,7 +99,7 @@ export function LayoutEditor({
    *  them applied, so the canvas starts from what currently prints. */
   pageFit?: { columns: number | null; photoScale: number };
   /** Printed page number (running header; quarter ads anchor to the exterior
-   *  corner — even pages left, odd right). */
+   *  corner - even pages left, odd right). */
   pageNumber: number;
   dateLabel?: string;
   showColophon?: boolean;
@@ -315,8 +315,8 @@ export function LayoutEditor({
         >
           ← Back to content
         </Link>
-        <span className="text-sm text-zinc-500">·</span>
-        <span className="text-sm font-medium text-zinc-700">{pageTitle} — layout</span>
+        <span className="text-sm text-zinc-500"> - </span>
+        <span className="text-sm font-medium text-zinc-700">{pageTitle} - layout</span>
 
         <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center rounded border border-zinc-300 overflow-hidden">
@@ -359,12 +359,12 @@ export function LayoutEditor({
           ) : null}
           {saved ? (
             <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
-              Layout saved — this is what prints.
+              Layout saved - this is what prints.
             </span>
           ) : null}
           {anyOverflow ? (
             <span className="text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">
-              Some text doesn&apos;t fit the page and will be cut off — add columns, shrink a photo, or trim
+              Some text doesn&apos;t fit the page and will be cut off - add columns, shrink a photo, or trim
               the story.
             </span>
           ) : null}
@@ -372,7 +372,7 @@ export function LayoutEditor({
       )}
 
       <div className="flex-1 min-h-0 grid grid-cols-[1fr_18rem] gap-4 pt-3">
-        {/* Canvas — the shared print renderer, with editing hooks. */}
+        {/* Canvas - the shared print renderer, with editing hooks. */}
         <div ref={canvasColRef} className="min-w-0">
           <PageCanvas zoom={zoom}>
             <FlowPage
@@ -475,7 +475,7 @@ function Inspector({
               </button>
             </div>
             <p className="mt-1 text-[11px] text-zinc-400">
-              This story only — other stories on the page keep their own. Fewer columns ⇒ taller; more ⇒
+              This story only - other stories on the page keep their own. Fewer columns ⇒ taller; more ⇒
               shorter.
             </p>
           </div>
@@ -544,10 +544,10 @@ function Inspector({
               computed.layoutResult.fits ? (
                 <span className="text-xs text-emerald-700">✓ All text fits</span>
               ) : (
-                <span className="text-xs text-red-600">Text doesn&apos;t fit — the end will be cut off</span>
+                <span className="text-xs text-red-600">Text doesn&apos;t fit - the end will be cut off</span>
               )
             ) : (
-              <span className="text-xs text-zinc-400">—</span>
+              <span className="text-xs text-zinc-400">-</span>
             )}
           </div>
         </>

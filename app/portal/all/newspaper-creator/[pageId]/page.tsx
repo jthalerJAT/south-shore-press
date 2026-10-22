@@ -30,7 +30,7 @@ import { LegalEditor } from './legal-editor';
 import { ElectionEditor } from './election-editor';
 
 export const metadata: Metadata = {
-  title: 'Edit Page · Newspaper Creator',
+  title: 'Edit Page - Newspaper Creator',
   robots: { index: false, follow: false },
 };
 
@@ -85,7 +85,7 @@ export default async function NewspaperPageEditorPage({
           user={user}
           activeTab="all"
           hideTabs
-          title={`Edit — ${displayTitle}`}
+          title={`Edit - ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
           headerRight={pager}
         >
@@ -113,7 +113,7 @@ export default async function NewspaperPageEditorPage({
           user={user}
           activeTab="all"
           hideTabs
-          title={`Edit — ${displayTitle}`}
+          title={`Edit - ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
           headerRight={pager}
         >
@@ -142,7 +142,7 @@ export default async function NewspaperPageEditorPage({
           user={user}
           activeTab="all"
           hideTabs
-          title={`Edit — ${displayTitle}`}
+          title={`Edit - ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
           headerRight={pager}
         >
@@ -173,7 +173,7 @@ export default async function NewspaperPageEditorPage({
           user={user}
           activeTab="all"
           hideTabs
-          title={`Edit — ${displayTitle}`}
+          title={`Edit - ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
           headerRight={pager}
         >
@@ -199,7 +199,7 @@ export default async function NewspaperPageEditorPage({
           user={user}
           activeTab="all"
           hideTabs
-          title={`Edit — ${displayTitle}`}
+          title={`Edit - ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
           headerRight={pager}
         >
@@ -228,7 +228,7 @@ export default async function NewspaperPageEditorPage({
           user={user}
           activeTab="all"
           hideTabs
-          title="Edit — Election Coverage"
+          title="Edit - Election Coverage"
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
           headerRight={pager}
         >
@@ -257,7 +257,7 @@ export default async function NewspaperPageEditorPage({
           user={user}
           activeTab="all"
           hideTabs
-          title={`Edit — ${displayTitle}`}
+          title={`Edit - ${displayTitle}`}
           backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
           headerRight={pager}
         >
@@ -281,7 +281,7 @@ export default async function NewspaperPageEditorPage({
         user={user}
         activeTab="all"
         hideTabs
-        title={`Edit — ${displayTitle}`}
+        title={`Edit - ${displayTitle}`}
         backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
         headerRight={pager}
       >
@@ -312,7 +312,7 @@ export default async function NewspaperPageEditorPage({
       user={user}
       activeTab="all"
       hideTabs
-      title={`Edit — ${displayTitle}`}
+      title={`Edit - ${displayTitle}`}
       backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
       headerRight={pager}
     >

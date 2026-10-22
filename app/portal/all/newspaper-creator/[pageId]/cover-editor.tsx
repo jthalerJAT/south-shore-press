@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * CoverEditor — the bespoke field form for a section-cover template page
+ * CoverEditor - the bespoke field form for a section-cover template page
  * (Front Page, Sports cover). Left: fields (issue header for the news variant,
  * hero, 0–3 tiles, banner) each with a "Fill from story…" picker. Right: a live
  * to-scale SectionCover preview. Save persists template_data + locks the page.
@@ -31,7 +31,7 @@ export function CoverEditor({
   pageId: string;
   variant: 'news' | 'sports';
   mastheadWord?: string;
-  /** Front Page issue date — the preview's fallback when this cover hasn't typed its own. */
+  /** Front Page issue date - the preview's fallback when this cover hasn't typed its own. */
   issueDate?: string;
   initialData: SectionCoverData;
   stories: EditorStoryRow[];
@@ -237,7 +237,7 @@ function TextField({
   );
 }
 
-/** A text field with an "Insert •" button — the bullet that separates Year and
+/** A text field with an "Insert •" button - the bullet that separates Year and
  *  Issue ("42ND YEAR • ISSUE 24") isn't on the keyboard, so this drops one in at
  *  the cursor. (Keyboard fallback: Windows Alt+0149, Mac Option+8.) */
 function BulletField({

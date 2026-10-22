@@ -5,13 +5,13 @@ import { PortalShell } from '@/components/portal/portal-shell';
 import { AdminLegalForm } from './admin-legal-form';
 
 export const metadata: Metadata = {
-  title: 'Create New Legal · Legal Database',
+  title: 'Create New Legal - Legal Database',
   robots: { index: false, follow: false },
 };
 
 export const dynamic = 'force-dynamic';
 
-/** Staff-side legal entry — same fields the customer Legal Portal collects,
+/** Staff-side legal entry - same fields the customer Legal Portal collects,
  *  for legals that arrive by phone, mail, or email. */
 export default async function NewAdminLegalPage() {
   const user = await requireRole(
@@ -20,7 +20,7 @@ export default async function NewAdminLegalPage() {
   );
 
   // Reserve the L# now so the form, preview, and customer draft can show it.
-  // Drawn from a Postgres sequence — abandoned forms leave a gap, never a
+  // Drawn from a Postgres sequence - abandoned forms leave a gap, never a
   // duplicate. (Collisions on save regenerate server-side too.)
   let lNumber = '';
   try {

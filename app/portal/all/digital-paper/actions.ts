@@ -36,7 +36,7 @@ export async function requestDigitalPaperUploadUrl(): Promise<{
     console.error('[requestDigitalPaperUploadUrl]', error);
     return {
       ok: false,
-      error: 'Could not start the upload — run migration 047 (digital-papers bucket) first.',
+      error: 'Could not start the upload - run migration 047 (digital-papers bucket) first.',
     };
   }
   return { ok: true, path, token: data.token };
@@ -53,7 +53,7 @@ function validDate(year: number, month: number, day: number): boolean {
   );
 }
 
-/** Record an uploaded issue PDF. One row per issue date — re-uploading the
+/** Record an uploaded issue PDF. One row per issue date - re-uploading the
  *  same date replaces the previous file. Editor-gated. */
 export async function createDigitalPaperAction(input: {
   year: number;

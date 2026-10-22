@@ -5,7 +5,7 @@ import { getOwnedImages, imagePublicUrl } from '@/lib/queries/owned-images';
 import { OwnedImagesList } from './owned-images-list';
 
 export const metadata: Metadata = {
-  title: 'Owned Images · Editor Portal',
+  title: 'Owned Images - Editor Portal',
   robots: { index: false, follow: false },
 };
 

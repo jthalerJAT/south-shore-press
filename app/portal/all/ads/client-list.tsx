@@ -75,7 +75,7 @@ export function ClientList({
         </div>
         {visible.length === 0 ? (
           <p className="px-4 py-8 text-center text-sm text-zinc-400">
-            {clients.length === 0 ? 'No clients yet — add the first one.' : 'No clients match your search.'}
+            {clients.length === 0 ? 'No clients yet - add the first one.' : 'No clients match your search.'}
           </p>
         ) : (
           <ul className="divide-y divide-zinc-100">
@@ -93,11 +93,11 @@ export function ClientList({
                   </div>
                   <div className="text-sm text-zinc-600 truncate">
                     {c.contact_name || c.contact_email || (
-                      <span className="text-zinc-400 italic">—</span>
+                      <span className="text-zinc-400 italic">-</span>
                     )}
                   </div>
                   <div className="text-xs text-zinc-500">
-                    {c.copy_count} copy · {c.insert_order_count} IO · {c.contract_count} contract
+                    {c.copy_count} copy - {c.insert_order_count} IO - {c.contract_count} contract
                   </div>
                   {isAdmin ? (
                     <div className="text-right">

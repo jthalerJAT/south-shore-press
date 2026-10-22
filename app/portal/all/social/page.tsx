@@ -6,7 +6,7 @@ import { isTwitterEnabled } from '@/lib/twitter/client';
 import { SocialBoard } from './social-board';
 
 export const metadata: Metadata = {
-  title: 'Social Media · Editor Portal',
+  title: 'Social Media - Editor Portal',
   robots: { index: false, follow: false },
 };
 

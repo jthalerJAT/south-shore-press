@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * TrafficDashboard — the Traffic Stats tile's page (2026-10-09).
+ * TrafficDashboard - the Traffic Stats tile's page (2026-10-09).
  * Top: four stat cards (Today / Trailing Week / Trailing Month / YTD), each
  * with sequential growth (vs the preceding period of equal length) and
- * year-over-year growth. "—" means the comparison window has no recorded
+ * year-over-year growth. "-" means the comparison window has no recorded
  * traffic yet (full-site counting began 2026-10-09; earlier history is
  * article views only, and YoY needs a year of data).
  * Bottom: top content by views with a timeframe dropdown, defaulting to
@@ -18,7 +18,7 @@ function GrowthChip({ value, label }: { value: number | null; label: string }) {
   if (value === null) {
     return (
       <span className="inline-flex items-center gap-1 text-xs text-zinc-400">
-        <span className="font-semibold">—</span> {label}
+        <span className="font-semibold">-</span> {label}
       </span>
     );
   }
@@ -83,7 +83,7 @@ export function TrafficDashboard({
                 </div>
                 {visitorsByKey.get(s.key)!.partial ? (
                   <div className="mt-0.5 text-[11px] text-amber-700">
-                    Partial — visitor counting began Oct 9, 2026
+                    Partial - visitor counting began Oct 9, 2026
                   </div>
                 ) : (
                   <div className="mt-1 flex flex-col gap-0.5">
@@ -102,13 +102,13 @@ export function TrafficDashboard({
           <span className="font-semibold">Unique visitors not connected.</span> Create a Vercel
           account token (Account Settings → Tokens, scope: JAT Capital) and add it to the
           south-shore-press project as the <code className="font-mono">VERCEL_ANALYTICS_TOKEN</code>{' '}
-          environment variable, then redeploy — visitor counts and referrers will appear here.
+          environment variable, then redeploy - visitor counts and referrers will appear here.
         </div>
       ) : null}
 
       <p className="text-xs text-zinc-400">
-        Page views, bucketed by UTC day. Full-site counting began Oct 9, 2026 — earlier history
-        reflects article views only, so growth rates straddling that date run low. &ldquo;—&rdquo;
+        Page views, bucketed by UTC day. Full-site counting began Oct 9, 2026 - earlier history
+        reflects article views only, so growth rates straddling that date run low. &ldquo;-&rdquo;
         means the comparison window has no recorded traffic yet. For unique visitors, referrers,
         and devices, see{' '}
         <a
@@ -126,7 +126,7 @@ export function TrafficDashboard({
       {referrers && referrers.length > 0 ? (
         <div>
           <h2 className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-3">
-            Top Referrers — Trailing 30 Days
+            Top Referrers - Trailing 30 Days
           </h2>
           <div className="overflow-hidden rounded border border-zinc-200">
             <ul className="divide-y divide-zinc-100">

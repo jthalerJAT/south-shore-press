@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * HeadlineField — a headline/title input that allows a MANUAL line break:
+ * HeadlineField - a headline/title input that allows a MANUAL line break:
  * Shift+Enter inserts a newline so the editor controls where the text wraps;
  * plain Enter is ignored so the form isn't accidentally broken. The newline is
  * honored at render time via white-space: pre-line. Shared by the cover, OpEd,

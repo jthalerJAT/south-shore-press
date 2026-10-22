@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AdCopyPicker — the shared two-step "+ Insert Ad" control (Ad Database v2).
+ * AdCopyPicker - the shared two-step "+ Insert Ad" control (Ad Database v2).
  * Step 1: a dropdown of just the client (account) names, alphabetical.
  * Step 2: that client's copy files, newest first, with size + date beside each.
  * Used by every place the newspaper creator places an ad from the database.
@@ -19,7 +19,7 @@ export function fmtAdDate(iso: string): string {
 }
 
 export function adSizeLabel(size: string | null): string {
-  if (!size) return '—';
+  if (!size) return '-';
   return AD_SIZES.find((s) => s.value === size)?.label ?? size;
 }
 
@@ -74,7 +74,7 @@ export function AdCopyPicker({
         <ul className="mt-2 border border-zinc-200 rounded divide-y divide-zinc-100 bg-white max-h-64 overflow-y-auto">
           {copies.length === 0 ? (
             <li className="px-3 py-4 text-center text-sm text-zinc-400">
-              No copy on file for {clientName} — upload it in the Ad Database.
+              No copy on file for {clientName} - upload it in the Ad Database.
             </li>
           ) : (
             copies.map((a) => (
@@ -89,7 +89,7 @@ export function AdCopyPicker({
                     {a.copy_file_name || 'Copy file'}
                   </span>
                   <span className="mt-0.5 block text-[11px] text-zinc-500">
-                    {adSizeLabel(a.copy_size)} · {fmtAdDate(a.created_at)}
+                    {adSizeLabel(a.copy_size)} - {fmtAdDate(a.created_at)}
                   </span>
                 </button>
               </li>

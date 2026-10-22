@@ -70,7 +70,7 @@ const EMPTY_DESCRIPTOR: Partial<Record<NpPage['kind'], string>> = {
   sports: 'Sports Page',
   front: 'Front Page (template)',
   sports_cover: 'Sports Cover (template)',
-  page2: 'Page 2 — OpEd (template)',
+  page2: 'Page 2 - OpEd (template)',
   oped_page: 'Op-Ed Page (template)',
 };
 
@@ -246,7 +246,7 @@ export function NewspaperBoard({
     });
   }
 
-  // Legals pages are master (protected) — but EXTRA legals pages added for
+  // Legals pages are master (protected) - but EXTRA legals pages added for
   // heavy weeks are deletable as long as the standard two remain.
   const legalsCount = useMemo(() => order.filter((p) => p.kind === 'legals').length, [order]);
 
@@ -270,7 +270,7 @@ export function NewspaperBoard({
     const label = templateFor(kind).label;
     if (
       !confirm(
-        `Change "${displayTitle(page, ordinal)}" to the ${label} template? Any content already on this page may no longer appear (it isn't deleted — switch back to restore it).`
+        `Change "${displayTitle(page, ordinal)}" to the ${label} template? Any content already on this page may no longer appear (it isn't deleted - switch back to restore it).`
       )
     )
       return;
@@ -299,7 +299,7 @@ export function NewspaperBoard({
     run(() => resetIssueContent());
   }
 
-  // Rebuild is the issue's most destructive action — a native confirm() is
+  // Rebuild is the issue's most destructive action - a native confirm() is
   // too easy to click through, so it gets a full danger modal instead.
   const [rebuildConfirmOpen, setRebuildConfirmOpen] = useState(false);
 
@@ -315,8 +315,8 @@ export function NewspaperBoard({
   // "Election Issue" toggle (2026-10-07): NON-destructive switch between the
   // two coexisting issues. Both keep their pages and content; the first time
   // the election issue is activated, its blank skeleton (6 election pages
-  // starting on page 3) is created. Everything on this board — and Reset
-  // Content / Rebuild Pages / View File / the press export — follows the
+  // starting on page 3) is created. Everything on this board - and Reset
+  // Content / Rebuild Pages / View File / the press export - follows the
   // currently selected issue.
   const isElectionIssue = issueVariant === 'election';
 
@@ -340,7 +340,7 @@ export function NewspaperBoard({
       ) : null}
 
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT — content tabs (Stories / Ads / Legals / Classifieds) */}
+        {/* LEFT - content tabs (Stories / Ads / Legals / Classifieds) */}
         <div className="lg:col-span-5 lg:sticky lg:top-6 lg:self-start lg:max-h-[80vh] lg:overflow-y-auto">
           <div className="flex border-b border-zinc-200 mb-2">
             {(['stories', 'ads', 'legals', 'classifieds'] as LeftTab[]).map((t) => (
@@ -432,7 +432,7 @@ export function NewspaperBoard({
                 )}
               </ul>
               <p className="mt-1 text-[11px] text-zinc-400">
-                Legals come from <strong>Legals Upload</strong> (reference list — click to view).
+                Legals come from <strong>Legals Upload</strong> (reference list - click to view).
               </p>
             </>
           ) : null}
@@ -455,7 +455,7 @@ export function NewspaperBoard({
           ) : null}
         </div>
 
-        {/* RIGHT — pages */}
+        {/* RIGHT - pages */}
         <div className="lg:col-span-7">
           <div className="flex items-center justify-between mb-2 gap-2">
             <h3 className="text-xs uppercase tracking-widest font-bold text-zinc-500">Pages</h3>
@@ -600,12 +600,12 @@ export function NewspaperBoard({
                 id="rebuild-confirm-title"
                 className="font-headline text-xl font-bold text-red-700"
               >
-                ⚠ Rebuild Pages — this deletes the {isElectionIssue ? 'ELECTION' : 'standard'} issue
+                ⚠ Rebuild Pages - this deletes the {isElectionIssue ? 'ELECTION' : 'standard'} issue
               </h2>
             </div>
             <div className="px-6 py-4 space-y-3 text-sm text-zinc-700">
               <p className="font-semibold text-zinc-900">
-                The currently selected issue&apos;s entire page structure will be deleted — every
+                The currently selected issue&apos;s entire page structure will be deleted - every
                 page and everything on it (the other issue is not touched):
               </p>
               <ul className="list-disc pl-5 space-y-1">
@@ -636,7 +636,7 @@ export function NewspaperBoard({
                 onClick={confirmReseed}
                 className="px-4 py-2 text-sm font-bold uppercase tracking-wide text-white bg-red-600 hover:bg-red-700 rounded transition-colors"
               >
-                Yes — delete everything and rebuild
+                Yes - delete everything and rebuild
               </button>
             </div>
           </div>
@@ -671,7 +671,7 @@ function SortablePageRow({
   const included = page.include_in_paper !== false;
 
   // Full-ad and Fun Stuff pages keep their content in template_data, not
-  // np_items, so the item-summary list is always empty for them — show what's
+  // np_items, so the item-summary list is always empty for them - show what's
   // actually placed instead of the misleading "No content yet".
   const td = (page.template_data ?? {}) as {
     business_name?: string;
@@ -686,7 +686,7 @@ function SortablePageRow({
     page.kind === 'full_page_ad' && td.storage_path
       ? `Ad: ${td.business_name || td.file_name || 'placed'}`
       : page.kind.startsWith('fun_') && (td.snapshot_path || td.html)
-        ? `Pulled from ${td.source_label ?? 'app'}${td.pulled_at ? ` — ${new Date(td.pulled_at).toLocaleDateString()}` : ''}`
+        ? `Pulled from ${td.source_label ?? 'app'}${td.pulled_at ? ` - ${new Date(td.pulled_at).toLocaleDateString()}` : ''}`
         : null;
 
   return (
@@ -760,7 +760,7 @@ function SortablePageRow({
           type="button"
           onClick={onDelete}
           disabled={!canDelete}
-          title={canDelete ? 'Delete page' : 'Master page — can’t be deleted'}
+          title={canDelete ? 'Delete page' : 'Master page - can’t be deleted'}
           className={cn(
             'inline-flex items-center justify-center w-8 h-8 rounded border transition-colors',
             !canDelete
@@ -785,12 +785,12 @@ function SortablePageRow({
   );
 }
 
-/** Per-row page-type selector — converts a page to another template/layout
+/** Per-row page-type selector - converts a page to another template/layout
  *  kind. Shows the current kind even when it isn't an assignable option (e.g.
  *  the seeded covers). */
 function PageTypeSelect({ kind, onChange }: { kind: NpKind; onChange: (k: NpKind) => void }) {
   const inList = ASSIGNABLE_KINDS.some((o) => o.kind === kind);
-  // The one-off covers anchor the issue — converting one strips its delete
+  // The one-off covers anchor the issue - converting one strips its delete
   // protection (how the Back Page was lost, 2026-07-19). Server refuses too.
   const locked = kind === 'front' || kind === 'back';
   return (
@@ -832,8 +832,8 @@ function StoryChipDraggable({ story }: { story: EditorStoryRow }) {
           {story.headline}
         </div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-          {(story.categories ?? []).join(', ') || '—'}
-          {story.byline ? ` · ${story.byline}` : ''}
+          {(story.categories ?? []).join(', ') || '-'}
+          {story.byline ? ` - ${story.byline}` : ''}
         </div>
       </div>
     </li>
@@ -854,7 +854,7 @@ function StoryChipPresentation({ story, dragging }: { story: EditorStoryRow; dra
           {story.headline}
         </div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-          {(story.categories ?? []).join(', ') || '—'}
+          {(story.categories ?? []).join(', ') || '-'}
         </div>
       </div>
     </div>
@@ -873,7 +873,7 @@ function adChipMeta(ad: Ad): string {
     month: 'short',
     day: 'numeric',
   });
-  return size ? `${size} · ${date}` : date;
+  return size ? `${size} - ${date}` : date;
 }
 
 function AdChipDraggable({ ad, indented }: { ad: Ad; indented?: boolean }) {
@@ -898,7 +898,7 @@ function AdChipDraggable({ ad, indented }: { ad: Ad; indented?: boolean }) {
           {indented ? ad.copy_file_name || 'Copy file' : ad.business_name}
         </div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-          {indented ? adChipMeta(ad) : `${ad.copy_file_name || 'Copy on file'} — ${adChipMeta(ad)}`}
+          {indented ? adChipMeta(ad) : `${ad.copy_file_name || 'Copy on file'} - ${adChipMeta(ad)}`}
         </div>
       </div>
     </li>

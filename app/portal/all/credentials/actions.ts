@@ -95,7 +95,7 @@ export async function setUserRolesAction(
   }
 
   // Whitelist incoming role values to {admin, editor, journalist}; customer
-  // credentials (advertiser / legal) are whitelisted separately — they carry
+  // credentials (advertiser / legal) are whitelisted separately - they carry
   // no editorial power and any admin may toggle them.
   const granted = Array.from(
     new Set(
@@ -114,7 +114,7 @@ export async function setUserRolesAction(
     )
   );
   // ACCESS credentials ('admin stories'): grantable/revocable ONLY by the
-  // master admin — they open master-admin surfaces to a delegate.
+  // master admin - they open master-admin surfaces to a delegate.
   const accessGranted = Array.from(
     new Set(
       newRoles
@@ -158,7 +158,7 @@ export async function setUserRolesAction(
   const wasMasterAdmin =
     isMasterAdmin(targetUserObj) &&
     String(target.email ?? '').trim().toLowerCase() === MASTER_ADMIN_EMAIL;
-  // Every account always retains the reader credential — revoking all
+  // Every account always retains the reader credential - revoking all
   // editorial roles leaves a plain reader row, never a role-less one whose
   // access silently falls back to the legacy column (2026-07-16 policy;
   // the drift that let Bob Chartuk keep publishing). Removal from the
@@ -174,8 +174,8 @@ export async function setUserRolesAction(
   // Sync the legacy single-role column to the highest-privilege EDITORIAL
   // role, which `getCurrentUser` falls back to whenever `roles` is empty (and
   // which v1's RLS still reads). Customer credentials never reach this column
-  // — the enum doesn't know them (22P02) and they carry no editorial power.
-  // When every editorial role is unchecked this MUST be 'reader' — the
+  // - the enum doesn't know them (22P02) and they carry no editorial power.
+  // When every editorial role is unchecked this MUST be 'reader' - the
   // no-access baseline (the pre-56fbb0f 'journalist' fallback let
   // de-credentialed users keep publishing).
   const primaryRole: UserRole =
@@ -232,7 +232,7 @@ export async function setUserRolesAction(
       error:
         [updErr.message, updErr.details, updErr.hint]
           .filter(Boolean)
-          .join(' — ') || 'Failed to update roles.',
+          .join(' - ') || 'Failed to update roles.',
     };
   }
 
@@ -242,7 +242,7 @@ export async function setUserRolesAction(
 
 /**
  * Permanently remove an account from the system: deletes the auth user
- * (the profile row cascades — migration 036; their stories survive with
+ * (the profile row cascades - migration 036; their stories survive with
  * author_id cleared to NULL). Same hierarchy rules as role changes:
  * master admin rows and (for regular admins) admin rows are off limits,
  * and nobody can delete themselves.
@@ -279,7 +279,7 @@ export async function deleteUserAction(targetUserId: string): Promise<Result> {
     return { error: 'Only master admin can delete another admin.' };
   }
 
-  // Deleting the auth user requires the service-role key — the normal
+  // Deleting the auth user requires the service-role key - the normal
   // cookie-scoped client has no auth-admin powers.
   let admin;
   try {

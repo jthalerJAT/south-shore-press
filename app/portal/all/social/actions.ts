@@ -42,7 +42,7 @@ export async function publishTweet(text: string, storyId?: string): Promise<Twee
   }
 
   if (!body) {
-    return { ok: false, error: 'Nothing to post — enter tweet text or drop a story in the box.' };
+    return { ok: false, error: 'Nothing to post - enter tweet text or drop a story in the box.' };
   }
 
   try {

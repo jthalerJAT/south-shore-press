@@ -16,7 +16,7 @@ function fmtTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 }
 function sectionLabel(slug: string | undefined): string {
-  if (!slug) return '—';
+  if (!slug) return '-';
   return SITE_SECTIONS.find((s) => s.slug === slug)?.label ?? slug;
 }
 
@@ -96,7 +96,7 @@ export function AdminStoriesList({ rows }: { rows: AdminStoryRow[] }) {
         {visible.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-zinc-400">
             {rows.length === 0
-              ? 'Nothing here yet — the AI desks post new drafts each cycle, or start one with + New Story.'
+              ? 'Nothing here yet - the AI desks post new drafts each cycle, or start one with + New Story.'
               : 'No stories match.'}
           </p>
         ) : (
@@ -120,7 +120,7 @@ export function AdminStoriesList({ rows }: { rows: AdminStoryRow[] }) {
                     </div>
                     {r.subline ? <div className="text-xs text-zinc-500 truncate pl-5.5">{r.subline}</div> : null}
                   </div>
-                  <div className="text-sm text-zinc-700 truncate">{r.byline ?? '—'}</div>
+                  <div className="text-sm text-zinc-700 truncate">{r.byline ?? '-'}</div>
                   <div className="text-xs text-zinc-500">{sectionLabel(r.categories?.[0])}</div>
                   <div className="flex items-center gap-1.5">
                     <span

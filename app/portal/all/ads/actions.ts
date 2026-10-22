@@ -47,7 +47,7 @@ export async function requestAdFileUploadUrl(
   if (kind === 'copy' && (fileExt === '.heic' || fileExt === '.heif')) {
     return {
       ok: false,
-      error: 'HEIC/HEIF (iPhone photo format) can’t be displayed by web browsers — export the ad copy as JPG or PNG and upload that instead.',
+      error: 'HEIC/HEIF (iPhone photo format) can’t be displayed by web browsers - export the ad copy as JPG or PNG and upload that instead.',
     };
   }
   const path = `${folder}/${randomUUID()}${ext(fileName)}`;
@@ -126,14 +126,14 @@ export async function createAdClient(
 
   const admin = createAdminClient();
 
-  // One client per business — creating a duplicate name is almost always a
+  // One client per business - creating a duplicate name is almost always a
   // mistake that scatters the client's files across two folders.
   const { data: existing } = await admin
     .from('ad_clients')
     .select('id, business_name')
     .ilike('business_name', name);
   if ((existing ?? []).some((c) => c.business_name.trim().toLowerCase() === name.toLowerCase())) {
-    return { ok: false, error: `A client named "${name}" already exists — open it and add the files there.` };
+    return { ok: false, error: `A client named "${name}" already exists - open it and add the files there.` };
   }
 
   const { data, error } = await admin
@@ -166,7 +166,7 @@ export async function createAdClient(
     );
     if (fErr) {
       console.error('[createAdClient] files', fErr);
-      return { ok: false, error: 'Client created, but saving its files failed — open the client and re-add them.', id: clientId };
+      return { ok: false, error: 'Client created, but saving its files failed - open the client and re-add them.', id: clientId };
     }
   }
 

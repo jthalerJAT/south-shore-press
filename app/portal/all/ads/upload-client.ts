@@ -23,7 +23,7 @@ export async function uploadAdFile(
   // a flaky connection, which would otherwise save a path whose file 404s.
   const landed = await verifyAdFileUploaded(signed.path);
   if (!landed) {
-    return { ok: false, error: 'Upload didn’t complete — please try again.' };
+    return { ok: false, error: 'Upload didn’t complete - please try again.' };
   }
 
   return { ok: true, path: signed.path, fileName: file.name };

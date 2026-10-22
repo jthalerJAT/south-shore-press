@@ -30,7 +30,7 @@ const COLUMNS: Array<{ key: ColumnKey; label: string; kind: SortKind }> = [
 ];
 
 function fmtDate(v: string | null): string {
-  return formatDate(v) || '—';
+  return formatDate(v) || '-';
 }
 
 export function SubscriberTable({ rows }: { rows: Account[] }) {
@@ -104,12 +104,12 @@ export function SubscriberTable({ rows }: { rows: Account[] }) {
           {sorted.map((r, i) => (
             <tr key={r.id} className="hover:bg-zinc-50">
               <td className="px-3 py-2 text-right text-xs text-zinc-400 tabular-nums">{i + 1}</td>
-              <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900">{r.last_name || '—'}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.first_name || '—'}</td>
-              <td className="px-3 py-2 text-zinc-700">{r.address_1 || '—'}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.city || '—'}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.state || '—'}</td>
-              <td className="whitespace-nowrap px-3 py-2 text-zinc-600">{r.email || '—'}</td>
+              <td className="whitespace-nowrap px-3 py-2 font-medium text-zinc-900">{r.last_name || '-'}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.first_name || '-'}</td>
+              <td className="px-3 py-2 text-zinc-700">{r.address_1 || '-'}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.city || '-'}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-zinc-700">{r.state || '-'}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-zinc-600">{r.email || '-'}</td>
               <td className="whitespace-nowrap px-3 py-2">
                 <span className="inline-block rounded bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700">
                   {ACCOUNT_TYPE_LABEL[r.account_type]}

@@ -82,7 +82,7 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
           setProgress(`Read ${n.toLocaleString()} rows…`)
         );
       } catch (workerErr) {
-        // No worker available — parse inline (slower, and the tab will sit
+        // No worker available - parse inline (slower, and the tab will sit
         // still while it runs, but the import still works).
         console.warn('[import] worker unavailable, parsing inline', workerErr);
         setProgress('Reading (this can take a minute on a large file)…');
@@ -168,7 +168,7 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
         <>
           <p className="text-sm text-zinc-600">
             Drop an Excel or CSV export (e.g. a SimpleCirc mailer or paid-subscriber list). Columns
-            are matched by name — first/last name, company, address 1/2, city, state, zip, email,
+            are matched by name - first/last name, company, address 1/2, city, state, zip, email,
             phone, ACS keyline, account ID, start/expiration dates. A separate &ldquo;Zip 4&rdquo;
             column is added onto the ZIP (11968 + 5339 → 11968-5339).
           </p>
@@ -235,7 +235,7 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
                 <span className="font-semibold text-zinc-900">{typeLabel}</span>.
               </p>
               <p className="mt-1 text-xs text-zinc-500">
-                Matched columns: {mappedFields.map((f) => FIELD_LABELS[f]).join(' · ')}
+                Matched columns: {mappedFields.map((f) => FIELD_LABELS[f]).join(' - ')}
               </p>
             </div>
           ) : null}
@@ -254,7 +254,7 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
                   className="mt-0.5 h-4 w-4 border-zinc-300 text-brand-red focus:ring-brand-red"
                 />
                 <span>
-                  <span className="font-medium">Replace all {typeLabel}</span> — delete every
+                  <span className="font-medium">Replace all {typeLabel}</span> - delete every
                   existing {typeLabel} account, then import these. (Other account types are untouched.)
                 </span>
               </label>
@@ -267,7 +267,7 @@ export function ImportAccountsDialog({ onClose }: { onClose: () => void }) {
                   className="mt-0.5 h-4 w-4 border-zinc-300 text-brand-red focus:ring-brand-red"
                 />
                 <span>
-                  <span className="font-medium">Append</span> — add these on top of the existing
+                  <span className="font-medium">Append</span> - add these on top of the existing
                   accounts.
                 </span>
               </label>

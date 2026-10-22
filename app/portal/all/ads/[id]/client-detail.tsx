@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Client page — the "folder view" root for one advertiser account.
+ * Client page - the "folder view" root for one advertiser account.
  * Top: contact details (editable inline) + "+ New" buttons for each file kind.
  * Body: three folders (Ad Copy / Insert Orders / Contracts) with counts.
  * Uploading a new copy prompts for its Copy Size before saving.

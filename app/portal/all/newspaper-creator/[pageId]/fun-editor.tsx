@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FunEditor — editor for a "Fun Stuff" page (Box Office / Puzzles / Funny Pages /
+ * FunEditor - editor for a "Fun Stuff" page (Box Office / Puzzles / Funny Pages /
  * History).
  *  - "Pull from <app>" loads the standalone app off-screen with `?ssp_embed=1`,
  *    the app runs its normal generation and postMessages its finished page back;
@@ -9,7 +9,7 @@
  *  - "Add Article" / "Add Advertisement" add blocks to the bottom band. Ads pick
  *    a size (1/4 or 1/3 page) + location (bottom-left/right; 1/3 spans the full
  *    width); articles are typed or filled from a website story.
- * Nothing here changes the standalone apps — the `?ssp_embed=1` flag is the only
+ * Nothing here changes the standalone apps - the `?ssp_embed=1` flag is the only
  * thing that activates their (additive, gated) export hook.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -200,7 +200,7 @@ export function FunEditor({
     setError(null);
     try {
       let payload: FunPageData = data;
-      // A freshly pulled snapshot carries every panel image inline — far too
+      // A freshly pulled snapshot carries every panel image inline - far too
       // large for a server-action body (1MB cap) or a np_pages row. Upload it
       // to Storage and save only the reference.
       if (data.html) {
@@ -276,7 +276,7 @@ export function FunEditor({
           <div className="text-sm text-zinc-600 bg-zinc-50 border border-zinc-200 rounded px-3 py-2">
             Generating in {source.label}… {mins}:{String(secs).padStart(2, '0')} elapsed. This can take
             several minutes (especially Funny Pages).{' '}
-            <strong>Keep this tab open and in front</strong> — Chrome slows hidden tabs, which can
+            <strong>Keep this tab open and in front</strong> - Chrome slows hidden tabs, which can
             more than double the wait.
           </div>
         ) : null}
@@ -291,7 +291,7 @@ export function FunEditor({
         {/* ── Bottom-band blocks ─────────────────────────────── */}
         <div className="pt-3 border-t border-zinc-200">
           <div className="flex items-center justify-between">
-            <div className="text-sm font-medium text-zinc-700">Bottom band — articles &amp; ads</div>
+            <div className="text-sm font-medium text-zinc-700">Bottom band - articles &amp; ads</div>
             <div className="flex gap-2">
               <button
                 type="button"

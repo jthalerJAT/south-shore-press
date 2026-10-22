@@ -2,7 +2,7 @@
 
 /**
  * Social Media tool. Left: the reverse-chron story list (draggable, searchable).
- * Right: X / YouTube / Instagram tabs. The X tab composes a tweet — type the
+ * Right: X / YouTube / Instagram tabs. The X tab composes a tweet - type the
  * copy, drag a story into the "Create New Tweet" box to attach its link (which
  * X unfurls into the article card), then Publish Tweet posts to the SSP account.
  * YouTube + Instagram are placeholders for now.
@@ -93,7 +93,7 @@ export function SocialBoard({
   return (
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* LEFT — story list */}
+        {/* LEFT - story list */}
         <div className="lg:col-span-5 lg:sticky lg:top-6 lg:self-start lg:max-h-[80vh] lg:overflow-y-auto">
           <h3 className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-2">Stories</h3>
           <input
@@ -112,7 +112,7 @@ export function SocialBoard({
           </ul>
         </div>
 
-        {/* RIGHT — channel tabs */}
+        {/* RIGHT - channel tabs */}
         <div className="lg:col-span-7">
           <div className="flex border-b border-zinc-200 mb-4">
             {(['x', 'youtube', 'instagram'] as Tab[]).map((t) => (
@@ -261,8 +261,8 @@ function StoryChip({ story }: { story: EditorStoryRow }) {
       <div className="min-w-0 flex-1">
         <div className="text-[13px] font-medium text-zinc-900 line-clamp-2 leading-snug">{story.headline}</div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-          {(story.categories ?? []).join(', ') || '—'}
-          {story.byline ? ` · ${story.byline}` : ''}
+          {(story.categories ?? []).join(', ') || '-'}
+          {story.byline ? ` - ${story.byline}` : ''}
         </div>
       </div>
     </li>

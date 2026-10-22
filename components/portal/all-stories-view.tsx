@@ -31,7 +31,7 @@ const STATUS_TABS: ReadonlyArray<{ key: StatusFilter; label: string }> = [
  *
  * Features:
  *   - search box (matches headline / subline / byline / author)
- *   - status filter tabs (with live counts) — optional
+ *   - status filter tabs (with live counts) - optional
  *   - section filter dropdown
  *   - click-to-sort column headers (asc/desc)
  *
@@ -53,7 +53,7 @@ export function AllStoriesView({
   /** Suppress the status tab row when every story is already a single
    *  status (e.g. the journalist's drafts list). */
   hideStatusFilter?: boolean;
-  /** Override the "no matches" copy — defaults to a generic filter msg. */
+  /** Override the "no matches" copy - defaults to a generic filter msg. */
   emptyMessage?: string;
 }) {
   const router = useRouter();
@@ -110,7 +110,7 @@ export function AllStoriesView({
       });
     }
 
-    // Sort — make a copy so we don't mutate React's stories prop.
+    // Sort - make a copy so we don't mutate React's stories prop.
     const sorted = [...result].sort((a, b) => {
       let cmp = 0;
       switch (sortKey) {
@@ -146,7 +146,7 @@ export function AllStoriesView({
   }, [stories, q, statusFilter, sectionFilter, sortKey, sortDir]);
 
   /** Update a single URL search param without scrolling. Pass null/'' to
-   *  clear (which collapses the URL — no ?sort=updated default noise). */
+   *  clear (which collapses the URL - no ?sort=updated default noise). */
   function updateParam(updates: Record<string, string | null>) {
     const params = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(updates)) {
@@ -202,9 +202,9 @@ export function AllStoriesView({
         </select>
       </div>
 
-      {/* Status filter tabs with live counts — hidden when all stories
+      {/* Status filter tabs with live counts - hidden when all stories
           are a single status (e.g. journalist's drafts list).
-          No `overflow-x-auto` here on purpose — Edge / some Chrome
+          No `overflow-x-auto` here on purpose - Edge / some Chrome
           builds render scroll-affordance arrows on the right side
           when overflow-auto is set; flex-wrap is safer + cleaner. */}
       {!hideStatusFilter && (
@@ -267,7 +267,7 @@ export function AllStoriesView({
         </div>
       ) : (
         <div className="overflow-hidden border border-zinc-200 rounded-lg">
-          {/* Desktop table — columns mirror v1 spec exactly:
+          {/* Desktop table - columns mirror v1 spec exactly:
               Date | Time Posted | Title | Byline | Section | Status
               Wrapped in a max-h scroller with sticky thead so the
               column headers stay visible while editors scroll a
@@ -369,10 +369,10 @@ export function AllStoriesView({
                       ) : null}
                     </td>
                     <td className="px-4 py-3 text-zinc-600 text-xs">
-                      {s.byline ?? '—'}
+                      {s.byline ?? '-'}
                     </td>
                     <td className="px-4 py-3 text-zinc-600 text-xs">
-                      {(s.categories ?? []).join(', ') || '—'}
+                      {(s.categories ?? []).join(', ') || '-'}
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={s.status} />
@@ -406,17 +406,17 @@ export function AllStoriesView({
                     </div>
                     <div className="mt-1 text-xs text-zinc-500 flex items-center gap-2 flex-wrap">
                       <time>{formatDate(ts)}</time>
-                      <span aria-hidden="true">·</span>
+                      <span aria-hidden="true"> - </span>
                       <time>{formatTime(ts)}</time>
                       {(s.categories?.length ?? 0) > 0 ? (
                         <>
-                          <span aria-hidden="true">·</span>
+                          <span aria-hidden="true"> - </span>
                           <span>{(s.categories ?? []).join(', ')}</span>
                         </>
                       ) : null}
                       {s.byline ? (
                         <>
-                          <span aria-hidden="true">·</span>
+                          <span aria-hidden="true"> - </span>
                           <span>{s.byline}</span>
                         </>
                       ) : null}
@@ -474,7 +474,7 @@ function SortableTh({
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', {
     month: 'short',
@@ -484,7 +484,7 @@ function formatDate(iso: string | null): string {
 }
 
 function formatTime(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleTimeString('en-US', {
     hour: 'numeric',

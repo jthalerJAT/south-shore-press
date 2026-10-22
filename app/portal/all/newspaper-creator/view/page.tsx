@@ -28,7 +28,7 @@ import { PAGE_W_PX, PAGE_H_PX, CONTENT_W_PX, CONTENT_H_PX, MARGIN_IN, DPI } from
 import { ProofBands, type ProofItem } from '../[pageId]/print/proof-bands';
 
 export const metadata: Metadata = {
-  title: 'View File · Newspaper Creator',
+  title: 'View File - Newspaper Creator',
   robots: { index: false, follow: false },
 };
 
@@ -74,7 +74,7 @@ export default async function NewspaperViewFile() {
       backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
     >
       <p className="text-sm text-zinc-600 mb-6">
-        The full issue, page by page. Uses the same page proofs as the individual editors — the
+        The full issue, page by page. Uses the same page proofs as the individual editors - the
         exact layout the press-PDF export renders.
       </p>
 
@@ -90,7 +90,7 @@ export default async function NewspaperViewFile() {
           return (
             <div key={page.id} className="w-full flex flex-col items-center">
               <div className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">
-                Page {ordinal} — {title}
+                Page {ordinal} - {title}
               </div>
               <div
                 className="bg-white shadow-md overflow-hidden"

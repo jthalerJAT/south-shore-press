@@ -6,7 +6,7 @@ import { getAdminStory } from '@/lib/queries/admin-stories';
 import { AdminStoryForm } from '../admin-story-form';
 
 export const metadata: Metadata = {
-  title: 'Edit · Master Admin Stories',
+  title: 'Edit - Master Admin Stories',
   robots: { index: false, follow: false },
 };
 

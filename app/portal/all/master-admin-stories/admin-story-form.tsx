@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Master Admin story editor — the same fields as the Story Editor form
+ * Master Admin story editor - the same fields as the Story Editor form
  * (headline / subline / byline / sections / print-only / sports sub-cats /
  * hero media / caption / credit / body / additional photos), plus:
  *   - an AI revision box under the body that applies the publisher's typed
@@ -113,7 +113,7 @@ export function AdminStoryForm({
         setError(res.error ?? 'Could not push.');
         return;
       }
-      // Stay in Master Admin Stories — the Story Editor is a deliberate click
+      // Stay in Master Admin Stories - the Story Editor is a deliberate click
       // away (the "Open in Story Editor" link on the pushed banner).
       setThread([]);
       if (!story) {
@@ -199,12 +199,12 @@ export function AdminStoryForm({
       {story ? (
         <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500">
           <span>
-            {story.source === 'ai' ? 'AI draft' : 'Admin-written'} · created{' '}
+            {story.source === 'ai' ? 'AI draft' : 'Admin-written'} - created{' '}
             {new Date(story.created_at).toLocaleString()}
           </span>
           {isPushed ? (
             <span className="inline-flex items-center gap-2 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-blue-800">
-              Pushed to the Story Editor{story.pushed_at ? ` ${new Date(story.pushed_at).toLocaleString()}` : ''} — it is read-only here.
+              Pushed to the Story Editor{story.pushed_at ? ` ${new Date(story.pushed_at).toLocaleString()}` : ''} - it is read-only here.
               {story.pushed_story_id ? (
                 <Link href={`/portal/edit/${story.pushed_story_id}`} className="inline-flex items-center gap-1 font-semibold underline">
                   Open in Story Editor <ExternalLink className="w-3 h-3" />
@@ -223,7 +223,7 @@ export function AdminStoryForm({
         <input id="subline" value={subline} onChange={(e) => setSubline(e.target.value)} maxLength={300} disabled={disabled} className={inputCls} />
       </Field>
 
-      <Field label="Byline" htmlFor="byline" hint="Howard Roark · Gail Wynand · Henry Cameron, or your own name.">
+      <Field label="Byline" htmlFor="byline" hint="Howard Roark - Gail Wynand - Henry Cameron, or your own name.">
         <input id="byline" value={byline} onChange={(e) => setByline(e.target.value)} maxLength={120} disabled={disabled} className={inputCls} />
       </Field>
 
@@ -329,10 +329,10 @@ export function AdminStoryForm({
           </div>
           <p className="mt-1 text-xs text-zinc-500">
             Ask a question (&ldquo;is this quote dual-sourced?&rdquo;, &ldquo;is the lede too long?&rdquo;) and you get an
-            answer — the article is left alone. Give an instruction (&ldquo;tighten the lede,&rdquo; &ldquo;cut to 500
+            answer - the article is left alone. Give an instruction (&ldquo;tighten the lede,&rdquo; &ldquo;cut to 500
             words&rdquo;) and the edit is applied to the fields above <em>and</em> explained here. Nothing is saved
             until you Save or Push; Save keeps this conversation with the draft, Push discards it. By default the AI
-            sees only the article and this thread — turn on <strong>Web lookup</strong> for a message when you want
+            sees only the article and this thread - turn on <strong>Web lookup</strong> for a message when you want
             it to go check the web / X (is this quote public? who reported it? do the numbers hold up?).
           </p>
 
@@ -423,7 +423,7 @@ export function AdminStoryForm({
             {lastModel ? <span className="text-xs text-zinc-500">Model: {lastModel}</span> : null}
             {thread.length > 0 ? (
               <span className="text-xs text-zinc-500">
-                {thread.length} message{thread.length === 1 ? '' : 's'} · saved with Save to Admin Draft
+                {thread.length} message{thread.length === 1 ? '' : 's'} - saved with Save to Admin Draft
               </span>
             ) : null}
           </div>

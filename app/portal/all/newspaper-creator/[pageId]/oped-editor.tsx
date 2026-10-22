@@ -68,7 +68,7 @@ export function OpEdEditor({
 
   // Make the page fit one sheet: tighten the spacing first (down to a floor),
   // then shrink the photos if it still overflows. The bottom ad is flex-fill,
-  // so it soaks up any slack — only overflow needs fixing.
+  // so it soaks up any slack - only overflow needs fixing.
   async function adjustToFit() {
     setFitting(true);
     const MIN_SPACE = 0.3;
@@ -159,7 +159,7 @@ export function OpEdEditor({
           </div>
         </Section>
 
-        {/* Second Story — removable: with it off, the page is Main OpEd + ad
+        {/* Second Story - removable: with it off, the page is Main OpEd + ad
             only and no blank space is reserved between them. Content is kept,
             so “+ Add Article” brings it back exactly as it was. */}
         {data.second_enabled === false ? (
@@ -176,7 +176,7 @@ export function OpEdEditor({
               + Add Article
             </button>
             <p className="text-xs text-zinc-500">
-              Article 2 is removed — the page runs the Main OpEd straight to the bottom ad.
+              Article 2 is removed - the page runs the Main OpEd straight to the bottom ad.
             </p>
           </section>
         ) : (
@@ -271,7 +271,7 @@ export function OpEdEditor({
         {overflow ? (
           <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
             ⚠ Content overflows the page by ~{Math.round((naturalHeight - CONTENT_H_PX) / 96 * 100) / 100}in.
-            It will be clipped on the printed sheet — shrink the photos or trim text.
+            It will be clipped on the printed sheet - shrink the photos or trim text.
           </div>
         ) : null}
 
@@ -437,7 +437,7 @@ function PhotoField({
   onError: (msg: string) => void;
   addLabel?: string;
   /** Pick from the Owned Images library (searchable modal) instead of
-   *  uploading from the desktop — e.g. the author headshot, which must be a
+   *  uploading from the desktop - e.g. the author headshot, which must be a
    *  house photo. */
   fromLibrary?: boolean;
 }) {

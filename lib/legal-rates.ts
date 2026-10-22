@@ -1,9 +1,9 @@
 /**
- * SSP legal-notice rate card (adopted 2026-10-21, effective immediately) —
+ * SSP legal-notice rate card (adopted 2026-10-21, effective immediately) -
  * reverse-engineered from the Aug 5 – Oct 21 2026 billing and memorialized
  * in the "SSP Legal Notice Rates Memo". Client-safe, pure.
  *
- *   Public bodies   words × ($0.085 × weeks + $0.025) — statute-safe
+ *   Public bodies   words × ($0.085 × weeks + $0.025) - statute-safe
  *                   per-word form of the §70-a line rate (circ. 6,000,
  *                   5,000–7,499 band); no processing fee; scanned notarized
  *                   affidavit emailed free.
@@ -11,11 +11,11 @@
  *   LLC/PLLC/LLP    $125 flat per 6-week statutory run.
  *   Liquor license  $125 flat per 2-week run.
  *   Mailed affidavit +$10 for ANY client (a mailing charge) when a physical
- *                   notarized original is requested — the notary checkbox.
+ *                   notarized original is requested - the notary checkbox.
  *
  * Display/scanned exhibits ($500/page/run) and wide-set notices (>~300
  * agate lines, quoted by space) can't be detected from text alone and are
- * quoted by hand — the computed figure is a reference, not an invoice.
+ * quoted by hand - the computed figure is a reference, not an invoice.
  */
 
 export type RateTier = 'public' | 'market' | 'llc' | 'liquor';
@@ -30,7 +30,7 @@ export type RateQuote = {
 // Customer names that mark a public body (§70-a tier).
 const PUBLIC_CUSTOMER_RE =
   /\b(fire district|town of|village of|school district|library district|water district|sewer district|park district|board of education|planning board|zoning board|housing authority)\b/i;
-// Body-text markers safe from false positives — foreclosure notices routinely
+// Body-text markers safe from false positives - foreclosure notices routinely
 // name a town in the property description, so "town of" is customer-only.
 const PUBLIC_BODY_TEXT_RE =
   /\b(fire district|board of fire commissioners|school district|board of education|planning board|zoning board|town board|village board|permissive referendum)\b/i;
@@ -48,7 +48,7 @@ export function quoteLegal(input: {
   header?: string | null;
   body?: string | null;
   customer?: string | null;
-  /** "Notarized copy to be mailed" — adds the $10 mailing charge, any tier. */
+  /** "Notarized copy to be mailed" - adds the $10 mailing charge, any tier. */
   mailedAffidavit?: boolean;
 }): RateQuote | null {
   const withMailing = (q: RateQuote): RateQuote =>
@@ -80,7 +80,7 @@ export function quoteLegal(input: {
     return withMailing({
       amount: round2(words * (0.085 * weeks + 0.025)),
       tier: 'public',
-      basis: `Public body: ${words} words × ($0.085 × ${weeks} wk + $0.025) — statutory rate, no fee, scanned affidavit free`,
+      basis: `Public body: ${words} words × ($0.085 × ${weeks} wk + $0.025) - statutory rate, no fee, scanned affidavit free`,
     });
   }
   const raw = words * 0.19 * weeks + 25;

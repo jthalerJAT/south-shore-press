@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * The one legal record screen — identical fields everywhere a legal is
+ * The one legal record screen - identical fields everywhere a legal is
  * viewed or edited in the Legal Database (filed legals AND Legal Notices
- * library entries): Customer · L# · Legal Header · Legal Copy · Wednesday
- * run dates · auto footer line · notary. Read-only until Edit Legal; fields
- * with nothing on file show blank/—. Preview and Download Customer Draft
+ * library entries): Customer - L# - Legal Header - Legal Copy - Wednesday
+ * run dates - auto footer line - notary. Read-only until Edit Legal; fields
+ * with nothing on file show blank/-. Preview and Download Customer Draft
  * always use the values on screen.
  */
 import { useMemo, useState } from 'react';
@@ -166,7 +166,7 @@ export function LegalRecordView({
         {editing ? (
           <input value={customer} onChange={(e) => setCustomer(e.target.value)} className={inputCls} />
         ) : (
-          <ReadOnlyValue value={customer || '—'} />
+          <ReadOnlyValue value={customer || '-'} />
         )}
       </Field>
 
@@ -179,7 +179,7 @@ export function LegalRecordView({
               className={inputCls}
             />
           ) : (
-            <ReadOnlyValue value={contactName || '—'} />
+            <ReadOnlyValue value={contactName || '-'} />
           )}
         </Field>
         <Field label="Contact email">
@@ -191,7 +191,7 @@ export function LegalRecordView({
               className={inputCls}
             />
           ) : (
-            <ReadOnlyValue value={contactEmail || '—'} />
+            <ReadOnlyValue value={contactEmail || '-'} />
           )}
         </Field>
         <Field label="Contact phone">
@@ -203,7 +203,7 @@ export function LegalRecordView({
               className={inputCls}
             />
           ) : (
-            <ReadOnlyValue value={contactPhone || '—'} />
+            <ReadOnlyValue value={contactPhone || '-'} />
           )}
         </Field>
       </div>
@@ -221,7 +221,7 @@ export function LegalRecordView({
             </p>
           </>
         ) : (
-          <ReadOnlyValue value={lNumber || '—'} mono />
+          <ReadOnlyValue value={lNumber || '-'} mono />
         )}
       </Field>
 
@@ -229,7 +229,7 @@ export function LegalRecordView({
         {editing ? (
           <input value={header} onChange={(e) => setHeader(e.target.value)} className={inputCls} />
         ) : (
-          <ReadOnlyValue value={header || '—'} />
+          <ReadOnlyValue value={header || '-'} />
         )}
       </Field>
 
@@ -248,7 +248,7 @@ export function LegalRecordView({
           </>
         ) : (
           <div className="mt-1 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 whitespace-pre-wrap max-h-96 overflow-y-auto">
-            {body || '—'}
+            {body || '-'}
           </div>
         )}
       </Field>
@@ -273,23 +273,23 @@ export function LegalRecordView({
             />
           </div>
           <p className="mt-1 text-xs text-zinc-400">
-            Currently {startDate ? shortLegalDate(startDate) : '—'} through{' '}
-            {endDate ? shortLegalDate(endDate) : '—'}.
+            Currently {startDate ? shortLegalDate(startDate) : '-'} through{' '}
+            {endDate ? shortLegalDate(endDate) : '-'}.
           </p>
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4 max-w-sm">
           <Field label="Start Date">
-            <ReadOnlyValue value={startDate ? shortLegalDate(startDate) : '—'} />
+            <ReadOnlyValue value={startDate ? shortLegalDate(startDate) : '-'} />
           </Field>
           <Field label="End Date">
-            <ReadOnlyValue value={endDate ? shortLegalDate(endDate) : '—'} />
+            <ReadOnlyValue value={endDate ? shortLegalDate(endDate) : '-'} />
           </Field>
         </div>
       )}
 
       <Field label="To be included at the end of the legal:">
-        <ReadOnlyValue value={footerLine || '—'} mono />
+        <ReadOnlyValue value={footerLine || '-'} mono />
       </Field>
 
       {editing ? (
@@ -397,7 +397,7 @@ export function LegalRecordView({
           <div className="bg-white rounded-lg shadow-xl p-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold text-zinc-900">
-                Preview — how the legal will appear in the paper
+                Preview - how the legal will appear in the paper
               </h3>
               <button
                 type="button"

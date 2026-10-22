@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * /portal "Story Editor" — drafts-only view per the v1 spec. Both
+ * /portal "Story Editor" - drafts-only view per the v1 spec. Both
  * journalists and editors see their own work-in-progress drafts here.
  * Once a story leaves draft (submitted → published), it disappears
  * from this list; editors can find anything via /portal/all.
@@ -25,7 +25,7 @@ export default async function PortalMyDraftsPage({
 }) {
   const user = await requireUser('/portal');
   // Editors/admins manage every story; a journalist sees only their own
-  // (all statuses). Same table either way — just a different row set.
+  // (all statuses). Same table either way - just a different row set.
   const isEditor = canManageAllStories(user.role);
   const stories = isEditor
     ? await getAllStoriesForEditor()

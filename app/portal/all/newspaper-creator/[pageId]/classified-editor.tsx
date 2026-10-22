@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * ClassifiedEditor — editor for a `classifieds` template page (printed p22
+ * ClassifiedEditor - editor for a `classifieds` template page (printed p22
  * format). "+ Add Classified" accepts the PDF an advertiser sends (ad artwork
  * centered on a blank page) via drag-drop or file picker: the artwork is
  * cropped out of the PDF client-side (pdf.js render → white-margin trim) and
@@ -158,7 +158,7 @@ export function ClassifiedEditor({
     router.refresh();
   }
 
-  // Auto-fit means nothing ever clips — instead warn when a column had to
+  // Auto-fit means nothing ever clips - instead warn when a column had to
   // shrink its ads substantially (they may print smaller than intended).
   useEffect(() => {
     const t = setTimeout(() => {
@@ -178,7 +178,7 @@ export function ClassifiedEditor({
       {/* ── Controls ───────────────────────────────────────── */}
       <div className="max-w-xl space-y-5">
         <p className="text-sm text-zinc-600">
-          Drop the ad PDFs advertisers send (artwork centered on a blank page) — the artwork is
+          Drop the ad PDFs advertisers send (artwork centered on a blank page) - the artwork is
           cropped out automatically and stacked in two columns. The first ad in a column sits flush
           to the top and the last flush to the bottom; the spacing between is created automatically
           to preserve that alignment. Images (JPG/PNG) work too.
@@ -267,7 +267,7 @@ export function ClassifiedEditor({
           </summary>
           <div className="mt-3 space-y-3">
             <p className="text-xs text-zinc-500">
-              Fills the whole page with one uploaded file — only used when no individual ads are
+              Fills the whole page with one uploaded file - only used when no individual ads are
               placed above.
             </p>
             <select
@@ -279,13 +279,13 @@ export function ClassifiedEditor({
               {options.map((o) => (
                 <option key={o.id} value={o.id}>
                   {o.dateLabel}
-                  {o.fileName ? ` — ${o.fileName}` : ''}
+                  {o.fileName ? ` - ${o.fileName}` : ''}
                 </option>
               ))}
             </select>
             {options.length === 0 ? (
               <p className="text-[11px] text-zinc-400">
-                No classifieds uploaded yet — add one in{' '}
+                No classifieds uploaded yet - add one in{' '}
                 <Link href="/portal/all/classifieds" className="text-brand-red hover:underline">
                   Classified Upload
                 </Link>
@@ -347,7 +347,7 @@ export function ClassifiedEditor({
         {overflowing ? (
           <div className="mt-2 text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded px-3 py-2">
             ⚠ A column&rsquo;s ads were shrunk quite small to fit the page. Everything still prints
-            in full — but consider moving an ad to the other column or the next classifieds page so
+            in full - but consider moving an ad to the other column or the next classifieds page so
             they run larger.
           </div>
         ) : null}

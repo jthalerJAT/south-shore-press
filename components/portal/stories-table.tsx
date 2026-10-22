@@ -68,14 +68,14 @@ export function StoriesTable({ stories, showAuthor = false, emptyMessage }: Prop
                 ) : null}
               </td>
               <td className="px-4 py-3 text-zinc-600">
-                {s.categories?.[0] ?? '—'}
+                {s.categories?.[0] ?? '-'}
               </td>
               <td className="px-4 py-3">
                 <StatusBadge status={s.status} />
               </td>
               {showAuthor ? (
                 <td className="px-4 py-3 text-zinc-600">
-                  {s.author?.display_name ?? '—'}
+                  {s.author?.display_name ?? '-'}
                 </td>
               ) : null}
               <td className="px-4 py-3 text-zinc-500 text-xs">
@@ -101,12 +101,12 @@ export function StoriesTable({ stories, showAuthor = false, emptyMessage }: Prop
                 <StatusBadge status={s.status} />
               </div>
               <div className="mt-1 text-xs text-zinc-500 flex items-center gap-2 flex-wrap">
-                <span>{s.categories?.[0] ?? '—'}</span>
-                <span aria-hidden="true">·</span>
+                <span>{s.categories?.[0] ?? '-'}</span>
+                <span aria-hidden="true"> - </span>
                 {showAuthor && s.author?.display_name ? (
                   <>
                     <span>{s.author.display_name}</span>
-                    <span aria-hidden="true">·</span>
+                    <span aria-hidden="true"> - </span>
                   </>
                 ) : null}
                 <time>{formatDate(s.published_at ?? s.created_at)}</time>
@@ -120,7 +120,7 @@ export function StoriesTable({ stories, showAuthor = false, emptyMessage }: Prop
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return '—';
+  if (!iso) return '-';
   const d = new Date(iso);
   return d.toLocaleDateString('en-US', {
     month: 'short',

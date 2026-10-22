@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * AdPicker — the "+ Upload Ad" destination for a full-page-ad page. Left: the
+ * AdPicker - the "+ Upload Ad" destination for a full-page-ad page. Left: the
  * Ad Database as accounts → copy files (drag a copy or click to place). Right:
  * a drop-zone where the editor can drag a copy from the list OR drop / upload
  * a file from their PC. Either action designates the page's creative and
@@ -149,7 +149,7 @@ export function AdPicker({
                             {a.copy_file_name || 'Copy file'}
                           </div>
                           <div className="text-[11px] text-zinc-500">
-                            {adSizeLabel(a.copy_size)} · {fmtAdDate(a.created_at)}
+                            {adSizeLabel(a.copy_size)} - {fmtAdDate(a.created_at)}
                           </div>
                         </li>
                       ))}

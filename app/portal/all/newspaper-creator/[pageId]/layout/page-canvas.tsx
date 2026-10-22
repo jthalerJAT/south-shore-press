@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PageCanvas — the to-scale 11×15 tabloid surface. Everything inside is laid
+ * PageCanvas - the to-scale 11×15 tabloid surface. Everything inside is laid
  * out in unscaled print px; the surface is CSS-`scale()`d for zoom, and a
  * spacer sized to the scaled surface keeps scrollbars honest. A dashed red line
  * marks the true page bottom so overflow past the printable area is visible.

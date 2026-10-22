@@ -146,7 +146,7 @@ export async function updateAccount(id: string, input: AccountInput): Promise<Re
   return { ok: true };
 }
 
-/** Permanently delete accounts by id (multi-select / select-all). Hard delete —
+/** Permanently delete accounts by id (multi-select / select-all). Hard delete -
  *  used mainly to clear stale weekly mailers. */
 export async function deleteAccounts(ids: string[]): Promise<Result & { deleted?: number }> {
   await requireRole([...ADMIN_ROLES], BASE);
@@ -175,8 +175,8 @@ export async function deleteAccounts(ids: string[]): Promise<Result & { deleted?
 /* ------------------------------------------------------------------ *
  *  Account import (Phase 3). The client parses the Excel/CSV and posts
  *  normalized rows in chunks; the server clears (optional) and bulk-inserts
- *  them. Every row carries its own account_type so any cohort — the weekly
- *  mailer list, existing paid subscribers, free-physical, etc. — can be
+ *  them. Every row carries its own account_type so any cohort - the weekly
+ *  mailer list, existing paid subscribers, free-physical, etc. - can be
  *  brought in with the correct type.
  * ------------------------------------------------------------------ */
 
@@ -208,7 +208,7 @@ function toMoney(v: string | undefined): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-/** Permanently delete every account of the given type(s) — the "Replace all"
+/** Permanently delete every account of the given type(s) - the "Replace all"
  *  import mode (e.g. the weekly mailer list changes wholesale). Other types
  *  are untouched. */
 export async function clearAccountsByType(

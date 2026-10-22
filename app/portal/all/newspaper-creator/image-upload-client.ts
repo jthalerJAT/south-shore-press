@@ -18,7 +18,7 @@ export async function uploadImage(
     .from(NEWSPAPER_IMAGES_BUCKET)
     .uploadToSignedUrl(signed.path, signed.token, file, { contentType: file.type });
   if (error) return { ok: false, error: `Upload failed: ${error.message}` };
-  // Index it in the Owned Images library (best-effort — never block the upload).
+  // Index it in the Owned Images library (best-effort - never block the upload).
   recordOwnedImage(signed.path, file.name).catch(() => {});
   return { ok: true, url: imagePublicUrl(signed.path), fileName: file.name };
 }

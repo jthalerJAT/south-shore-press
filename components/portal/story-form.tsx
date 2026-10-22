@@ -67,7 +67,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
   const [state, formAction] = useFormState(action, { error: null });
 
   const status = defaults?.status ?? 'draft';
-  // 'master admin' is treated as an editor-tier role too — see
+  // 'master admin' is treated as an editor-tier role too - see
   // canManageAllStories in lib/auth.ts. Anyone NOT in that set is a
   // journalist (or an unknown role, which we treat as journalist).
   const isEditor =
@@ -79,7 +79,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
   // also rejects the write).
   const disabled = !canEdit;
 
-  // Backdate control (editor-tier only) — for cherry-picked archive content
+  // Backdate control (editor-tier only) - for cherry-picked archive content
   // that should sort/display with its original date instead of "today".
   const [showBackdate, setShowBackdate] = useState(false);
   const existingDate = defaults?.published_at ? defaults.published_at.slice(0, 10) : '';
@@ -194,7 +194,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         </div>
       </Field>
 
-      {/* Print Edition Only — saves the story and keeps it in every editor
+      {/* Print Edition Only - saves the story and keeps it in every editor
           list + the Newspaper Creator story bank, but excludes it from the
           public website entirely. */}
       <Field
@@ -273,7 +273,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         />
       </Field>
 
-      {/* Photo caption + credit — both optional */}
+      {/* Photo caption + credit - both optional */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
         <Field label="Photo caption" htmlFor="photo_caption" hint="Optional. Shown under the hero photo.">
           <input
@@ -309,7 +309,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
         />
       </Field>
 
-      {/* Extra photos — dynamic list of URL inputs. Optional, unlimited. */}
+      {/* Extra photos - dynamic list of URL inputs. Optional, unlimited. */}
       <Field
         label="Additional photos"
         hint="Optional. Click + Add another photo to add more URLs."
@@ -336,7 +336,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
             <div className="rounded border border-amber-200 bg-amber-50/60 p-3">
               <label htmlFor="published_at_override" className="block text-sm font-medium text-zinc-800">
                 Publish date{' '}
-                <span className="font-normal text-zinc-500">— sets the date this article sorts &amp; displays by</span>
+                <span className="font-normal text-zinc-500">- sets the date this article sorts &amp; displays by</span>
               </label>
               <div className="mt-1 flex items-center gap-3">
                 <input
@@ -352,7 +352,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
                   onClick={() => setShowBackdate(false)}
                   className="text-xs text-zinc-500 hover:text-zinc-800"
                 >
-                  Cancel — use today
+                  Cancel - use today
                 </button>
               </div>
               <p className="mt-1.5 text-xs text-zinc-500">
@@ -370,7 +370,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
             {status === 'draft' || mode === 'create' ? 'Save Draft' : 'Save Changes'}
           </SubmitBtn>
 
-          {/* Publish — available to editors AND journalists (journalists for
+          {/* Publish - available to editors AND journalists (journalists for
               their own stories only; the form is disabled otherwise). Covers
               first-publish AND re-publish of an unpublished story. */}
           {status !== 'published' ? (
@@ -394,7 +394,7 @@ export function StoryForm({ mode, role, defaults, flash, canEdit }: Props) {
           ) : null}
 
           {/* Delete on edit mode only. Uses `formAction` to override the
-              parent form's action with the delete server action — keeps
+              parent form's action with the delete server action - keeps
               the markup as a single form (no invalid nesting). */}
           {mode === 'edit' && defaults?.id ? (
             <div className="ml-auto">
@@ -530,7 +530,7 @@ function ExtraPhotosField({
   disabled: boolean;
 }) {
   // Start with the pre-filled URLs, or a single empty row if none.
-  // Empty rows are valid — they get dropped on submit.
+  // Empty rows are valid - they get dropped on submit.
   const [rows, setRows] = useState<string[]>(
     defaultUrls.length > 0 ? defaultUrls : ['']
   );

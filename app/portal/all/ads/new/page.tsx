@@ -4,7 +4,7 @@ import { PortalShell } from '@/components/portal/portal-shell';
 import { ClientForm } from '../client-form';
 
 export const metadata: Metadata = {
-  title: 'Add New Client · Ad Database',
+  title: 'Add New Client - Ad Database',
   robots: { index: false, follow: false },
 };
 

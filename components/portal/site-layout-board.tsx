@@ -60,7 +60,7 @@ const HOMEPAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   {
     key: 'home.video-vault',
     title: 'Video Vault Rail',
-    description: '4 cards — first section under the hero',
+    description: '4 cards - first section under the hero',
     count: 4,
   },
   { key: 'home.local', title: 'Local Rail', count: 4 },
@@ -76,13 +76,13 @@ const HOMEPAGE_GROUPS: ReadonlyArray<SlotGroup> = [
 const SPORTS_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   {
     key: 'section.sports.recent',
-    title: 'Sports Page — Recent Stories Rail',
+    title: 'Sports Page - Recent Stories Rail',
     description: '10 headlines in the right-side rail on /sports',
     count: 10,
   },
   ...SPORTS_SUBCATEGORIES.map((sub) => ({
     key: `section.sports.${sub.slug}`,
-    title: `Sports Page — ${sub.label} Block`,
+    title: `Sports Page - ${sub.label} Block`,
     description: `6 stories shown 3x2 in the ${sub.label} block on /sports`,
     count: 6,
   })),
@@ -93,13 +93,13 @@ const SPORTS_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
 const LOCAL_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   {
     key: 'section.local.recent',
-    title: 'Local Page — Top Stories Rail',
+    title: 'Local Page - Top Stories Rail',
     description: '10 headlines in the right-side rail on /local',
     count: 10,
   },
   {
     key: 'section.local.top',
-    title: 'Local Page — Main Tiles',
+    title: 'Local Page - Main Tiles',
     description: '15 stories shown 3×5 in the main grid on /local',
     count: 15,
   },
@@ -109,7 +109,7 @@ const LOCAL_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
 const OPINION_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   {
     key: 'section.opinion.recent',
-    title: 'Opinion Page — Top Stories Rail',
+    title: 'Opinion Page - Top Stories Rail',
     description: '10 headlines in the right-side rail on /opinion',
     count: 10,
   },
@@ -119,7 +119,7 @@ const OPINION_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
 const BUSINESS_PAGE_GROUPS: ReadonlyArray<SlotGroup> = [
   {
     key: 'section.business.recent',
-    title: 'Business Page — Top Stories Rail',
+    title: 'Business Page - Top Stories Rail',
     description: '10 headlines in the right-side rail on /business',
     count: 10,
   },
@@ -137,13 +137,13 @@ const STATE_NATION_WORLD_GROUPS: ReadonlyArray<SlotGroup> = STATE_NATION_WORLD.f
   ({ slug, label }) => [
     {
       key: `section.${slug}.recent`,
-      title: `${label} Page — Top Stories Rail`,
+      title: `${label} Page - Top Stories Rail`,
       description: `10 headlines in the right-side rail on /${slug}`,
       count: 10,
     },
     {
       key: `section.${slug}.top`,
-      title: `${label} Page — Main Tiles`,
+      title: `${label} Page - Main Tiles`,
       description: `9 stories shown 3×3 in the main grid on /${slug}`,
       count: 9,
     },
@@ -342,7 +342,7 @@ export function SiteLayoutBoard({
                 ))}
               </select>
               <div className="text-[11px] text-zinc-500">
-                {visibleStories.length} published — drag any story onto a slot
+                {visibleStories.length} published - drag any story onto a slot
               </div>
             </div>
             <ul className="divide-y divide-zinc-100">
@@ -385,7 +385,7 @@ export function SiteLayoutBoard({
         </div>
       </div>
 
-      {/* Drag overlay — the floating "ghost" chip that follows the cursor */}
+      {/* Drag overlay - the floating "ghost" chip that follows the cursor */}
       <DragOverlay>
         {dragStory ? <StoryChipPresentation story={dragStory} dragging /> : null}
       </DragOverlay>
@@ -493,8 +493,8 @@ function SlotDropTarget({
             {story.headline}
           </div>
           <div className="mt-1 text-[10px] text-zinc-500 line-clamp-1">
-            {(story.categories ?? []).join(', ') || '—'}
-            {story.byline ? ` · ${story.byline}` : ''}
+            {(story.categories ?? []).join(', ') || '-'}
+            {story.byline ? ` - ${story.byline}` : ''}
           </div>
           <button
             type="button"
@@ -535,8 +535,8 @@ function StoryChipDraggable({ story }: { story: EditorStoryRow }) {
           {story.headline}
         </div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-          {(story.categories ?? []).join(', ') || '—'}
-          {story.byline ? ` · ${story.byline}` : ''}
+          {(story.categories ?? []).join(', ') || '-'}
+          {story.byline ? ` - ${story.byline}` : ''}
         </div>
       </div>
     </li>
@@ -565,8 +565,8 @@ function StoryChipPresentation({
           {story.headline}
         </div>
         <div className="mt-0.5 text-[11px] text-zinc-500 truncate">
-          {(story.categories ?? []).join(', ') || '—'}
-          {story.byline ? ` · ${story.byline}` : ''}
+          {(story.categories ?? []).join(', ') || '-'}
+          {story.byline ? ` - ${story.byline}` : ''}
         </div>
       </div>
     </div>

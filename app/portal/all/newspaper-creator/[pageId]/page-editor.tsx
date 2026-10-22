@@ -25,7 +25,7 @@ type EditorItem = {
   slot_key: string | null;
   source_story_id: string | null;
   data: Record<string, any>;
-  /** Saved Edit Page Layout geometry — kept on save and used by the preview
+  /** Saved Edit Page Layout geometry - kept on save and used by the preview
    *  so it matches the printed page. Undefined = default layout. */
   layout?: Record<string, unknown>;
 };
@@ -64,7 +64,7 @@ export function PageEditor({
   editorStories: EditorStoryRow[];
   /** Ad Database rows for the per-ad "Choose from Ad Database" picker. */
   ads?: Ad[];
-  /** Ordinal + issue date for the running PageHeader — the preview must render
+  /** Ordinal + issue date for the running PageHeader - the preview must render
    *  it so the fit measurement matches the real proof. */
   pageNumber?: number;
   dateLabel?: string;
@@ -102,12 +102,12 @@ export function PageEditor({
     if (!el) return;
     // scrollHeight, not offsetHeight: the page box is now a FIXED-height flex
     // column (so corner ads can pin to the page bottom), so offsetHeight can
-    // never exceed the page — overflowing bands show up in scrollHeight.
+    // never exceed the page - overflowing bands show up in scrollHeight.
     const update = () => setNaturalHeight(Math.max(el.scrollHeight, el.offsetHeight));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    // ResizeObserver only fires when the BOX size changes — and the box is
+    // ResizeObserver only fires when the BOX size changes - and the box is
     // fixed now, so content changes (photo/spacing sliders reflowing bands)
     // never trigger it. Watch the subtree instead: any DOM change re-measures.
     const mo = new MutationObserver(update);
@@ -161,7 +161,7 @@ export function PageEditor({
       prev.map((it) => {
         if (it.localId !== localId) return it;
         // A photo added to a story whose saved layout has none would stay
-        // hidden — drop that layout so the default photo placement applies.
+        // hidden - drop that layout so the default photo placement applies.
         const addsPhoto =
           Boolean(partial.hero_photo_url) && !it.data.hero_photo_url && it.layout?.photo === null;
         return { ...it, data: { ...it.data, ...partial }, ...(addsPhoto ? { layout: undefined } : {}) };
@@ -284,7 +284,7 @@ export function PageEditor({
 
       <div className="mt-6">
         <label htmlFor="section_name" className="block text-sm font-medium text-zinc-700">
-          Section Name <span className="text-zinc-400 font-normal">(optional — flagged at the top-left of the first story)</span>
+          Section Name <span className="text-zinc-400 font-normal">(optional - flagged at the top-left of the first story)</span>
         </label>
         <input
           id="section_name"
@@ -420,10 +420,10 @@ export function PageEditor({
             {overflow ? (
               <>
                 ⚠ Content overflows the page by ~{Math.round((naturalHeight - CONTENT_H_PX) / 96 * 100) / 100}in.
-                It will be clipped on the printed sheet —{' '}
+                It will be clipped on the printed sheet -{' '}
               </>
             ) : (
-              <>⚠ Not all of the text fits on this page — the end of the article is being trimmed at the page edge. </>
+              <>⚠ Not all of the text fits on this page - the end of the article is being trimmed at the page edge. </>
             )}
             shrink photos, tighten spacing, reduce columns, or trim the text (the Adjust-to-fit and
             sliders above apply to the whole page).
@@ -525,7 +525,7 @@ function SlotSelect({
       onChange={(e) => onChange(e.target.value)}
       className="rounded border border-zinc-300 px-2 py-1 text-xs focus:border-brand-red focus:outline-none"
     >
-      <option value="">— Tile —</option>
+      <option value="">- Tile -</option>
       {slots.map((s) => (
         <option key={s.key} value={s.key}>{s.label}</option>
       ))}

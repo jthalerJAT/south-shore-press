@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FullAdEditor — the bespoke editor for a full-page-ad template page. Left: the
+ * FullAdEditor - the bespoke editor for a full-page-ad template page. Left: the
  * ad-creator fields (business / contact / copy file / copy size), each editable
  * as an independent snapshot, plus a top "+ Upload Ad" button that opens the ad
  * picker. Right: a live to-scale FullPageAd preview. Save persists template_data
@@ -23,7 +23,7 @@ import { saveFullAd, requestAdUploadUrl } from '../actions';
 const PREVIEW_SCALE = 0.4;
 const NEWSPAPER_ADS_BUCKET = 'newspaper-ads';
 
-/** One placeable copy file (client fields joined) — see lib/queries/ads. */
+/** One placeable copy file (client fields joined) - see lib/queries/ads. */
 export type AdOption = Ad;
 
 export function FullAdEditor({
@@ -44,10 +44,10 @@ export function FullAdEditor({
 
   // Picker: place a client's copy from the Ad Database. Fills every field
   // (business, contacts, copy file, copy size) into the form as an unsaved
-  // draft — the editor reviews the preview and hits Save Page to commit.
+  // draft - the editor reviews the preview and hits Save Page to commit.
   function placeFromDatabase(ad: Ad) {
     if (!ad.copy_storage_path) {
-      setError(`"${ad.business_name}" has no copy uploaded yet — add the file on its page in the Ad Database first.`);
+      setError(`"${ad.business_name}" has no copy uploaded yet - add the file on its page in the Ad Database first.`);
       return;
     }
     setError(null);
@@ -124,7 +124,7 @@ export function FullAdEditor({
         <div>
           <AdCopyPicker ads={ads} onPick={placeFromDatabase} />
           <p className="mt-1 text-[11px] text-zinc-400">
-            Fills the fields below from the Ad Database — review the preview, then Save Page.
+            Fills the fields below from the Ad Database - review the preview, then Save Page.
           </p>
         </div>
 

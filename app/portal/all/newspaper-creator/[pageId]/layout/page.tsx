@@ -10,7 +10,7 @@ import { PagePager } from '@/components/portal/page-pager';
 import { EditLockBoundary } from '@/components/portal/edit-lock';
 
 export const metadata: Metadata = {
-  title: 'Page layout · Newspaper Creator',
+  title: 'Page layout - Newspaper Creator',
   robots: { index: false, follow: false },
 };
 
@@ -59,7 +59,7 @@ export default async function NewspaperLayoutPage({
       user={user}
       activeTab="all"
       hideTabs
-      title={`Layout — ${displayTitle}`}
+      title={`Layout - ${displayTitle}`}
       backLink={{ href: `/portal/all/newspaper-creator/${page.id}`, label: 'Page content' }}
       headerRight={
         // Flipping through the deck stays in the layout editor.

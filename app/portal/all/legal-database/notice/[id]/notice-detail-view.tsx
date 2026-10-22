@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * A Legal Notices LIBRARY entry on the shared legal record screen — same
+ * A Legal Notices LIBRARY entry on the shared legal record screen - same
  * fields as a filed legal. The L# and run dates are parsed out of the stored
  * print copy where possible; fields with nothing on file start blank.
  * Saving with Customer + L# + run dates all filled promotes the notice to a
@@ -30,7 +30,7 @@ export function NoticeDetailView({ notice }: { notice: LegalNotice }) {
         affidavit: false,
         notary: false,
       }}
-      note="This legal lives in the Legal Notices library the newspaper creator places from. Blank fields aren't on file for it — fill in the Customer (and dates, if missing) and save to file it as a full legal record."
+      note="This legal lives in the Legal Notices library the newspaper creator places from. Blank fields aren't on file for it - fill in the Customer (and dates, if missing) and save to file it as a full legal record."
       onSave={async (v) => {
         const res = await saveLibraryNotice({
           id: notice.id,

@@ -1,8 +1,8 @@
 'use client';
 
 /**
- * LegalEditor — editor for a Legal Notices template page. "+ Add New Legal"
- * places a notice either from the Legal Notices DATABASE (saved copy — NY
+ * LegalEditor - editor for a Legal Notices template page. "+ Add New Legal"
+ * places a notice either from the Legal Notices DATABASE (saved copy - NY
  * publication notices run six consecutive weeks, so re-picking is the normal
  * workflow) or from pasted copy, which is saved to the database automatically
  * so next week's page can re-pick it. Right: a live to-scale LegalPage preview
@@ -114,7 +114,7 @@ export function LegalEditor({
       setError(res.error ?? 'Could not save the notice.');
       return;
     }
-    // It's in the database now — future pages can re-pick it.
+    // It's in the database now - future pages can re-pick it.
     setNotices((prev) => [
       { id: res.id!, label: legalNoticeLabel(body), header, body, created_at: new Date().toISOString() },
       ...prev,
@@ -139,7 +139,7 @@ export function LegalEditor({
   }
 
   // Overflow check: with a fixed page height, CSS multicol pushes excess copy
-  // into clipped extra columns off the right edge — detect and warn.
+  // into clipped extra columns off the right edge - detect and warn.
   useEffect(() => {
     const t = setTimeout(() => {
       const el = previewRef.current?.querySelector('[data-legal-columns]');
@@ -154,7 +154,7 @@ export function LegalEditor({
       <div className="max-w-xl space-y-5">
         <p className="text-sm text-zinc-600">
           Legal notices flow into {data.columns ?? LEGAL_PAGE_COLUMNS} dense columns under the LEGAL NOTICES banner,
-          exactly like the printed page. Add copy with <strong>+ Add New Legal</strong> — pasted
+          exactly like the printed page. Add copy with <strong>+ Add New Legal</strong> - pasted
           copy is saved to the Legal Notices database so it can be re-picked in future issues
           (publication notices typically run six consecutive weeks).
         </p>
@@ -173,7 +173,7 @@ export function LegalEditor({
             <span className="font-semibold text-zinc-900">Include Half Page SSP Ad</span>
             <span className="block text-xs text-zinc-500 mt-0.5">
               Fills the bottom half of the page with the navy &ldquo;publish your legal notice in the
-              South Shore Press&rdquo; house ad — for light weeks. Notices flow in the top half only.
+              South Shore Press&rdquo; house ad - for light weeks. Notices flow in the top half only.
             </span>
           </span>
         </label>
@@ -205,7 +205,7 @@ export function LegalEditor({
                 <option value="">Choose a saved notice…</option>
                 {notices.map((n) => (
                   <option key={n.id} value={n.id}>
-                    {n.label} — {new Date(n.created_at).toLocaleDateString()}
+                    {n.label} - {new Date(n.created_at).toLocaleDateString()}
                   </option>
                 ))}
               </select>
@@ -221,7 +221,7 @@ export function LegalEditor({
                 className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
               />
               <p className="mt-1 text-[11px] text-zinc-400">
-                The centered title printed above this notice — e.g. PUBLIC NOTICE or Attorney.
+                The centered title printed above this notice - e.g. PUBLIC NOTICE or Attorney.
               </p>
               <label className="block text-sm font-medium text-zinc-700 mb-1 mt-3">Paste new copy</label>
               <textarea
@@ -250,7 +250,7 @@ export function LegalEditor({
               <div key={n.id} className="rounded-lg border border-zinc-200 bg-white p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-                    Notice {i + 1} — {(n.header?.trim() || DEFAULT_LEGAL_HEADER).toUpperCase()}
+                    Notice {i + 1} - {(n.header?.trim() || DEFAULT_LEGAL_HEADER).toUpperCase()}
                   </span>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={() => move(n.id, -1)} disabled={i === 0} className="text-xs text-zinc-500 hover:text-zinc-800 disabled:opacity-30">↑</button>
@@ -280,7 +280,7 @@ export function LegalEditor({
                   />
                   Cancelled
                   <span className="font-normal text-zinc-400">
-                    — still runs, but prints with a diagonal CANCELLED stamp
+                    - still runs, but prints with a diagonal CANCELLED stamp
                   </span>
                 </label>
               </div>
@@ -326,7 +326,7 @@ export function LegalEditor({
         </div>
         {overflowing ? (
           <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
-            ⚠ Too much copy for this page — the overflow is clipped on print. Move the last
+            ⚠ Too much copy for this page - the overflow is clipped on print. Move the last
             notice(s) to the second Legal Notices page.
           </div>
         ) : null}

@@ -1,6 +1,6 @@
 'use client';
 
-/** "Preview Legal" on the admin read-only view — same renderer the customer
+/** "Preview Legal" on the admin read-only view - same renderer the customer
  *  saw when submitting. */
 import { useState } from 'react';
 import { CONTENT_W_PX, CONTENT_H_PX } from '@/lib/newspaper/layout-engine';

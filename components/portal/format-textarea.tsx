@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * FormatTextarea — WYSIWYG body editor (publisher direction 2026-10-19, v2:
+ * FormatTextarea - WYSIWYG body editor (publisher direction 2026-10-19, v2:
  * "the text inside the box should just be bolded/underlined, not asterisks").
  *
  * The box is a contentEditable surface showing real bold / underline /
@@ -14,7 +14,7 @@
  *
  * Toolbar B / U / I (and native Ctrl+B / Ctrl+U / Ctrl+I) format the
  * highlighted text; the Size dropdown applies a point size. Pasting inserts
- * PLAIN TEXT on purpose — Word/Docs formatting must not smuggle arbitrary
+ * PLAIN TEXT on purpose - Word/Docs formatting must not smuggle arbitrary
  * styling into the paper.
  *
  * Works controlled (value + onChange) or uncontrolled (defaultValue + name:
@@ -32,7 +32,7 @@ const SIZE_CHOICES = [18, 20, 22, 24, 28] as const;
 
 /** Render marker text into the editable surface: one <div> per paragraph
  *  (blank-line separated), styled spans for markers, state carried across
- *  paragraphs — the exact model the site and print renderers use. */
+ *  paragraphs - the exact model the site and print renderers use. */
 function renderMarkersInto(root: HTMLElement, text: string): void {
   root.textContent = '';
   const paras = text
@@ -84,7 +84,7 @@ function elementFmt(el: HTMLElement, inh: Fmt): Fmt {
 }
 
 /** Serialize the editable surface back to marker text. Each top-level block
- *  (div/p — one per line in contentEditable) becomes a paragraph; blocks with
+ *  (div/p - one per line in contentEditable) becomes a paragraph; blocks with
  *  no visible text are blank lines and emit nothing. Marker-toggle state is
  *  threaded across paragraphs, matching how the renderers consume it. */
 function serializeToMarkers(root: HTMLElement): string {
@@ -120,7 +120,7 @@ function serializeToMarkers(root: HTMLElement): string {
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as HTMLElement;
     if (el.tagName === 'BR') {
-      // Mid-paragraph line break (Shift+Enter) — our model has none; a space
+      // Mid-paragraph line break (Shift+Enter) - our model has none; a space
       // keeps the words apart. A placeholder <br> in a blank line adds
       // nothing visible and gets trimmed below.
       buf.s += ' ';
@@ -139,7 +139,7 @@ function serializeToMarkers(root: HTMLElement): string {
     if (text) {
       paras.push(text);
     } else {
-      // Blank line — nothing emitted; undo any marker toggles whitespace-only
+      // Blank line - nothing emitted; undo any marker toggles whitespace-only
       // content may have produced so state stays consistent.
       cur = snapshot;
     }
@@ -179,7 +179,7 @@ export function FormatTextarea({
   const [serialized, setSerialized] = useState(value ?? defaultValue ?? '');
 
   // Initial render + external changes (e.g. the AI revise flow replacing the
-  // body). While the user types, the DOM is the source of truth — only
+  // body). While the user types, the DOM is the source of truth - only
   // re-render when the incoming value is something we didn't just emit.
   useEffect(() => {
     const el = boxRef.current;
@@ -248,11 +248,11 @@ export function FormatTextarea({
   }
 
   function onPaste(e: React.ClipboardEvent) {
-    // Plain text only — outside formatting must not ride into the paper.
+    // Plain text only - outside formatting must not ride into the paper.
     e.preventDefault();
     const text = e.clipboardData.getData('text/plain');
     // Every line break in the pasted copy becomes a PARAGRAPH. Pasting it as
-    // one string lets the browser insert <br>s, which serialize to spaces —
+    // one string lets the browser insert <br>s, which serialize to spaces -
     // a story pasted from Word would arrive as a single wall of text.
     const paras = text.split(/\r?\n+/).map((p) => p.trim()).filter(Boolean);
     paras.forEach((p, i) => {
@@ -301,7 +301,7 @@ export function FormatTextarea({
           ))}
         </select>
         <span className="text-[11px] text-zinc-400">
-          Highlight text, then apply — it formats right here and publishes the same way.
+          Highlight text, then apply - it formats right here and publishes the same way.
         </span>
       </div>
       <div className="relative">

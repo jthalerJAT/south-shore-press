@@ -35,7 +35,7 @@ export default async function EmailBriefingsAdminPage({
       ) : null}
       {searchParams.cc === 'error' ? (
         <div role="alert" className="mb-5 text-sm text-red-700 bg-red-50 border border-red-200 rounded px-4 py-3">
-          Couldn’t connect — check the app credentials + redirect URI and try again.
+          Couldn’t connect - check the app credentials + redirect URI and try again.
         </div>
       ) : null}
 
@@ -85,7 +85,7 @@ export default async function EmailBriefingsAdminPage({
             </p>
           ) : (
             <p className="mt-4 text-sm text-zinc-600">
-              Credentials are set but the account isn’t authorized yet — click Connect and approve on Constant Contact.
+              Credentials are set but the account isn’t authorized yet - click Connect and approve on Constant Contact.
             </p>
           )}
         </div>
@@ -93,7 +93,7 @@ export default async function EmailBriefingsAdminPage({
         <div className="text-sm text-zinc-600">
           <h3 className="font-semibold text-zinc-800">When do I need to reconnect?</h3>
           <p className="mt-1">
-            Almost never — the connection refreshes its own token automatically. You only need to reconnect if:
+            Almost never - the connection refreshes its own token automatically. You only need to reconnect if:
           </p>
           <ul className="mt-2 list-disc pl-5 space-y-1">
             <li>Sign-ups stop reaching Constant Contact (the access was revoked or expired after long inactivity).</li>

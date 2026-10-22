@@ -6,7 +6,7 @@ import { getAdClient } from '@/lib/queries/ad-clients';
 import { ClientDetail } from './client-detail';
 
 export const metadata: Metadata = {
-  title: 'Client · Ad Database',
+  title: 'Client - Ad Database',
   robots: { index: false, follow: false },
 };
 

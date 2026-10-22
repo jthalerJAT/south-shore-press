@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-/** Pull the L# out of a library notice's print text — the footer line puts
+/** Pull the L# out of a library notice's print text - the footer line puts
  *  it last ("… L40001 8/5/26, 8/12/26"), so take the LAST match. */
 function parseLNumber(body: string): string | null {
   const matches = body.match(/\bL\d{5,}\b/g);
@@ -38,7 +38,7 @@ export default async function LegalDatabasePage() {
   );
 
   // A legal that ran several weeks was saved into the library once per issue
-  // — same L#, several rows. The database shows ONE file per L#: the newest
+  // - same L#, several rows. The database shows ONE file per L#: the newest
   // library copy wins. Notices without a detectable L# dedupe on their text.
   const libraryByKey = new Map<string, (typeof notices)[number]>();
   for (const n of notices) {
@@ -51,7 +51,7 @@ export default async function LegalDatabasePage() {
   }
 
   // Rate-card reference quote (adopted 10/21/2026) for every legal, historic
-  // included — computed from each legal's own words and run count, so no
+  // included - computed from each legal's own words and run count, so no
   // backfill is needed. Rows missing a run count show no quote.
   const rows: LegalRow[] = [
     ...legals.map((l) => ({

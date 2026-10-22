@@ -2,7 +2,7 @@
 
 /**
  * New-client form: contact details plus optional initial uploads. Uploading a
- * copy file prompts for its Copy Size (full / half / third / quarter) — the
+ * copy file prompts for its Copy Size (full / half / third / quarter) - the
  * size travels with that file and drives how big it renders when placed.
  */
 import { useRef, useState } from 'react';

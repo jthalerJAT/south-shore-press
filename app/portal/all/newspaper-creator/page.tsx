@@ -24,7 +24,7 @@ export default async function NewspaperCreatorPage() {
   );
 
   // Seed the default pages once (first visit). Scoped to the ACTIVE issue
-  // variant — the board shows one of the two coexisting issues at a time.
+  // variant - the board shows one of the two coexisting issues at a time.
   const issueVariant = await getActiveVariant();
   let pages = await getPages(issueVariant);
   if (pages.length === 0 && issueVariant === 'standard') {
@@ -50,7 +50,7 @@ export default async function NewspaperCreatorPage() {
   ]);
 
   // Election pages keep their content in the FIRST election page's
-  // template_data, not np_items, so item summaries are always empty for them —
+  // template_data, not np_items, so item summaries are always empty for them -
   // the board said "No content yet" on a full voter guide. Label them instead.
   const electionPages = pages.filter((p) => p.kind === 'election');
   if (electionPages.length > 0) {
@@ -61,7 +61,7 @@ export default async function NewspaperCreatorPage() {
         summaries[p.id] = [
           {
             type: 'story',
-            title: `Election voter guide — ${races} race${races === 1 ? '' : 's'} (page ${i + 1} of ${electionPages.length})`,
+            title: `Election voter guide - ${races} race${races === 1 ? '' : 's'} (page ${i + 1} of ${electionPages.length})`,
           },
         ];
       });

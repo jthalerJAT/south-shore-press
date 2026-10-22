@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * PageFourEditor — bespoke editor for the Page 4 ("Op-Ed Page") template.
+ * PageFourEditor - bespoke editor for the Page 4 ("Op-Ed Page") template.
  * Left: fields for the Top article (flag + headline + byline + text + photo),
  * the lower-left Quarter-Page Ad (upload OR pick from the Ad Database), and the
  * lower-right Bottom article. Right: a live to-scale PageFour preview with the
@@ -295,7 +295,7 @@ export function PageFourEditor({
         {overflow ? (
           <div className="mt-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">
             ⚠ Content overflows the page by ~{Math.round((naturalHeight - CONTENT_H_PX) / 96 * 100) / 100}in.
-            It will be clipped on the printed sheet — shrink the photos or trim text.
+            It will be clipped on the printed sheet - shrink the photos or trim text.
           </div>
         ) : null}
 

@@ -3,7 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 
 export type BackLinkSpec = {
   href: string;
-  /** e.g. "Editor Portal" — rendered as "← Back to Editor Portal" */
+  /** e.g. "Editor Portal" - rendered as "← Back to Editor Portal" */
   label: string;
 };
 

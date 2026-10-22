@@ -1,7 +1,7 @@
 'use client';
 
-/** Admin Legal Database: every legal — filed customer/staff legals AND the
- *  Legal Notices library the paper places from — in one list sorted by L#,
+/** Admin Legal Database: every legal - filed customer/staff legals AND the
+ *  Legal Notices library the paper places from - in one list sorted by L#,
  *  with search. Click a row to view/edit it. */
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -103,10 +103,10 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
                     )}
                   </div>
                   <div className="text-sm text-zinc-600 truncate">{firstWords(l.body)}</div>
-                  <div className="text-sm font-mono text-zinc-700">{l.l_number ?? '—'}</div>
+                  <div className="text-sm font-mono text-zinc-700">{l.l_number ?? '-'}</div>
                   <div className="text-sm font-semibold">
                     {l.notary === null && l.affidavit === null ? (
-                      <span className="text-zinc-300" title="Not tracked for library notices">—</span>
+                      <span className="text-zinc-300" title="Not tracked for library notices">-</span>
                     ) : l.notary ? (
                       <span className="text-brand-red" title="Physical notarized copy mailed (+$10)">M</span>
                     ) : l.affidavit ? (
@@ -127,7 +127,7 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
                         ) : null}
                       </>
                     ) : (
-                      <span className="text-zinc-300">—</span>
+                      <span className="text-zinc-300">-</span>
                     )}
                   </div>
                 </Link>
@@ -138,7 +138,7 @@ export function LegalDatabaseList({ rows }: { rows: LegalRow[] }) {
       </div>
       <p className="mt-2 text-xs text-zinc-400">
         Sorted by L#, highest first. “Library notice” rows come from the Legal Notices library
-        used by the newspaper creator — click one to edit its copy. Affid.: A = affidavit
+        used by the newspaper creator - click one to edit its copy. Affid.: A = affidavit
         required (scanned copy emailed), M = physical notarized copy mailed (+$10), N = none.
         Card rate is the reference quote under the rate card adopted 10/21/2026 (hover for the
         math; PB = public-body statutory rate, no fee). Display jobs and wide-set notices are

@@ -5,7 +5,7 @@ import { getHouseStyle } from '@/lib/house-style';
 import { GuidelinesEditor } from './guidelines-editor';
 
 export const metadata: Metadata = {
-  title: 'Writing Guidelines · Master Admin Stories',
+  title: 'Writing Guidelines - Master Admin Stories',
   robots: { index: false, follow: false },
 };
 
@@ -25,7 +25,7 @@ export default async function WritingGuidelinesPage() {
     >
       <div className="max-w-3xl">
         <p className="text-sm text-zinc-600">
-          These guidelines are read by every AI writing path each time it runs — Howard Roark, Gail
+          These guidelines are read by every AI writing path each time it runs - Howard Roark, Gail
           Wynand (local and national) and Henry Cameron on the office PC, and the AI-revise box in
           Master Admin Stories. They shape <em>how</em> the prose reads. Each writer&rsquo;s own
           voice instructions take precedence where they conflict, and the straight-news local desk
@@ -34,7 +34,7 @@ export default async function WritingGuidelinesPage() {
         <p className="mt-2 text-xs text-zinc-500">
           {style?.updated_at
             ? `Last saved ${new Date(style.updated_at).toLocaleString()}.`
-            : 'Not saved yet — run migration 045 if the save fails.'}
+            : 'Not saved yet - run migration 045 if the save fails.'}
         </p>
         <GuidelinesEditor initial={style?.content ?? ''} />
       </div>

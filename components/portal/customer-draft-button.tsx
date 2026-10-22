@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Customer Draft button — builds the 2-page letter PDF (fields sheet + the
+ * Customer Draft button - builds the 2-page letter PDF (fields sheet + the
  * real newspaper legal-page preview) and opens it in a new tab for download.
  * Shared by the admin Create New Legal form and the Legal Database detail
  * view, so a draft can be produced before OR after a legal is saved.
@@ -47,7 +47,7 @@ export function CustomerDraftButton({
   notary: boolean;
   label?: string;
   disabled?: boolean;
-  /** Caller-side validation — return an error message to abort, null to go. */
+  /** Caller-side validation - return an error message to abort, null to go. */
   beforeDraft?: () => string | null;
 }) {
   const [drafting, setDrafting] = useState(false);
@@ -79,7 +79,7 @@ export function CustomerDraftButton({
     const problem = beforeDraft?.() ?? null;
     if (problem) return setError(problem);
     setError(null);
-    // Open the tab NOW, while still inside the click — the PDF build is
+    // Open the tab NOW, while still inside the click - the PDF build is
     // async and a late window.open would be popup-blocked.
     draftWinRef.current = window.open('', '_blank');
     try {
@@ -87,7 +87,7 @@ export function CustomerDraftButton({
         '<title>Customer Draft</title><p style="font-family:sans-serif;color:#555;padding:2rem">Preparing customer draft…</p>'
       );
     } catch {
-      /* cross-origin quirk — harmless */
+      /* cross-origin quirk - harmless */
     }
     setDrafting(true);
   }
@@ -164,7 +164,7 @@ export function CustomerDraftButton({
                   marginTop: 2,
                 }}
               >
-                Legal Notice · Customer Draft · {draftDateLabel}
+                Legal Notice - Customer Draft - {draftDateLabel}
               </div>
             </div>
             <DraftField label="Customer" value={customer.trim() || '-'} />

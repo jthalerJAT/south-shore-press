@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 /**
  * Editor Portal → Credentials. Admin & master admin only.
  *
- * One unified table with every user in the system — editorial staff
+ * One unified table with every user in the system - editorial staff
  * AND self-signed-up readers. The 3 role checkboxes (Admin / Editor /
  * Journalist) apply to all rows; readers start with all 3 unchecked
  * and can be promoted by checking any of them.

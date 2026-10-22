@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export const dynamic = 'force-dynamic';
 
 /**
- * Subscriber View — the active paid subscribers, read straight from the master
+ * Subscriber View - the active paid subscribers, read straight from the master
  * Account Database (the three paid tiers). A focused, sortable read-only view
  * of the same dataset the Account Database manages.
  */

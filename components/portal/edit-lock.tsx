@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * useEditLock + ReadOnlyBanner — one editor at a time per page.
+ * useEditLock + ReadOnlyBanner - one editor at a time per page.
  *
  * Opening an editor claims its scope. A second person gets `readonly` and a
  * banner naming the holder; their editor is wrapped in a disabled fieldset so
@@ -9,7 +9,7 @@
  * after an hour without a heartbeat (see lib/newspaper/edit-lock.ts).
  *
  * While the lock table is missing (migration 051 unapplied) every caller gets
- * 'editing' — the pre-lock behaviour.
+ * 'editing' - the pre-lock behaviour.
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
@@ -41,12 +41,12 @@ function windowId(): string {
 }
 
 export type EditLock = {
-  /** True while the first claim is in flight — editors stay disabled until we
+  /** True while the first claim is in flight - editors stay disabled until we
    *  know, so a late "someone else has it" can't arrive after you've typed. */
   checking: boolean;
   readOnly: boolean;
   holder: LockHolder | null;
-  /** The holder left and the page is free again — offer a reload. */
+  /** The holder left and the page is free again - offer a reload. */
   freed: boolean;
 };
 
@@ -99,7 +99,7 @@ export function useEditLock(scope: string): EditLock {
       post(scope, held.current ? 'heartbeat' : 'claim')
         .then(apply)
         .catch(() => {
-          /* transient — try again next tick */
+          /* transient - try again next tick */
         });
     }, LOCK_HEARTBEAT_MS);
 
@@ -166,7 +166,7 @@ export function EditLockGate({
         >
           {lock.holder.self ? (
             <>
-              <strong>You already have this {what} open in another window</strong> — since{' '}
+              <strong>You already have this {what} open in another window</strong> - since{' '}
               {describeSince(lock.holder.since)}. This one is read-only, because saving from both
               would overwrite whichever you typed first. Edit in the other window, or close it and
               reload here.
@@ -174,7 +174,7 @@ export function EditLockGate({
           ) : (
             <>
               <strong>{lock.holder.name}</strong> has had this {what} open since{' '}
-              {describeSince(lock.holder.since)}. You are viewing it read-only — anything you type
+              {describeSince(lock.holder.since)}. You are viewing it read-only - anything you type
               here would overwrite their work, so editing is switched off until they close it.
             </>
           )}
@@ -193,7 +193,7 @@ export function EditLockGate({
           >
             Reload to edit it
           </button>{' '}
-          — reloading picks up the changes the other editor saved.
+          - reloading picks up the changes the other editor saved.
         </div>
       ) : null}
       <fieldset

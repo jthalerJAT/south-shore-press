@@ -6,13 +6,13 @@ import { getLegalNotice } from '@/lib/queries/legal-notices';
 import { NoticeDetailView } from './notice-detail-view';
 
 export const metadata: Metadata = {
-  title: 'Library Notice · Legal Database',
+  title: 'Library Notice - Legal Database',
   robots: { index: false, follow: false },
 };
 
 export const dynamic = 'force-dynamic';
 
-/** A Legal Notices LIBRARY entry — the raw print copy the newspaper creator
+/** A Legal Notices LIBRARY entry - the raw print copy the newspaper creator
  *  places. Editable in place; the L# + run-dates line lives inside the copy. */
 export default async function NoticeDetailPage({ params }: { params: { id: string } }) {
   const user = await requireRole(

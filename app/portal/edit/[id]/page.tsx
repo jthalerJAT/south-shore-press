@@ -29,7 +29,7 @@ export default async function PortalEditStoryPage({
   ]);
   if (!story) notFound();
 
-  // Journalists can VIEW any story they authored, regardless of status —
+  // Journalists can VIEW any story they authored, regardless of status -
   // but the form decides whether they can EDIT (read-only when their
   // own story is published/unpublished). Other journalists' stories:
   // we bounce them home rather than render a confusing read-only view.

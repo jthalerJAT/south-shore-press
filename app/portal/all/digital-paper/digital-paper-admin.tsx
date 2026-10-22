@@ -1,9 +1,9 @@
 'use client';
 
 /**
- * Digital Paper — every printed issue as a web-friendly PDF, newest first.
+ * Digital Paper - every printed issue as a web-friendly PDF, newest first.
  * View / print (opens in the browser's PDF viewer), Download, Copy Link
- * (public URL — paste into an email), and admin-only Delete. "+ Add Issue"
+ * (public URL - paste into an email), and admin-only Delete. "+ Add Issue"
  * uploads a new week: issue date + drag-drop PDF via a signed Storage URL
  * (same pattern as the Legals Upload page).
  */
@@ -123,7 +123,7 @@ export function DigitalPaperAdmin({ papers, isAdmin }: { papers: PaperRow[]; isA
       setCopiedId(p.id);
       setTimeout(() => setCopiedId((c) => (c === p.id ? null : c)), 2000);
     } catch {
-      setError('Could not copy — long-press / right-click the View link instead.');
+      setError('Could not copy - long-press / right-click the View link instead.');
     }
   }
 
@@ -131,7 +131,7 @@ export function DigitalPaperAdmin({ papers, isAdmin }: { papers: PaperRow[]; isA
     <div>
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-zinc-600 max-w-2xl">
-          Every printed issue as a PDF, newest first — open it to read or print, download it, or
+          Every printed issue as a PDF, newest first - open it to read or print, download it, or
           Copy Link and paste into an email. These are the screen-friendly versions, not the
           high-res press files.
         </p>
@@ -249,7 +249,7 @@ export function DigitalPaperAdmin({ papers, isAdmin }: { papers: PaperRow[]; isA
         </div>
         {papers.length === 0 ? (
           <p className="px-4 py-10 text-center text-sm text-zinc-400">
-            No issues yet — use + Add Issue to upload the first one.
+            No issues yet - use + Add Issue to upload the first one.
           </p>
         ) : (
           <ul className="divide-y divide-zinc-100">
@@ -262,15 +262,15 @@ export function DigitalPaperAdmin({ papers, isAdmin }: { papers: PaperRow[]; isA
                   <FileText className="w-4 h-4 text-zinc-400 shrink-0" />
                   <span className="text-sm font-medium text-zinc-900 truncate">{p.dateLabel}</span>
                 </div>
-                <div className="text-sm text-zinc-500">{p.pageCount ? `${p.pageCount} pages` : '—'}</div>
-                <div className="text-sm text-zinc-500">{p.sizeMb ? `${p.sizeMb.toFixed(1)} MB` : '—'}</div>
+                <div className="text-sm text-zinc-500">{p.pageCount ? `${p.pageCount} pages` : '-'}</div>
+                <div className="text-sm text-zinc-500">{p.sizeMb ? `${p.sizeMb.toFixed(1)} MB` : '-'}</div>
                 <div className="flex items-center justify-end gap-1.5">
                   <a
                     href={p.url}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
-                    title="Open in a new tab — read or print from there"
+                    title="Open in a new tab - read or print from there"
                   >
                     <Eye className="w-3.5 h-3.5" /> View
                   </a>
@@ -286,7 +286,7 @@ export function DigitalPaperAdmin({ papers, isAdmin }: { papers: PaperRow[]; isA
                     type="button"
                     onClick={() => copyLink(p)}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
-                    title="Copy a shareable link — paste it into an email"
+                    title="Copy a shareable link - paste it into an email"
                   >
                     {copiedId === p.id ? (
                       <>

@@ -9,7 +9,7 @@ import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { AdPicker } from './ad-picker-client';
 
 export const metadata: Metadata = {
-  title: 'Choose Ad · Newspaper Creator',
+  title: 'Choose Ad - Newspaper Creator',
   robots: { index: false, follow: false },
 };
 

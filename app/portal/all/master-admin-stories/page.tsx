@@ -48,7 +48,7 @@ export default async function MasterAdminStoriesPage() {
 
       {error === 'migration' ? (
         <div className="mb-4 rounded border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          The <code>admin_stories</code> table isn&rsquo;t in the database yet — run{' '}
+          The <code>admin_stories</code> table isn&rsquo;t in the database yet - run{' '}
           <code>db/migrations/044_master_admin_stories.sql</code> in the Supabase SQL editor, then
           reload this page. Until then the AI desks fall back to posting ordinary Story Editor drafts.
         </div>

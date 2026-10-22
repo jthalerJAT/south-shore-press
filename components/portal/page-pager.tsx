@@ -1,7 +1,7 @@
 import Link from 'next/link';
 
 /**
- * PagePager — previous / next page links for the Newspaper Creator's editors,
+ * PagePager - previous / next page links for the Newspaper Creator's editors,
  * so the publisher can flip through the whole deck without going back to the
  * board between pages (publisher direction 2026-10-13).
  *
@@ -39,7 +39,7 @@ export function PagePager({
         <Link
           href={`${basePath}/${prev.id}${suffix}`}
           className={`${cls} ${live}`}
-          title={`Page ${prev.ordinal} — ${prev.title}`}
+          title={`Page ${prev.ordinal} - ${prev.title}`}
         >
           ← Page {prev.ordinal}
         </Link>
@@ -50,7 +50,7 @@ export function PagePager({
         <Link
           href={`${basePath}/${next.id}${suffix}`}
           className={`${cls} ${live}`}
-          title={`Page ${next.ordinal} — ${next.title}`}
+          title={`Page ${next.ordinal} - ${next.title}`}
         >
           Page {next.ordinal} →
         </Link>

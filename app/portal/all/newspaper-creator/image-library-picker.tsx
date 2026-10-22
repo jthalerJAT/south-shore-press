@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * ImageLibraryPicker — modal for choosing a photo from the Owned Images
+ * ImageLibraryPicker - modal for choosing a photo from the Owned Images
  * library (instead of uploading from the desktop). Search filters live to all
  * matches; clicking a thumbnail returns its public URL. Used by fields that
- * must draw on house photography — e.g. the Page 2 author headshot.
+ * must draw on house photography - e.g. the Page 2 author headshot.
  */
 import { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';

@@ -42,6 +42,11 @@ export type CustomerLegal = {
   start_date: string;
   end_date: string;
   run_dates: string[];
+  /** Stripe payment link (durable card-payment URL for QuickBooks invoices). */
+  payment_link_id: string | null;
+  payment_link_url: string | null;
+  /** Cents. */
+  payment_link_amount: number | null;
   /** Affidavit of publication needed (scanned PDF emailed). */
   affidavit_required: boolean;
   /** Physical notarized copy to be mailed (+$10, any client). */

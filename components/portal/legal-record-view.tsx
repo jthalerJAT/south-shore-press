@@ -40,10 +40,20 @@ function wordCount(s: string): number {
   return s.trim() ? s.trim().split(/\s+/).length : 0;
 }
 
+export type PaymentLinkControl = {
+  existingUrl: string | null;
+  /** Cents. */
+  existingAmountCents: number | null;
+  /** Prefill for the amount box, cents (the card-rate quote). */
+  suggestedAmountCents: number | null;
+  onCreate: (amountCents: number) => Promise<{ ok: boolean; url?: string; error?: string }>;
+};
+
 export function LegalRecordView({
   initial,
   note,
   onSave,
+  payment,
 }: {
   initial: LegalRecordValues;
   /** Context line above the fields (e.g. where this record lives). */
@@ -51,6 +61,8 @@ export function LegalRecordView({
   onSave: (
     v: LegalRecordValues
   ) => Promise<{ ok: boolean; error?: string; redirectTo?: string }>;
+  /** Stripe card-payment link controls - filed legals only. */
+  payment?: PaymentLinkControl;
 }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
@@ -69,6 +81,46 @@ export function LegalRecordView({
   const [showPreview, setShowPreview] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  // Payment-link state (filed legals only).
+  const [payUrl, setPayUrl] = useState(payment?.existingUrl ?? null);
+  const [payAmount, setPayAmount] = useState(() => {
+    const cents = payment?.existingAmountCents ?? payment?.suggestedAmountCents;
+    return cents ? (cents / 100).toFixed(2) : '';
+  });
+  const [payBusy, setPayBusy] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [payCopied, setPayCopied] = useState(false);
+
+  async function handleCreateLink() {
+    if (!payment) return;
+    const dollars = parseFloat(payAmount);
+    if (!Number.isFinite(dollars) || dollars <= 0) {
+      setPayError('Enter the amount in dollars.');
+      return;
+    }
+    setPayBusy(true);
+    setPayError(null);
+    const res = await payment.onCreate(Math.round(dollars * 100));
+    setPayBusy(false);
+    if (!res.ok || !res.url) {
+      setPayError(res.error ?? 'Could not create the link.');
+      return;
+    }
+    setPayUrl(res.url);
+    setPayCopied(false);
+  }
+
+  async function handleCopyLink() {
+    if (!payUrl) return;
+    try {
+      await navigator.clipboard.writeText(payUrl);
+      setPayCopied(true);
+      setTimeout(() => setPayCopied(false), 2000);
+    } catch {
+      setPayError('Could not copy - select the link text and copy it manually.');
+    }
+  }
 
   const bodyWords = wordCount(body);
   const runDates = useMemo(
@@ -327,6 +379,48 @@ export function LegalRecordView({
           </Field>
         </div>
       )}
+
+      {payment && !editing ? (
+        <div>
+          <div className="block text-sm font-medium text-zinc-700">Payment link (card)</div>
+          {payUrl ? (
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <code className="rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-800 break-all select-all">
+                {payUrl}
+              </code>
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 text-xs font-medium text-zinc-700 rounded transition-colors"
+              >
+                {payCopied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+          ) : null}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="text-sm text-zinc-500">$</span>
+            <input
+              value={payAmount}
+              onChange={(e) => setPayAmount(e.target.value)}
+              inputMode="decimal"
+              className="w-28 rounded border border-zinc-300 px-3 py-1.5 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+            />
+            <button
+              type="button"
+              onClick={handleCreateLink}
+              disabled={payBusy}
+              className="inline-flex items-center px-3 py-1.5 border border-zinc-300 hover:bg-zinc-50 disabled:opacity-50 text-xs font-medium text-zinc-700 rounded transition-colors"
+            >
+              {payBusy ? 'Creating...' : payUrl ? 'Replace link' : 'Create payment link'}
+            </button>
+            {payError ? <span className="text-sm text-red-600">{payError}</span> : null}
+          </div>
+          <p className="mt-1 text-xs text-zinc-400">
+            Durable Stripe link - paste it into a QuickBooks invoice or an email. Replacing it
+            deactivates the old link so a stale amount cannot be paid.
+          </p>
+        </div>
+      ) : null}
 
       <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-zinc-200">
         {editing ? (

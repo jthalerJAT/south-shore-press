@@ -3,11 +3,28 @@
 /** A filed legal (customer_legals) on the shared legal record screen. */
 import type { CustomerLegal } from '@/lib/queries/customer';
 import { LegalRecordView } from '@/components/portal/legal-record-view';
-import { updateAdminLegal } from '../actions';
+import { quoteLegal, wordCount } from '@/lib/legal-rates';
+import { updateAdminLegal, createLegalPaymentLink } from '../actions';
 
 export function LegalDetailView({ legal }: { legal: CustomerLegal }) {
+  const quote = quoteLegal({
+    words: wordCount(legal.body),
+    weeks: legal.run_dates?.length || null,
+    header: legal.header,
+    body: legal.body,
+    customer: legal.customer_name,
+    mailedAffidavit: legal.notary_required,
+  });
+
   return (
     <LegalRecordView
+      payment={{
+        existingUrl: legal.payment_link_url ?? null,
+        existingAmountCents: legal.payment_link_amount ?? null,
+        suggestedAmountCents: quote ? Math.round(quote.amount * 100) : null,
+        onCreate: (amountCents) =>
+          createLegalPaymentLink({ id: legal.id, amount_cents: amountCents }),
+      }}
       initial={{
         customer: legal.customer_name ?? '',
         contactName: legal.contact_name ?? '',

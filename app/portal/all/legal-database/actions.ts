@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { getCurrentUser } from '@/lib/auth';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getStripe } from '@/lib/stripe/server';
 import { legalNoticeLabel } from '@/lib/newspaper/legal-page';
 import { isWednesday, wednesdaysBetween, legalFooterLine } from '@/lib/legal-dates';
 
@@ -350,4 +351,86 @@ export async function saveLibraryNotice(input: {
   revalidatePath('/portal/all/legal-database');
   revalidatePath(`/portal/all/legal-database/notice/${input.id}`);
   return { ok: true };
+}
+
+/** Create (or replace) the Stripe card-payment link for a filed legal. The
+ *  URL is durable - no expiry - so accounting can attach it to QuickBooks
+ *  invoices. Replacing a link deactivates the previous one in Stripe so a
+ *  stale amount cannot be paid. */
+export async function createLegalPaymentLink(input: {
+  id: string;
+  amount_cents: number;
+}): Promise<{ ok: boolean; url?: string; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: 'Not signed in.' };
+  if (!['editor', 'admin', 'master admin'].includes(user.role)) {
+    return { ok: false, error: 'Your account cannot create payment links.' };
+  }
+
+  const amount = Math.round(input.amount_cents);
+  if (!Number.isFinite(amount) || amount < 100 || amount > 2_000_000) {
+    return { ok: false, error: 'Enter an amount between $1.00 and $20,000.' };
+  }
+
+  const stripe = getStripe();
+  if (!stripe) return { ok: false, error: 'Stripe is not configured on this deployment.' };
+
+  const admin = createAdminClient();
+  const { data: legal } = await admin
+    .from('customer_legals')
+    .select('id, l_number, customer_name, payment_link_id')
+    .eq('id', input.id)
+    .maybeSingle();
+  if (!legal) return { ok: false, error: 'Legal not found.' };
+  const rec = legal as {
+    id: string;
+    l_number: string;
+    customer_name: string | null;
+    payment_link_id: string | null;
+  };
+
+  try {
+    // Replacing? Turn the old link off first so only one live amount exists.
+    if (rec.payment_link_id) {
+      try {
+        await stripe.paymentLinks.update(rec.payment_link_id, { active: false });
+      } catch (err) {
+        console.error('[createLegalPaymentLink] deactivate old', err);
+      }
+    }
+
+    const price = await stripe.prices.create({
+      currency: 'usd',
+      unit_amount: amount,
+      product_data: {
+        name: `The South Shore Press - Legal Notice ${rec.l_number}${
+          rec.customer_name ? ` (${rec.customer_name})` : ''
+        }`,
+      },
+    });
+    const link = await stripe.paymentLinks.create({
+      line_items: [{ price: price.id, quantity: 1 }],
+      metadata: { legal_id: rec.id, l_number: rec.l_number },
+    });
+
+    const { error: updErr } = await admin
+      .from('customer_legals')
+      .update({
+        payment_link_id: link.id,
+        payment_link_url: link.url,
+        payment_link_amount: amount,
+      })
+      .eq('id', rec.id);
+    if (updErr) {
+      console.error('[createLegalPaymentLink] save', updErr);
+      return { ok: false, error: 'Link created but could not be saved - try again.' };
+    }
+
+    revalidatePath(`/portal/all/legal-database/${rec.id}`);
+    revalidatePath('/portal/all/legal-database');
+    return { ok: true, url: link.url };
+  } catch (err) {
+    console.error('[createLegalPaymentLink] stripe', err);
+    return { ok: false, error: 'Stripe could not create the payment link. Please try again.' };
+  }
 }

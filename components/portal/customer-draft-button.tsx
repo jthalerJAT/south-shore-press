@@ -15,6 +15,9 @@ import { openCustomerDraftPdf } from '@/lib/customer-draft-pdf';
 
 export function CustomerDraftButton({
   customer,
+  contactName = '',
+  contactEmail = '',
+  contactPhone = '',
   lNumber,
   header,
   body,
@@ -28,6 +31,9 @@ export function CustomerDraftButton({
   beforeDraft,
 }: {
   customer: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   lNumber: string;
   header: string;
   body: string;
@@ -162,6 +168,17 @@ export function CustomerDraftButton({
               </div>
             </div>
             <DraftField label="Customer" value={customer.trim() || '—'} />
+            <div style={{ display: 'flex', gap: 24 }}>
+              <div style={{ flex: 1 }}>
+                <DraftField label="Contact name" value={contactName.trim() || '—'} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <DraftField label="Contact email" value={contactEmail.trim() || '—'} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <DraftField label="Contact phone" value={contactPhone.trim() || '—'} />
+              </div>
+            </div>
             <DraftField label="Legal Number" value={lNumber || '—'} />
             <DraftField label="Legal Header" value={header.trim() || '—'} />
             <DraftField label="Legal Copy" value={body.trim() || '—'} pre />

@@ -267,6 +267,9 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
         </button>
         <CustomerDraftButton
           customer={customer}
+          contactName={contactName}
+          contactEmail={contactEmail}
+          contactPhone={contactPhone}
           lNumber={reservedLNumber}
           header={header}
           body={body}

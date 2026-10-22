@@ -371,6 +371,9 @@ export function LegalRecordView({
         <CustomerDraftButton
           label="Download Customer Draft"
           customer={customer}
+          contactName={contactName}
+          contactEmail={contactEmail}
+          contactPhone={contactPhone}
           lNumber={lNumber}
           header={header}
           body={body}

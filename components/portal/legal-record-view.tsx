@@ -22,6 +22,9 @@ const PREVIEW_SCALE = 0.42;
 
 export type LegalRecordValues = {
   customer: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
   header: string;
   body: string;
   lNumber: string;
@@ -52,6 +55,9 @@ export function LegalRecordView({
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [customer, setCustomer] = useState(initial.customer);
+  const [contactName, setContactName] = useState(initial.contactName);
+  const [contactEmail, setContactEmail] = useState(initial.contactEmail);
+  const [contactPhone, setContactPhone] = useState(initial.contactPhone);
   const [header, setHeader] = useState(initial.header);
   const [body, setBody] = useState(initial.body);
   const [lNumber, setLNumber] = useState(initial.lNumber);
@@ -107,6 +113,9 @@ export function LegalRecordView({
     setNotice(null);
     const res = await onSave({
       customer: customer.trim(),
+      contactName: contactName.trim(),
+      contactEmail: contactEmail.trim(),
+      contactPhone: contactPhone.trim(),
       header,
       body,
       lNumber: lNumber.trim().toUpperCase(),
@@ -132,6 +141,9 @@ export function LegalRecordView({
 
   function handleCancel() {
     setCustomer(initial.customer);
+    setContactName(initial.contactName);
+    setContactEmail(initial.contactEmail);
+    setContactPhone(initial.contactPhone);
     setHeader(initial.header);
     setBody(initial.body);
     setLNumber(initial.lNumber);
@@ -157,6 +169,44 @@ export function LegalRecordView({
           <ReadOnlyValue value={customer || '—'} />
         )}
       </Field>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Field label="Contact name">
+          {editing ? (
+            <input
+              value={contactName}
+              onChange={(e) => setContactName(e.target.value)}
+              className={inputCls}
+            />
+          ) : (
+            <ReadOnlyValue value={contactName || '—'} />
+          )}
+        </Field>
+        <Field label="Contact email">
+          {editing ? (
+            <input
+              type="email"
+              value={contactEmail}
+              onChange={(e) => setContactEmail(e.target.value)}
+              className={inputCls}
+            />
+          ) : (
+            <ReadOnlyValue value={contactEmail || '—'} />
+          )}
+        </Field>
+        <Field label="Contact phone">
+          {editing ? (
+            <input
+              type="tel"
+              value={contactPhone}
+              onChange={(e) => setContactPhone(e.target.value)}
+              className={inputCls}
+            />
+          ) : (
+            <ReadOnlyValue value={contactPhone || '—'} />
+          )}
+        </Field>
+      </div>
 
       <Field label="L#">
         {editing ? (

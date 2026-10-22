@@ -10,6 +10,9 @@ export function LegalDetailView({ legal }: { legal: CustomerLegal }) {
     <LegalRecordView
       initial={{
         customer: legal.customer_name ?? '',
+        contactName: legal.contact_name ?? '',
+        contactEmail: legal.contact_email ?? '',
+        contactPhone: legal.contact_phone ?? '',
         header: legal.header,
         body: legal.body,
         lNumber: legal.l_number,
@@ -26,6 +29,9 @@ export function LegalDetailView({ legal }: { legal: CustomerLegal }) {
         return updateAdminLegal({
           id: legal.id,
           customer_name: v.customer,
+          contact_name: v.contactName,
+          contact_email: v.contactEmail,
+          contact_phone: v.contactPhone,
           header: v.header,
           body: v.body,
           l_number: v.lNumber,

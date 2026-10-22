@@ -19,6 +19,9 @@ export function NoticeDetailView({ notice }: { notice: LegalNotice }) {
     <LegalRecordView
       initial={{
         customer: '',
+        contactName: '',
+        contactEmail: '',
+        contactPhone: '',
         header: notice.header ?? 'PUBLIC NOTICE',
         body: parsed.copy,
         lNumber: parsed.lNumber,
@@ -32,6 +35,9 @@ export function NoticeDetailView({ notice }: { notice: LegalNotice }) {
         const res = await saveLibraryNotice({
           id: notice.id,
           customer_name: v.customer,
+          contact_name: v.contactName,
+          contact_email: v.contactEmail,
+          contact_phone: v.contactPhone,
           header: v.header,
           body: v.body,
           l_number: v.lNumber,

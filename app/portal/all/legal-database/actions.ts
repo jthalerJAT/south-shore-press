@@ -7,10 +7,10 @@ import { legalNoticeLabel } from '@/lib/newspaper/legal-page';
 import { isWednesday, wednesdaysBetween, legalFooterLine } from '@/lib/legal-dates';
 
 /**
- * Legal Database server actions â€” staff-facing. Mirrors the customer
+ * Legal Database server actions — staff-facing. Mirrors the customer
  * saveCustomerLegal flow (same validation, same L# collision retry, same
  * legal_notices mirror) but is gated on editor+ roles, takes the customer
- * name as a typed field, and skips the legals-desk notification email â€”
+ * name as a typed field, and skips the legals-desk notification email —
  * the person entering it IS the legals desk.
  */
 
@@ -18,6 +18,9 @@ const MAX_BODY_WORDS = 1000;
 
 export async function saveAdminLegal(input: {
   customer_name: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
   header: string;
   body: string;
   l_number: string;
@@ -46,7 +49,7 @@ export async function saveAdminLegal(input: {
     return { ok: false, error: 'Select a Start Date and an End Date.' };
   }
   if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-    return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
+    return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
   }
   if (input.end_date < input.start_date) {
     return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -56,7 +59,7 @@ export async function saveAdminLegal(input: {
   const admin = createAdminClient();
 
   // A typed L# is intentional (entering an existing legal under its original
-  // number) â€” a collision on it must surface as an error, never be silently
+  // number) — a collision on it must surface as an error, never be silently
   // renumbered. Only an absent/invalid L# draws fresh numbers from the
   // sequence, with retries on collision.
   const typedLNumber = /^L\d{5,}$/.test((input.l_number ?? '').trim())
@@ -68,7 +71,7 @@ export async function saveAdminLegal(input: {
       const { data: fresh, error: seqErr } = await admin.rpc('next_legal_number');
       if (seqErr || !fresh) {
         console.error('[saveAdminLegal] next_legal_number', seqErr);
-        return { ok: false, error: 'Could not assign a legal number â€” try again.' };
+        return { ok: false, error: 'Could not assign a legal number — try again.' };
       }
       lNumber = String(fresh);
     }
@@ -78,6 +81,9 @@ export async function saveAdminLegal(input: {
       .insert({
         user_id: user.id,
         customer_name: customerName,
+        contact_name: input.contact_name?.trim() || null,
+        contact_email: input.contact_email?.trim() || null,
+        contact_phone: input.contact_phone?.trim() || null,
         header,
         body,
         l_number: lNumber,
@@ -95,7 +101,7 @@ export async function saveAdminLegal(input: {
         if (typedLNumber) {
           return { ok: false, error: `${typedLNumber} is already used by another legal.` };
         }
-        // Auto-drawn L# collided â€” regenerate and retry.
+        // Auto-drawn L# collided — regenerate and retry.
         lNumber = '';
         continue;
       }
@@ -117,16 +123,19 @@ export async function saveAdminLegal(input: {
     return { ok: true, l_number: lNumber, id: (inserted as { id: string }).id };
   }
 
-  return { ok: false, error: 'Could not assign a unique legal number â€” try again.' };
+  return { ok: false, error: 'Could not assign a unique legal number — try again.' };
 }
 
-/** Edit an existing legal in place â€” everything is editable, including the
+/** Edit an existing legal in place — everything is editable, including the
  *  L# (entering legals that already ran elsewhere keeps their numbers). The
  *  Legal Notices library mirror is updated to match, so the newspaper
  *  creator always places the current version. */
 export async function updateAdminLegal(input: {
   id: string;
   customer_name: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
   header: string;
   body: string;
   l_number: string;
@@ -158,7 +167,7 @@ export async function updateAdminLegal(input: {
     return { ok: false, error: 'Select a Start Date and an End Date.' };
   }
   if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-    return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
+    return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
   }
   if (input.end_date < input.start_date) {
     return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -177,6 +186,9 @@ export async function updateAdminLegal(input: {
     .from('customer_legals')
     .update({
       customer_name: customerName,
+      contact_name: input.contact_name?.trim() || null,
+      contact_email: input.contact_email?.trim() || null,
+      contact_phone: input.contact_phone?.trim() || null,
       header,
       body,
       l_number: lNumber,
@@ -234,13 +246,16 @@ export async function updateAdminLegal(input: {
 
 /** Save a Legal Notices LIBRARY entry edited through the Legal Database's
  *  record screen (same fields as a filed legal). When the record is complete
- *  â€” customer, valid L#, Wednesday run dates â€” it is PROMOTED to a full
+ *  — customer, valid L#, Wednesday run dates — it is PROMOTED to a full
  *  customer_legals row (so every field persists) and the library copy is
  *  updated to match. Otherwise only the library text (header + copy + footer
  *  line) is saved and the extra fields stay blank. */
 export async function saveLibraryNotice(input: {
   id: string;
   customer_name: string;
+  contact_name?: string;
+  contact_email?: string;
+  contact_phone?: string;
   header: string;
   body: string; // copy WITHOUT the footer line
   l_number: string;
@@ -277,11 +292,11 @@ export async function saveLibraryNotice(input: {
 
   const admin = createAdminClient();
 
-  // Complete record â†’ promote into customer_legals so Customer, dates and
+  // Complete record → promote into customer_legals so Customer, dates and
   // notary actually persist.
   if (customerName && lNumber && hasDates) {
     if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-      return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
+      return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
     }
     if (input.end_date < input.start_date) {
       return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -291,6 +306,9 @@ export async function saveLibraryNotice(input: {
       .insert({
         user_id: user.id,
         customer_name: customerName,
+        contact_name: input.contact_name?.trim() || null,
+        contact_email: input.contact_email?.trim() || null,
+        contact_phone: input.contact_phone?.trim() || null,
         header,
         body,
         l_number: lNumber,
@@ -319,7 +337,7 @@ export async function saveLibraryNotice(input: {
     return { ok: true, promotedId: (inserted as { id: string }).id };
   }
 
-  // Incomplete record â†’ save the library text; blank fields stay blank.
+  // Incomplete record → save the library text; blank fields stay blank.
   const { error } = await admin
     .from('legal_notices')
     .update({ header, body: printBody, label })

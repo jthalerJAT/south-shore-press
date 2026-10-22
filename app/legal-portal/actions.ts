@@ -8,7 +8,7 @@ import { sendCustomerLegalEmail } from '@/lib/email/resend';
 import { legalNoticeLabel } from '@/lib/newspaper/legal-page';
 import { isWednesday, wednesdaysBetween, legalFooterLine } from '@/lib/legal-dates';
 
-/** Legal Portal server actions â€” customer-facing. */
+/** Legal Portal server actions — customer-facing. */
 
 const MAX_BODY_WORDS = 1000;
 const LEGALS_NOTIFY_EMAIL =
@@ -60,7 +60,7 @@ export async function saveCustomerLegal(input: {
     return { ok: false, error: 'Select a Start Date and an End Date.' };
   }
   if (!isWednesday(input.start_date) || !isWednesday(input.end_date)) {
-    return { ok: false, error: 'Run dates must be Wednesdays â€” the paper runs on Wednesdays.' };
+    return { ok: false, error: 'Run dates must be Wednesdays — the paper runs on Wednesdays.' };
   }
   if (input.end_date < input.start_date) {
     return { ok: false, error: 'End Date must be on or after Start Date.' };
@@ -77,25 +77,32 @@ export async function saveCustomerLegal(input: {
       const { data: fresh, error: seqErr } = await admin.rpc('next_legal_number');
       if (seqErr || !fresh) {
         console.error('[saveCustomerLegal] next_legal_number', seqErr);
-        return { ok: false, error: 'Could not assign a legal number â€” try again.' };
+        return { ok: false, error: 'Could not assign a legal number — try again.' };
       }
       lNumber = String(fresh);
     }
 
-    // Customer name comes from the billing profile (fallback: display name).
+    // Customer name and contact details come from the billing profile
+    // (fallbacks: display name / account email).
     const { data: cp } = await admin
       .from('customer_profiles')
-      .select('customer_name')
+      .select('customer_name, contact_name, contact_email, contact_phone')
       .eq('user_id', user.id)
       .maybeSingle();
-    const customerName =
-      (cp as { customer_name?: string | null } | null)?.customer_name ||
-      user.displayName ||
-      user.email;
+    const profile = (cp ?? {}) as {
+      customer_name?: string | null;
+      contact_name?: string | null;
+      contact_email?: string | null;
+      contact_phone?: string | null;
+    };
+    const customerName = profile.customer_name || user.displayName || user.email;
 
     const { error: insErr } = await admin.from('customer_legals').insert({
       user_id: user.id,
       customer_name: customerName,
+      contact_name: profile.contact_name || user.displayName || null,
+      contact_email: profile.contact_email || user.email || null,
+      contact_phone: profile.contact_phone || null,
       header,
       body,
       l_number: lNumber,
@@ -108,7 +115,7 @@ export async function saveCustomerLegal(input: {
 
     if (insErr) {
       if (insErr.code === '23505') {
-        // L# already taken â€” regenerate and retry.
+        // L# already taken — regenerate and retry.
         lNumber = '';
         continue;
       }
@@ -117,7 +124,7 @@ export async function saveCustomerLegal(input: {
     }
 
     // Mirror into the editors' Legal Notices library so the newspaper
-    // creator's legal pages can place it directly â€” with the L# + run-dates
+    // creator's legal pages can place it directly — with the L# + run-dates
     // line already appended, exactly as it must print.
     const printBody = `${body}\n${legalFooterLine(lNumber, runDates)}`;
     const { error: libErr } = await admin.from('legal_notices').insert({
@@ -127,7 +134,7 @@ export async function saveCustomerLegal(input: {
     });
     if (libErr) console.error('[saveCustomerLegal] legal_notices mirror', libErr);
 
-    // Best-effort email to the legals desk â€” never blocks success.
+    // Best-effort email to the legals desk — never blocks success.
     try {
       const siteUrl =
         process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, '') ??
@@ -151,5 +158,5 @@ export async function saveCustomerLegal(input: {
     return { ok: true, l_number: lNumber };
   }
 
-  return { ok: false, error: 'Could not assign a unique legal number â€” try again.' };
+  return { ok: false, error: 'Could not assign a unique legal number — try again.' };
 }

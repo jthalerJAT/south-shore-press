@@ -30,6 +30,9 @@ function wordCount(s: string): number {
 export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string }) {
   const router = useRouter();
   const [customer, setCustomer] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
   const [header, setHeader] = useState('');
   const [body, setBody] = useState('');
   // Pre-filled with the number reserved on page load, but editable — existing
@@ -88,6 +91,9 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
     setError(null);
     const res = await saveAdminLegal({
       customer_name: customer,
+      contact_name: contactName,
+      contact_email: contactEmail,
+      contact_phone: contactPhone,
       header,
       body,
       l_number: lNumber.trim().toUpperCase(),
@@ -115,6 +121,35 @@ export function AdminLegalForm({ reservedLNumber }: { reservedLNumber: string })
           placeholder="Customer or firm name"
           className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
         />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-zinc-700">Contact name</label>
+          <input
+            value={contactName}
+            onChange={(e) => setContactName(e.target.value)}
+            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700">Contact email</label>
+          <input
+            type="email"
+            value={contactEmail}
+            onChange={(e) => setContactEmail(e.target.value)}
+            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-zinc-700">Contact phone</label>
+          <input
+            type="tel"
+            value={contactPhone}
+            onChange={(e) => setContactPhone(e.target.value)}
+            className="mt-1 block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none focus:ring-1 focus:ring-brand-red"
+          />
+        </div>
       </div>
 
       <div>

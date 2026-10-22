@@ -5,11 +5,13 @@ import { buildStoryPath } from '@/lib/slugify';
 /**
  * Traffic Stats queries (portal tile, 2026-10-09).
  *
- * Site totals come from site_views (one row per UTC day; migration 051 —
- * seeded from the article-view history, full-site from 2026-10-09 on).
- * Top content comes from story_views (per story per UTC day; migration 033).
- * Growth is null when the comparison window has no recorded traffic, so the
- * UI shows "—" instead of a fake 0% / ∞%.
+ * Site totals come from site_views (one row per day; migration 051 — seeded
+ * from the article-view history, full-site from 2026-10-09 on). Top content
+ * comes from story_views (per story per day; migration 033). Days roll over
+ * at midnight EASTERN (migration 054, publisher direction 2026-10-21) —
+ * rows before that were bucketed by UTC day. Growth is null when the
+ * comparison window has no recorded traffic, so the UI shows "—" instead of
+ * a fake 0% / ∞%.
  */
 
 export type TrafficStat = {
@@ -30,10 +32,16 @@ export type TopContentFrame = {
   rows: Array<{ id: string; headline: string; path: string; views: number }>;
 };
 
-/** UTC day arithmetic — buckets in both tables are UTC dates. */
+/** "Today" is the current EASTERN calendar day (buckets roll at midnight
+ *  ET, migration 054), carried as a date-only value at UTC midnight so the
+ *  rest of the day arithmetic stays plain date math. */
+function currentDayET(): Date {
+  // en-CA formats as YYYY-MM-DD.
+  const ymd = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
+  return new Date(`${ymd}T00:00:00Z`);
+}
 function dayUTC(offsetDays = 0, from?: Date): Date {
-  const base = from ?? new Date();
-  const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
+  const d = new Date(from ?? currentDayET());
   d.setUTCDate(d.getUTCDate() + offsetDays);
   return d;
 }

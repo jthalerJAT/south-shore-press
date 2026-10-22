@@ -164,31 +164,31 @@ export function CustomerDraftButton({
                   marginTop: 2,
                 }}
               >
-                Legal Notice — Customer Draft · {draftDateLabel}
+                Legal Notice · Customer Draft · {draftDateLabel}
               </div>
             </div>
-            <DraftField label="Customer" value={customer.trim() || '—'} />
+            <DraftField label="Customer" value={customer.trim() || '-'} />
             <div style={{ display: 'flex', gap: 24 }}>
               <div style={{ flex: 1 }}>
-                <DraftField label="Contact name" value={contactName.trim() || '—'} />
+                <DraftField label="Contact name" value={contactName.trim() || '-'} />
               </div>
               <div style={{ flex: 1 }}>
-                <DraftField label="Contact email" value={contactEmail.trim() || '—'} />
+                <DraftField label="Contact email" value={contactEmail.trim() || '-'} />
               </div>
               <div style={{ flex: 1 }}>
-                <DraftField label="Contact phone" value={contactPhone.trim() || '—'} />
+                <DraftField label="Contact phone" value={contactPhone.trim() || '-'} />
               </div>
             </div>
-            <DraftField label="Legal Number" value={lNumber || '—'} />
-            <DraftField label="Legal Header" value={header.trim() || '—'} />
-            <DraftField label="Legal Copy" value={body.trim() || '—'} pre />
+            <DraftField label="Legal Number" value={lNumber || '-'} />
+            <DraftField label="Legal Header" value={header.trim() || '-'} />
+            <DraftField label="Legal Copy" value={body.trim() || '-'} pre />
             <div style={{ display: 'flex', gap: 48 }}>
-              <DraftField label="Start Date" value={startDate ? shortLegalDate(startDate) : '—'} />
-              <DraftField label="End Date" value={endDate ? shortLegalDate(endDate) : '—'} />
+              <DraftField label="Start Date" value={startDate ? shortLegalDate(startDate) : '-'} />
+              <DraftField label="End Date" value={endDate ? shortLegalDate(endDate) : '-'} />
             </div>
             <DraftField
               label="To be included at the end of the legal"
-              value={footerLine || '—'}
+              value={footerLine || '-'}
               mono
             />
             <div style={{ display: 'flex', gap: 48 }}>

@@ -411,6 +411,23 @@ export async function createLegalPaymentLink(input: {
     const link = await stripe.paymentLinks.create({
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: { legal_id: rec.id, l_number: rec.l_number },
+      // Card only (plus the Apple Pay / Google Pay wallets that ride on it).
+      // Keeps the page simple and suppresses the Stripe Link "Confirm it's
+      // you" overlay that confuses customers.
+      payment_method_types: ['card'],
+      custom_text: {
+        submit: {
+          message:
+            'A confirmation email will be sent to you once your payment is approved.',
+        },
+      },
+      after_completion: {
+        type: 'hosted_confirmation',
+        hosted_confirmation: {
+          custom_message:
+            'Thank you - The South Shore Press has received your payment. A confirmation email is on its way.',
+        },
+      },
     });
 
     const { error: updErr } = await admin

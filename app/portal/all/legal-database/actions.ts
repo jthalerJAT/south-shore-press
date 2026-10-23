@@ -353,42 +353,6 @@ export async function saveLibraryNotice(input: {
   return { ok: true };
 }
 
-/** The payment-method configuration used by legal payment links: card (with
- *  the Apple Pay / Google Pay wallets) and nothing else - no Link wallet, no
- *  Klarna, no bank debits. Created once in the Stripe account and reused;
- *  scoped to these links only, so the site's subscription checkout is
- *  unaffected. */
-let legalPmcId: string | null = null;
-async function getLegalPaymentConfig(
-  stripe: NonNullable<ReturnType<typeof getStripe>>
-): Promise<string | null> {
-  if (legalPmcId) return legalPmcId;
-  try {
-    const configs = await stripe.paymentMethodConfigurations.list();
-    const existing = configs.data.find((c) => c.name === 'SSP Legal Links');
-    if (existing) {
-      legalPmcId = existing.id;
-      return legalPmcId;
-    }
-    const off = { display_preference: { preference: 'off' as const } };
-    const created = await stripe.paymentMethodConfigurations.create({
-      name: 'SSP Legal Links',
-      card: { display_preference: { preference: 'on' } },
-      link: off,
-      klarna: off,
-      us_bank_account: off,
-      cashapp: off,
-      affirm: off,
-      afterpay_clearpay: off,
-    });
-    legalPmcId = created.id;
-    return legalPmcId;
-  } catch (err) {
-    console.error('[getLegalPaymentConfig]', err);
-    return null;
-  }
-}
-
 /** Create (or replace) the Stripe card-payment link for a filed legal. The
  *  URL is durable - no expiry - so accounting can attach it to QuickBooks
  *  invoices. Replacing a link deactivates the previous one in Stripe so a
@@ -445,15 +409,13 @@ export async function createLegalPaymentLink(input: {
       },
     });
     // Card only (plus the Apple Pay / Google Pay wallets that ride on it).
-    // Keeps the page simple: no Link wallet overlay, no Klarna/bank extras.
-    const pmcId = await getLegalPaymentConfig(stripe);
-    const link = await stripe.paymentLinks.create(
-      {
+    // Payment Links can't select a payment-method configuration (Stripe
+    // rejects the param at every API version), so suppressing the Link
+    // wallet's extras is an account-level Dashboard setting.
+    const link = await stripe.paymentLinks.create({
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: { legal_id: rec.id, l_number: rec.l_number },
-      ...(pmcId
-        ? { payment_method_configuration: pmcId }
-        : { payment_method_types: ['card'] }),
+      payment_method_types: ['card'],
       // Who actually paid - email is always collected by Stripe; these two
       // tie the payment to the business and person for reconciliation.
       custom_fields: [
@@ -483,12 +445,7 @@ export async function createLegalPaymentLink(input: {
             'Thank you - The South Shore Press has received your payment. A confirmation email is on its way.',
         },
       },
-      },
-      // The account pins API version 2023-10-16, which predates
-      // payment_method_configuration on payment links - override just this
-      // call. The response fields we use (id, url) are unchanged.
-      { apiVersion: '2024-06-20' }
-    );
+    });
 
     const { error: updErr } = await admin
       .from('customer_legals')

@@ -447,7 +447,8 @@ export async function createLegalPaymentLink(input: {
     // Card only (plus the Apple Pay / Google Pay wallets that ride on it).
     // Keeps the page simple: no Link wallet overlay, no Klarna/bank extras.
     const pmcId = await getLegalPaymentConfig(stripe);
-    const link = await stripe.paymentLinks.create({
+    const link = await stripe.paymentLinks.create(
+      {
       line_items: [{ price: price.id, quantity: 1 }],
       metadata: { legal_id: rec.id, l_number: rec.l_number },
       ...(pmcId
@@ -482,7 +483,12 @@ export async function createLegalPaymentLink(input: {
             'Thank you - The South Shore Press has received your payment. A confirmation email is on its way.',
         },
       },
-    });
+      },
+      // The account pins API version 2023-10-16, which predates
+      // payment_method_configuration on payment links - override just this
+      // call. The response fields we use (id, url) are unchanged.
+      { apiVersion: '2024-06-20' }
+    );
 
     const { error: updErr } = await admin
       .from('customer_legals')

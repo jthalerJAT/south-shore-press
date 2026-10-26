@@ -22,7 +22,11 @@ import {
   type ClassifiedAd,
   type ClassifiedPageData,
 } from '@/lib/newspaper/classified';
-import { saveClassifiedPage, requestClassifiedAdUploadUrl } from '../actions';
+import {
+  saveClassifiedPage,
+  requestClassifiedAdUploadUrl,
+  addClassifiedToLibrary,
+} from '../actions';
 
 const PREVIEW_SCALE = 0.4;
 
@@ -39,18 +43,29 @@ export type ClassifiedOption = {
   storagePath: string;
 };
 
+export type ClassifiedLibraryOption = {
+  id: string;
+  storagePath: string;
+  fileName: string | null;
+  dateLabel: string;
+};
+
 export function ClassifiedEditor({
   pageId,
   pageNumber,
   dateLabel,
   initialData,
   options,
+  library,
 }: {
   pageId: string;
   pageNumber: number;
   dateLabel?: string;
   initialData: ClassifiedPageData;
   options: ClassifiedOption[];
+  /** Previously uploaded individual ads (migration 057) - reusable without
+   *  re-uploading, since the same ads run most weeks. */
+  library: ClassifiedLibraryOption[];
 }) {
   const router = useRouter();
   const [data, setData] = useState<ClassifiedPageData>(initialData);
@@ -112,6 +127,8 @@ export function ClassifiedEditor({
           setError(`Upload failed: ${upErr.message}`);
           return;
         }
+        // Remember the ad in the reuse library for future weeks (non-fatal).
+        void addClassifiedToLibrary({ storage_path: signed.path, file_name: file.name });
         touch();
         setData((d) => {
           const list = d.ads ?? [];
@@ -136,6 +153,24 @@ export function ClassifiedEditor({
     } finally {
       setUploading(false);
     }
+  }
+
+  function addFromLibrary(id: string) {
+    const rec = library.find((o) => o.id === id);
+    if (!rec) return;
+    touch();
+    setData((d) => {
+      const list = d.ads ?? [];
+      const c1 = list.filter((a) => a.column === 1).length;
+      const c2 = list.filter((a) => a.column === 2).length;
+      const ad: ClassifiedAd = {
+        id: newId(),
+        storage_path: rec.storagePath,
+        file_name: rec.fileName ?? undefined,
+        column: c1 <= c2 ? 1 : 2,
+      };
+      return { ...d, ads: [...list, ad] };
+    });
   }
 
   function pickLegacy(id: string) {
@@ -222,6 +257,37 @@ export function ClassifiedEditor({
               e.target.value = '';
             }}
           />
+        </div>
+
+        {/* Reuse a previous week's ad - no re-upload needed */}
+        <div className="rounded-lg border border-zinc-200 bg-white p-3 space-y-2">
+          <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">
+            Reuse a previous classified
+          </div>
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) addFromLibrary(e.target.value);
+              e.target.value = '';
+            }}
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+          >
+            <option value="">
+              {library.length === 0
+                ? 'No saved classifieds yet - uploads are remembered automatically'
+                : 'Select an ad from a previous week...'}
+            </option>
+            {library.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.fileName ?? 'Classified ad'} ({o.dateLabel})
+              </option>
+            ))}
+          </select>
+          <p className="text-[11px] text-zinc-400">
+            Every ad uploaded here is saved automatically and listed above for future weeks -
+            most classifieds repeat, so pick from the list instead of re-uploading. Selecting
+            adds it to the page; it can be placed on both classifieds pages.
+          </p>
         </div>
 
         {/* Placed ads */}

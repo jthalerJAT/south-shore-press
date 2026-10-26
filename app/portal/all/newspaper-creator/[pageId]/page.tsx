@@ -18,7 +18,11 @@ import { electionScope, pageScope } from '@/lib/newspaper/edit-lock';
 import { EditLockBoundary } from '@/components/portal/edit-lock';
 import { PagePager } from '@/components/portal/page-pager';
 import { getLegalNotices } from '@/lib/queries/legal-notices';
-import { getClassifiedsList, formatClassifiedDate } from '@/lib/queries/classifieds';
+import {
+  getClassifiedsList,
+  getClassifiedAdLibrary,
+  formatClassifiedDate,
+} from '@/lib/queries/classifieds';
 import { PageEditor } from './page-editor';
 import { CoverEditor } from './cover-editor';
 import { OpEdEditor } from './oped-editor';
@@ -245,12 +249,26 @@ export default async function NewspaperPageEditorPage({
     }
 
     if (tid === 'classified') {
-      const [classifieds, issueDate] = await Promise.all([getClassifiedsList(), getIssueDate()]);
+      const [classifieds, libraryAds, issueDate] = await Promise.all([
+        getClassifiedsList(),
+        getClassifiedAdLibrary(),
+        getIssueDate(),
+      ]);
       const options = classifieds.map((c) => ({
         id: c.id,
         dateLabel: formatClassifiedDate(c.classified_date),
         fileName: c.file_name,
         storagePath: c.storage_path,
+      }));
+      const library = libraryAds.map((a) => ({
+        id: a.id,
+        storagePath: a.storage_path,
+        fileName: a.file_name,
+        dateLabel: new Date(a.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
       }));
       return (
         <PortalShell
@@ -268,6 +286,7 @@ export default async function NewspaperPageEditorPage({
               dateLabel={issueDate}
               initialData={normalizeClassifiedPage(page.template_data)}
               options={options}
+              library={library}
             />
           </EditLockBoundary>
         </PortalShell>

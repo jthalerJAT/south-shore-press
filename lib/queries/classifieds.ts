@@ -27,6 +27,39 @@ export async function getClassifiedsList(): Promise<ClassifiedRecord[]> {
   return (data ?? []) as ClassifiedRecord[];
 }
 
+export type ClassifiedLibraryAd = {
+  id: string;
+  storage_path: string;
+  file_name: string | null;
+  created_at: string;
+};
+
+/** The classified-ad LIBRARY (migration 057): every individual ad image ever
+ *  uploaded on a classifieds page, newest first, deduplicated by file name
+ *  (the same advertiser re-sends the same file weekly - show it once). Feeds
+ *  the "reuse a previous classified" dropdown. Service-role read. */
+export async function getClassifiedAdLibrary(): Promise<ClassifiedLibraryAd[]> {
+  const { createAdminClient } = await import('@/lib/supabase/admin');
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from('classified_ad_library')
+    .select('id, storage_path, file_name, created_at')
+    .order('created_at', { ascending: false })
+    .limit(1000);
+  if (error) {
+    console.error('[getClassifiedAdLibrary]', error);
+    return [];
+  }
+  const rows = (data ?? []) as ClassifiedLibraryAd[];
+  const seen = new Set<string>();
+  return rows.filter((r) => {
+    const key = (r.file_name ?? r.storage_path).toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 /** Build the public URL for a classified file (the bucket is public). */
 export function classifiedPublicUrl(storagePath: string): string {
   const base = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '').replace(/\/$/, '');

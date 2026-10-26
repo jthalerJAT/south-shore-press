@@ -498,6 +498,33 @@ export async function requestClassifiedAdUploadUrl(): Promise<{
   return { ok: true, path, token: data.token };
 }
 
+/** File an uploaded classified-ad image into the reuse library (migration
+ *  057) so future weeks can place it from the dropdown instead of
+ *  re-uploading. Called by the editor right after each upload; failures are
+ *  non-fatal (the ad still lands on the page). */
+export async function addClassifiedToLibrary(input: {
+  storage_path: string;
+  file_name?: string | null;
+}): Promise<{ ok: boolean }> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const path = (input.storage_path ?? '').trim();
+  if (!path || !path.startsWith('np-ads/')) return { ok: false };
+  try {
+    const admin = createAdminClient();
+    const { error } = await admin.from('classified_ad_library').upsert(
+      {
+        storage_path: path,
+        file_name: input.file_name?.trim() || null,
+      },
+      { onConflict: 'storage_path' }
+    );
+    if (error) console.error('[addClassifiedToLibrary]', error);
+    return { ok: !error };
+  } catch {
+    return { ok: false };
+  }
+}
+
 export type SavedItem = {
   type: 'story' | 'ad';
   slot_key: string | null;

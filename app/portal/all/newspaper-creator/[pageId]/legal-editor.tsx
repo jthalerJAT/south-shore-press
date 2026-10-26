@@ -31,18 +31,31 @@ function newId() {
   return `pl-${counter}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
+export type DatabaseLegalOption = {
+  id: string;
+  lNumber: string;
+  customer: string | null;
+  header: string;
+  /** Copy with the printed "L# date, date" footer line appended. */
+  printBody: string;
+  dateLabel: string;
+};
+
 export function LegalEditor({
   pageId,
   pageNumber,
   dateLabel,
   initialData,
   savedNotices,
+  databaseLegals,
 }: {
   pageId: string;
   pageNumber: number;
   dateLabel?: string;
   initialData: LegalPageData;
   savedNotices: LegalNotice[];
+  /** The Legal Database by L#, reverse chrono of entry. */
+  databaseLegals: DatabaseLegalOption[];
 }) {
   const router = useRouter();
   const [data, setData] = useState<LegalPageData>(initialData);
@@ -100,6 +113,12 @@ export function LegalEditor({
     const n = notices.find((x) => x.id === noticeId);
     if (!n) return;
     place({ id: newId(), notice_id: n.id, header: n.header ?? undefined, body: n.body });
+  }
+
+  function pickFromLegalDatabase(id: string) {
+    const l = databaseLegals.find((x) => x.id === id);
+    if (!l) return;
+    place({ id: newId(), header: l.header, body: l.printBody });
   }
 
   async function addNewCopy() {
@@ -192,7 +211,36 @@ export function LegalEditor({
           <div className="rounded-lg border border-zinc-200 bg-white p-4 space-y-4">
             <div>
               <label className="block text-sm font-medium text-zinc-700 mb-1">
-                Choose from the Legal Notices database
+                Choose from the Legal Database (by L#)
+              </label>
+              <select
+                value=""
+                onChange={(e) => {
+                  if (e.target.value) pickFromLegalDatabase(e.target.value);
+                  e.target.value = '';
+                }}
+                className="block w-full rounded border border-zinc-300 px-2 py-1.5 text-sm focus:border-brand-red focus:outline-none"
+              >
+                <option value="">
+                  {databaseLegals.length === 0
+                    ? 'No legals in the Legal Database yet'
+                    : 'Choose a legal by L#...'}
+                </option>
+                {databaseLegals.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.lNumber} - {l.customer ?? 'Customer legal'} ({l.dateLabel})
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-[11px] text-zinc-400">
+                Newest first. Places the legal&apos;s copy with its L# and run-dates line, as it
+                must print.
+              </p>
+            </div>
+            <div className="text-xs text-zinc-400 text-center uppercase tracking-widest">or</div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 mb-1">
+                Choose from saved copy (library)
               </label>
               <select
                 value=""

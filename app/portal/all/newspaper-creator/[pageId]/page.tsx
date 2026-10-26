@@ -18,6 +18,8 @@ import { electionScope, pageScope } from '@/lib/newspaper/edit-lock';
 import { EditLockBoundary } from '@/components/portal/edit-lock';
 import { PagePager } from '@/components/portal/page-pager';
 import { getLegalNotices } from '@/lib/queries/legal-notices';
+import { getAllCustomerLegals } from '@/lib/queries/customer';
+import { legalFooterLine } from '@/lib/legal-dates';
 import {
   getClassifiedsList,
   getClassifiedAdLibrary,
@@ -197,7 +199,25 @@ export default async function NewspaperPageEditorPage({
     }
 
     if (tid === 'legal') {
-      const [savedNotices, issueDate] = await Promise.all([getLegalNotices(), getIssueDate()]);
+      const [savedNotices, issueDate, dbLegals] = await Promise.all([
+        getLegalNotices(),
+        getIssueDate(),
+        getAllCustomerLegals(),
+      ]);
+      // The Legal Database by L#, reverse chrono of entry - the primary
+      // picker when placing a legal. Body carries the printed footer line.
+      const databaseLegals = dbLegals.map((l) => ({
+        id: l.id,
+        lNumber: l.l_number,
+        customer: l.customer_name,
+        header: l.header,
+        printBody: `${l.body}\n${legalFooterLine(l.l_number, l.run_dates ?? [])}`,
+        dateLabel: new Date(l.created_at).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+      }));
       return (
         <PortalShell
           user={user}
@@ -214,6 +234,7 @@ export default async function NewspaperPageEditorPage({
               dateLabel={issueDate}
               initialData={normalizeLegalPage(page.template_data)}
               savedNotices={savedNotices}
+              databaseLegals={databaseLegals}
             />
           </EditLockBoundary>
         </PortalShell>

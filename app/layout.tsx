@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import { Playfair_Display, Source_Sans_3, Crimson_Text, Montserrat, Anton, Oswald } from 'next/font/google';
 import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
@@ -118,6 +119,16 @@ export default function RootLayout({
       className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable} ${newsHeadline.variable} ${newsDisplay.variable} ${newsCondensed.variable}`}
     >
       <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900 font-sans">
+        {/* Google AdSense - site verification + Auto ads loader (pairs with
+            public/ads.txt). beforeInteractive puts the tag in the server
+            rendered <head>, where AdSense's site review expects to find it. */}
+        <Script
+          id="adsense-loader"
+          strategy="beforeInteractive"
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2614812694388385"
+          crossOrigin="anonymous"
+          async
+        />
         <GlobalJsonLd />
         {/* Site-wide traffic beacon (public pages only — see the component). */}
         <SiteViewTracker />

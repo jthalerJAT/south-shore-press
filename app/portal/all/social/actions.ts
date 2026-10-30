@@ -32,11 +32,13 @@ export async function publishTweet(text: string, storyId?: string): Promise<Twee
   if (storyId) {
     const story = await getStoryForEdit(storyId);
     if (story) {
+      // utm_source tags the clicks for the Traffic Stats "Top Sources" table -
+      // the X app strips referrers, so untagged visits would count as direct.
       const url = `${getSiteOrigin()}${buildStoryPath({
         id: story.id,
         headline: story.headline,
         categories: story.categories,
-      })}`;
+      })}?utm_source=x&utm_medium=social`;
       body = body ? `${body}\n\n${url}` : url;
     }
   }

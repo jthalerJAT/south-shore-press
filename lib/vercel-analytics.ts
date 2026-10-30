@@ -36,6 +36,7 @@ export type VisitorStat = {
 };
 
 export type ReferrerRow = { hostname: string; visitors: number };
+export type SourceRow = { source: string; visitors: number };
 
 export function isVercelAnalyticsConfigured(): boolean {
   return Boolean(process.env.VERCEL_ANALYTICS_TOKEN);
@@ -152,6 +153,29 @@ export async function getVisitorStats(): Promise<VisitorStat[] | null> {
   // If every window failed (bad token, API down), hide the rows entirely.
   if (stats.every((s) => s === null)) return null;
   return stats.flatMap((s) => (s ? [s] : []));
+}
+
+/** Top utm_source tags by unique visitors, trailing 30 days. Referrers miss
+ *  most social traffic (the X app sends no referrer header, so those visits
+ *  look direct) - links we post carry ?utm_source=... instead, which the
+ *  analytics script records regardless of referrer. Untagged visits are
+ *  excluded; this table only ranks traffic from links we tagged. */
+export async function getTopSources(): Promise<SourceRow[] | null> {
+  if (!isVercelAnalyticsConfigured()) return null;
+  const json = (await api('visits/aggregate', {
+    by: 'utmSource',
+    since: dayUTC(-29).toISOString(),
+    until: dayUTC(1).toISOString(),
+    limit: '10',
+  })) as { data?: Array<Record<string, unknown>> } | null;
+  if (!json?.data) return null;
+  return json.data
+    .map((r) => ({
+      source: String(r.utmSource ?? '').trim(),
+      visitors: typeof r.visitors === 'number' ? r.visitors : 0,
+    }))
+    .filter((r) => r.source && r.visitors > 0)
+    .sort((a, b) => b.visitors - a.visitors);
 }
 
 /** Top referrer hostnames by unique visitors, trailing 30 days. */

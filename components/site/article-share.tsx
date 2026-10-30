@@ -24,9 +24,15 @@ export function ArticleShare({
 }) {
   const [copied, setCopied] = useState(false);
 
-  const xHref = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`;
+  // Shared links carry utm_source so the Traffic Stats "Top Sources" table can
+  // attribute them - the X app strips referrers, so untagged X visits would
+  // all be counted as direct. Copy Link stays the clean canonical URL.
+  const withUtm = (source: string, medium: string) =>
+    `${url}${url.includes('?') ? '&' : '?'}utm_source=${source}&utm_medium=${medium}`;
 
-  const emailBody = `${title}\n\n${byline ? `By ${byline}\n\n` : ''}Read the full story from The South Shore Press:\n${url}\n`;
+  const xHref = `https://twitter.com/intent/tweet?url=${encodeURIComponent(withUtm('x', 'social'))}`;
+
+  const emailBody = `${title}\n\n${byline ? `By ${byline}\n\n` : ''}Read the full story from The South Shore Press:\n${withUtm('email', 'email')}\n`;
   const emailHref = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(emailBody)}`;
 
   async function copyLink() {

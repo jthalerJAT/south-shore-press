@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import { requireRole } from '@/lib/auth';
 import { PortalShell } from '@/components/portal/portal-shell';
 import { getTrafficSummary, getTopContent } from '@/lib/queries/traffic';
-import { getVisitorStats, getTopReferrers, isVercelAnalyticsConfigured } from '@/lib/vercel-analytics';
+import { getVisitorStats, getTopReferrers, getTopSources, isVercelAnalyticsConfigured } from '@/lib/vercel-analytics';
 import { TrafficDashboard } from './traffic-dashboard';
 
 export const metadata: Metadata = {
@@ -15,11 +15,12 @@ export const dynamic = 'force-dynamic';
 export default async function TrafficStatsPage() {
   const user = await requireRole(['editor', 'admin', 'master admin'], '/portal/all/traffic');
 
-  const [stats, frames, visitorStats, referrers] = await Promise.all([
+  const [stats, frames, visitorStats, referrers, sources] = await Promise.all([
     getTrafficSummary(),
     getTopContent(),
     getVisitorStats(),
     getTopReferrers(),
+    getTopSources(),
   ]);
 
   return (
@@ -35,6 +36,7 @@ export default async function TrafficStatsPage() {
         frames={frames}
         visitorStats={visitorStats}
         referrers={referrers}
+        sources={sources}
         vercelConfigured={isVercelAnalyticsConfigured()}
       />
     </PortalShell>

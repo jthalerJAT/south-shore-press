@@ -12,7 +12,13 @@
  */
 import { useState } from 'react';
 import type { TrafficStat, TopContentFrame } from '@/lib/queries/traffic';
-import type { VisitorStat, ReferrerRow } from '@/lib/vercel-analytics';
+import type { VisitorStat, ReferrerRow, SourceRow } from '@/lib/vercel-analytics';
+
+/** Friendly names for the utm_source tags our own share links set. */
+const SOURCE_LABELS: Record<string, string> = {
+  x: 'X (tagged links)',
+  email: 'Email shares',
+};
 
 function GrowthChip({ value, label }: { value: number | null; label: string }) {
   if (value === null) {
@@ -40,6 +46,7 @@ export function TrafficDashboard({
   frames,
   visitorStats,
   referrers,
+  sources,
   vercelConfigured,
 }: {
   stats: TrafficStat[];
@@ -47,6 +54,7 @@ export function TrafficDashboard({
   /** Unique visitors from Vercel Web Analytics; null = token not set / API down. */
   visitorStats: VisitorStat[] | null;
   referrers: ReferrerRow[] | null;
+  sources: SourceRow[] | null;
   vercelConfigured: boolean;
 }) {
   const [frameKey, setFrameKey] = useState<TopContentFrame['key']>('month');
@@ -141,6 +149,35 @@ export function TrafficDashboard({
               ))}
             </ul>
           </div>
+        </div>
+      ) : null}
+
+      {/* ── Top sources (utm_source on links we post/share) ── */}
+      {sources && sources.length > 0 ? (
+        <div>
+          <h2 className="text-xs uppercase tracking-widest font-bold text-zinc-500 mb-3">
+            Top Sources - Trailing 30 Days
+          </h2>
+          <div className="overflow-hidden rounded border border-zinc-200">
+            <ul className="divide-y divide-zinc-100">
+              {sources.map((r) => (
+                <li key={r.source} className="flex items-center justify-between px-3 py-2">
+                  <span className="text-sm text-zinc-900 truncate">
+                    {SOURCE_LABELS[r.source] ?? r.source}
+                  </span>
+                  <span className="text-sm font-semibold text-zinc-900 tabular-nums">
+                    {r.visitors.toLocaleString()}
+                    <span className="ml-1 text-xs font-normal text-zinc-400">visitors</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="mt-2 text-xs text-zinc-400">
+            Counts visits from links we tag (X posts from the Social board, the article Post/Email
+            share buttons). The X app strips referrers, so X traffic never shows in Top Referrers -
+            it shows here instead, starting from links posted after Oct 30, 2026.
+          </p>
         </div>
       ) : null}
 

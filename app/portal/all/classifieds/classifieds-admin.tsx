@@ -249,7 +249,7 @@ export function ClassifiedsAdmin({ classifieds }: { classifieds: ClassifiedRow[]
                       rel="noopener noreferrer"
                       className="text-brand-red hover:underline"
                     >
-                      {c.dateLabel.toUpperCase()} CLASSIFIED PDF
+                      {c.fileName ?? `${c.dateLabel.toUpperCase()} CLASSIFIED PDF`}
                     </a>
                   </td>
                   <td className="py-3 text-right">

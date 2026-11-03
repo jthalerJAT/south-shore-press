@@ -38,6 +38,8 @@ function newId() {
 
 export type ClassifiedOption = {
   id: string;
+  /** ISO date (YYYY-MM-DD) for reverse-chrono sorting. */
+  iso: string;
   dateLabel: string;
   fileName: string | null;
   storagePath: string;
@@ -47,6 +49,8 @@ export type ClassifiedLibraryOption = {
   id: string;
   storagePath: string;
   fileName: string | null;
+  /** ISO date (YYYY-MM-DD) for reverse-chrono sorting. */
+  iso: string;
   dateLabel: string;
 };
 
@@ -155,6 +159,59 @@ export function ClassifiedEditor({
     }
   }
 
+  // The "Add Classified from Database" dropdown: every ad placed on a
+  // classifieds page before (the reuse library) PLUS every file uploaded on
+  // the Classified Upload tile, merged reverse-chrono. Tile files whose name
+  // matches a library ad are left out - the library copy is already cropped.
+  const libraryNames = new Set(
+    library.map((o) => (o.fileName ?? '').toLowerCase()).filter(Boolean)
+  );
+  const databaseEntries = [
+    ...library.map((o) => ({
+      key: `lib:${o.id}`,
+      iso: o.iso,
+      label: `${o.fileName ?? 'Classified ad'} (${o.dateLabel})`,
+    })),
+    ...options
+      .filter((o) => !(o.fileName && libraryNames.has(o.fileName.toLowerCase())))
+      .map((o) => ({
+        key: `up:${o.id}`,
+        iso: o.iso,
+        label: `${o.fileName ?? 'Classified file'} (${o.dateLabel})`,
+      })),
+  ].sort((a, b) => (a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : 0));
+
+  /** A Classified Upload tile file: fetch it and run it through the same
+   *  crop-and-place pipeline as a fresh drag-drop. */
+  async function addFromUpload(id: string) {
+    const rec = options.find((o) => o.id === id);
+    if (!rec) return;
+    setError(null);
+    setUploading(true);
+    try {
+      const res = await fetch(classifiedFileUrl(rec.storagePath));
+      if (!res.ok) throw new Error(`could not load the file (HTTP ${res.status})`);
+      const blob = await res.blob();
+      const file = new File([blob], rec.fileName ?? 'classified.pdf', {
+        type: blob.type || 'application/pdf',
+      });
+      await addFiles([file]);
+    } catch (e) {
+      setError(
+        e instanceof Error && e.message
+          ? `Could not add the classified: ${e.message}`
+          : 'Could not add that classified file.'
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function pickFromDatabase(key: string) {
+    if (key.startsWith('lib:')) addFromLibrary(key.slice(4));
+    else if (key.startsWith('up:')) void addFromUpload(key.slice(3));
+  }
+
   function addFromLibrary(id: string) {
     const rec = library.find((o) => o.id === id);
     if (!rec) return;
@@ -259,34 +316,36 @@ export function ClassifiedEditor({
           />
         </div>
 
-        {/* Reuse a previous week's ad - no re-upload needed */}
+        {/* Place a stored classified - no re-upload needed */}
         <div className="rounded-lg border border-zinc-200 bg-white p-3 space-y-2">
           <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">
-            Reuse a previous classified
+            Add Classified from Database
           </div>
           <select
             value=""
+            disabled={uploading}
             onChange={(e) => {
-              if (e.target.value) addFromLibrary(e.target.value);
+              if (e.target.value) pickFromDatabase(e.target.value);
               e.target.value = '';
             }}
-            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none"
+            className="block w-full rounded border border-zinc-300 px-3 py-2 text-sm focus:border-brand-red focus:outline-none disabled:opacity-60"
           >
             <option value="">
-              {library.length === 0
-                ? 'No saved classifieds yet - uploads are remembered automatically'
-                : 'Select an ad from a previous week...'}
+              {databaseEntries.length === 0
+                ? 'No classifieds in the database yet - uploads are remembered automatically'
+                : 'Select a classified file...'}
             </option>
-            {library.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.fileName ?? 'Classified ad'} ({o.dateLabel})
+            {databaseEntries.map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.label}
               </option>
             ))}
           </select>
           <p className="text-[11px] text-zinc-400">
-            Every ad uploaded here is saved automatically and listed above for future weeks -
-            most classifieds repeat, so pick from the list instead of re-uploading. Selecting
-            adds it to the page; it can be placed on both classifieds pages.
+            Lists every file in the Classified Upload tile plus every ad placed on a classifieds
+            page before, newest first. Selecting adds it to the page (a file picked from the
+            upload tile is cropped first, which takes a moment); it can be placed on both
+            classifieds pages.
           </p>
         </div>
 

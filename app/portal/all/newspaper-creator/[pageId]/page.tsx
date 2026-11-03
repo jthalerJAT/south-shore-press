@@ -277,6 +277,7 @@ export default async function NewspaperPageEditorPage({
       ]);
       const options = classifieds.map((c) => ({
         id: c.id,
+        iso: c.classified_date,
         dateLabel: formatClassifiedDate(c.classified_date),
         fileName: c.file_name,
         storagePath: c.storage_path,
@@ -285,6 +286,7 @@ export default async function NewspaperPageEditorPage({
         id: a.id,
         storagePath: a.storage_path,
         fileName: a.file_name,
+        iso: a.created_at.slice(0, 10),
         dateLabel: new Date(a.created_at).toLocaleDateString('en-US', {
           month: 'short',
           day: 'numeric',

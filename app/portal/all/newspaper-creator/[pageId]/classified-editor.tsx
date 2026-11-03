@@ -161,25 +161,33 @@ export function ClassifiedEditor({
 
   // The "Add Classified from Database" dropdown: every ad placed on a
   // classifieds page before (the reuse library) PLUS every file uploaded on
-  // the Classified Upload tile, merged reverse-chrono. Tile files whose name
-  // matches a library ad are left out - the library copy is already cropped.
-  const libraryNames = new Set(
-    library.map((o) => (o.fileName ?? '').toLowerCase()).filter(Boolean)
-  );
-  const databaseEntries = [
-    ...library.map((o) => ({
-      key: `lib:${o.id}`,
-      iso: o.iso,
-      label: `${o.fileName ?? 'Classified ad'} (${o.dateLabel})`,
-    })),
-    ...options
-      .filter((o) => !(o.fileName && libraryNames.has(o.fileName.toLowerCase())))
-      .map((o) => ({
+  // the Classified Upload tile, merged reverse-chrono. When the same file
+  // name appears in both (most ads repeat weekly), only the NEWEST copy is
+  // listed - a re-upload may carry updated artwork, so it wins over the
+  // older cropped copy.
+  const databaseEntries = (() => {
+    const merged = [
+      ...library.map((o) => ({
+        key: `lib:${o.id}`,
+        iso: o.iso,
+        name: (o.fileName ?? '').toLowerCase(),
+        label: `${o.fileName ?? 'Classified ad'} (${o.dateLabel})`,
+      })),
+      ...options.map((o) => ({
         key: `up:${o.id}`,
         iso: o.iso,
+        name: (o.fileName ?? '').toLowerCase(),
         label: `${o.fileName ?? 'Classified file'} (${o.dateLabel})`,
       })),
-  ].sort((a, b) => (a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : 0));
+    ].sort((a, b) => (a.iso < b.iso ? 1 : a.iso > b.iso ? -1 : 0));
+    const seen = new Set<string>();
+    return merged.filter((e) => {
+      if (!e.name) return true;
+      if (seen.has(e.name)) return false;
+      seen.add(e.name);
+      return true;
+    });
+  })();
 
   /** A Classified Upload tile file: fetch it and run it through the same
    *  crop-and-place pipeline as a fresh drag-drop. */

@@ -33,6 +33,13 @@ export function createAdminClient(): SupabaseClient {
 
   cached = createSupabaseClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
+    global: {
+      // Never let Next's Data Cache answer a service-role read. These reads
+      // back the press export and the Stripe webhook: both must see the row
+      // as it is NOW, not as it was when the cache entry was written
+      // (press export printed a stale page 3, 2026-11-04).
+      fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
+    },
   });
   return cached;
 }

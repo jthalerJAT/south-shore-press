@@ -128,8 +128,15 @@ export async function getItemSummaries(): Promise<Record<string, NpItemSummary[]
   const supabase = createClient();
   const { data, error } = await supabase
     .from('np_items')
-    .select('page_id, item_order, type, data')
-    .order('item_order', { ascending: true });
+    .select('page_id, item_order, type, data, created_at, id')
+    // created_at + id break ties: two items can share an item_order (a story
+    // dropped on a page that was never re-saved), and without a tie-break
+    // Postgres is free to return them in ANY order — the board and the press
+    // export disagreed, and the loser was pushed off the printed page
+    // (publisher report 2026-11-04, page 3).
+    .order('item_order', { ascending: true })
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
   if (error) {
     console.error('[getItemSummaries]', error);
     return {};
@@ -182,7 +189,11 @@ export async function getPageItems(pageId: string): Promise<NpItem[]> {
     .from('np_items')
     .select('*')
     .eq('page_id', pageId)
-    .order('item_order', { ascending: true });
+    // Same deterministic tie-break as getItemSummaries — the editor, the proof
+    // and the press export must agree on band order.
+    .order('item_order', { ascending: true })
+    .order('created_at', { ascending: true })
+    .order('id', { ascending: true });
   if (error) {
     console.error('[getPageItems]', error);
     return [];

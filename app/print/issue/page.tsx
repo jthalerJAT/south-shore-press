@@ -22,6 +22,13 @@ import { type ProofItem } from '../../portal/all/newspaper-creator/[pageId]/prin
 import { FlowPage } from '../../portal/all/newspaper-creator/[pageId]/print/flow-page';
 
 export const dynamic = 'force-dynamic';
+// The press export MUST read the live issue. `force-dynamic` stops the ROUTE
+// being cached, but the Supabase reads inside it are plain fetches that can
+// still be served from the Data Cache — on 2026-11-04 the export printed a
+// page-3 story the publisher had replaced hours earlier, and re-saving the
+// page changed nothing because the render never hit the database.
+export const fetchCache = 'force-no-store';
+export const revalidate = 0;
 
 /**
  * Bare, chrome-free print view of the issue at the exact 11×15 trim size, for
@@ -77,7 +84,13 @@ export default async function PrintIssue({
         .from('np_items')
         .select('*')
         .eq('page_id', page.id)
-        .order('item_order', { ascending: true });
+        // MUST match lib/queries/newspaper.ts: without the created_at + id
+        // tie-break, items sharing an item_order come back in a different
+        // order here than in the editor, and a story silently vanishes from
+        // the printed page (publisher report 2026-11-04, page 3).
+        .order('item_order', { ascending: true })
+        .order('created_at', { ascending: true })
+        .order('id', { ascending: true });
       const proofItems: ProofItem[] = (items ?? []).map((it) => {
         const r = it as { id: string; type: 'story' | 'ad'; data?: unknown; layout?: unknown };
         return { id: r.id, type: r.type, data: (r.data ?? {}) as ProofItem['data'], layout: (r.layout ?? {}) as Record<string, unknown> };

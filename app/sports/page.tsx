@@ -10,6 +10,7 @@ import { getSiteOrigin } from '@/lib/site-url';
 import { SportsSubsection } from './sports-subsection';
 import { RecentStoryRow } from '@/components/story/recent-story-row';
 import { AlsoSection } from '@/components/story/also-section';
+import { AdSlot } from '@/components/site/ad-slot';
 import { getAlsoPool } from '@/lib/queries/trending';
 
 // Default tiles shown per sub-section (3 across × 2 high) before "View All".
@@ -152,6 +153,9 @@ export default async function SportsPage() {
       ) : null}
 
       {/* You Might Also Be Interested In — 4 tiles + Show More. */}
+      {/* One ad per section page, above the "also" tiles. */}
+      <AdSlot placement="section" />
+
       <AlsoSection stories={alsoPool} initialCount={4} step={10} />
     </div>
   );

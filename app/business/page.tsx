@@ -9,6 +9,7 @@ import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { SITE } from '@/lib/site-config';
 import { getSiteOrigin } from '@/lib/site-url';
 import { AlsoSection } from '@/components/story/also-section';
+import { AdSlot } from '@/components/site/ad-slot';
 import { getAlsoPool } from '@/lib/queries/trending';
 import { MoreStories } from './more-stories';
 
@@ -115,6 +116,9 @@ export default async function BusinessPage() {
       <MoreStories stories={moreRows} initialCount={MORE_ROWS} step={10} />
 
       {/* You Might Also Be Interested In — 4 tiles. */}
+      {/* One ad per section page, above the "also" tiles. */}
+      <AdSlot placement="section" />
+
       <AlsoSection stories={alsoTiles} initialCount={ALSO_TILES} />
     </div>
   );

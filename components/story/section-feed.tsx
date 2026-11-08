@@ -2,6 +2,7 @@ import { StoryCard } from '@/components/story/story-card';
 import { TopStoriesRail } from '@/components/story/top-stories-rail';
 import { MoreStoriesSection } from '@/components/story/more-stories-section';
 import { AlsoSection } from '@/components/story/also-section';
+import { AdSlot } from '@/components/site/ad-slot';
 import { getPublishedStoriesBySection, getStoriesByIds } from '@/lib/queries/stories';
 import { getAllPins, resolveSlotWithPinned } from '@/lib/queries/site-layout';
 import { getTrendingStories } from '@/lib/queries/trending';
@@ -74,6 +75,10 @@ export async function SectionFeed({ slug, label }: { slug: string; label: string
           <TopStoriesRail stories={topStories} title="Top Stories" />
         </aside>
       </div>
+
+      {/* One ad per section page, between the main grid and "More stories" —
+          never inside a grid of headlines. */}
+      {mainTiles.length > 0 ? <AdSlot placement="section" /> : null}
 
       <MoreStoriesSection stories={moreStories} />
 

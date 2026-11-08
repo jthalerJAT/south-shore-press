@@ -5,6 +5,7 @@ import { SITE, SITE_SECTIONS } from '@/lib/site-config';
 import { AlsoSection } from '@/components/story/also-section';
 import { getAlsoPool } from '@/lib/queries/trending';
 import { SectionGrid } from './section-grid';
+import { AdSlot } from '@/components/site/ad-slot';
 
 // ISR — same 60s revalidate as homepage for now; Phase 4 will tune.
 export const revalidate = 60;
@@ -86,6 +87,10 @@ export default async function SectionIndexPage({
           initialHasMore={initialHasMore}
         />
       )}
+
+      {/* One ad between the section's stories and the "also" tiles — never
+          inside the grid, so the section reads as a page of journalism. */}
+      {initial.length > 0 ? <AdSlot placement="section" /> : null}
 
       {/* You Might Also Be Interested In — 4 tiles + Show More. */}
       <AlsoSection stories={alsoPool} initialCount={4} step={10} />

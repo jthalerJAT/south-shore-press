@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { InlineText, initialInlineState, stateAfter, stripInlineMarkers, isAllBoldParagraph } from '@/lib/inline-format';
@@ -6,6 +7,7 @@ import Image from 'next/image';
 import { HeroMedia } from '@/components/story/hero-media';
 import { StoryCard } from '@/components/story/story-card';
 import { ArticleShare } from '@/components/site/article-share';
+import { AdSlot } from '@/components/site/ad-slot';
 import { ViewTracker } from '@/components/story/view-tracker';
 import {
   getPublishedStoryByShortId,
@@ -277,21 +279,27 @@ export default async function StoryPage({ params }: { params: Params }) {
               // titles): no indent, extra space above. Matches print.
               const head = isAllBoldParagraph(p, pState);
               return (
-                <p
-                  key={i}
-                  className={
-                    head
-                      ? 'text-[16px] leading-[1.8] text-zinc-900 mb-[10px] mt-8 first:mt-0 indent-0'
-                      : 'text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0 indent-[1.5em]'
-                  }
-                >
-                  <InlineText text={p} state={pState} />
-                </p>
+                <Fragment key={i}>
+                  <p
+                    className={
+                      head
+                        ? 'text-[16px] leading-[1.8] text-zinc-900 mb-[10px] mt-8 first:mt-0 indent-0'
+                        : 'text-[16px] leading-[1.8] text-zinc-700 mb-[18px] last:mb-0 indent-[1.5em]'
+                    }
+                  >
+                    <InlineText text={p} state={pState} />
+                  </p>
+                  {/* In-article ad after the 3rd paragraph — only on stories
+                      long enough that it isn't the last thing on the page. */}
+                  {i === 2 && paragraphs.length >= 6 ? <AdSlot placement="in_article" /> : null}
+                </Fragment>
               );
             });
           })()
         )}
       </div>
+
+      <AdSlot placement="article_end" />
 
       {/* Extra photo gallery — quietly skipped when empty */}
       {story.extra_photo_urls && story.extra_photo_urls.length > 0 ? (

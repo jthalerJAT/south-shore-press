@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Playfair_Display, Source_Sans_3, Crimson_Text, Montserrat, Anton, Oswald } from 'next/font/google';
 import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
+import { AdSenseScript } from '@/components/site/adsense-script';
 import { SiteFooter } from '@/components/site/site-footer';
 import { GlobalJsonLd } from '@/components/seo/global-jsonld';
 import { Analytics } from '@vercel/analytics/react';
@@ -118,16 +119,11 @@ export default function RootLayout({
       className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable} ${newsHeadline.variable} ${newsDisplay.variable} ${newsCondensed.variable}`}
     >
       <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900 font-sans">
-        {/* Google AdSense - site verification + ads loader (pairs with
-            public/ads.txt). A literal tag, NOT next/script: App Router
-            strategies emit only an inline __next_s bootstrap, which AdSense's
-            raw-HTML verifier cannot see - it needs this element in the
-            server-rendered source. */}
-        <script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2614812694388385"
-          crossOrigin="anonymous"
-        />
+        {/* Google AdSense loader - PUBLIC pages only (never the portals or
+            the /print routes the press PDF renders from). Verification is
+            done, so this no longer needs to be a literal server-rendered
+            tag; see components/site/adsense-script.tsx. */}
+        <AdSenseScript />
         <GlobalJsonLd />
         {/* Site-wide traffic beacon (public pages only — see the component). */}
         <SiteViewTracker />

@@ -115,7 +115,7 @@ export function TrafficDashboard({
       ) : null}
 
       <p className="text-xs text-zinc-400">
-        Page views, bucketed by UTC day. Full-site counting began Oct 9, 2026 - earlier history
+        Page views - days roll over at midnight Eastern. Full-site counting began Oct 9, 2026 - earlier history
         reflects article views only, so growth rates straddling that date run low. &ldquo;-&rdquo;
         means the comparison window has no recorded traffic yet. For unique visitors, referrers,
         and devices, see{' '}

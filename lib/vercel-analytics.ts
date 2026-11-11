@@ -14,7 +14,9 @@ import 'server-only';
  *
  * Collection started 2026-10-09 (Web Analytics enabled + script deployed), so
  * growth comparisons stay "—" until the windows have history. `until` is
- * EXCLUSIVE and the API buckets by UTC day.
+ * EXCLUSIVE. Windows are sent as exact instants at midnight EASTERN so the
+ * visitor stats roll over with the page-view counters (migration 054,
+ * publisher direction 2026-10-21).
  */
 
 const API = 'https://api.vercel.com/v1/query/web-analytics';
@@ -42,16 +44,29 @@ export function isVercelAnalyticsConfigured(): boolean {
   return Boolean(process.env.VERCEL_ANALYTICS_TOKEN);
 }
 
-function dayUTC(offsetDays = 0, from?: Date): Date {
-  const base = from ?? new Date();
-  const d = new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate()));
-  d.setUTCDate(d.getUTCDate() + offsetDays);
-  return d;
+/** Today's calendar date in the Eastern time zone, as YYYY-MM-DD. */
+function ymdTodayET(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(new Date());
 }
-function yearAgo(d: Date): Date {
-  const y = new Date(d);
-  y.setUTCFullYear(y.getUTCFullYear() - 1);
-  return y;
+function ymdShift(ymd: string, days: number): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+function ymdYearAgo(ymd: string): string {
+  const [y, m, d] = ymd.split('-').map(Number);
+  return new Date(Date.UTC(y - 1, m - 1, d)).toISOString().slice(0, 10);
+}
+/** Midnight Eastern on the given date, as the actual instant (DST-aware):
+ *  00:00 ET is 05:00 UTC under EST and 04:00 UTC under EDT. */
+function etMidnight(ymd: string): Date {
+  const [y, m, d] = ymd.split('-').map(Number);
+  const probe = new Date(Date.UTC(y, m - 1, d, 5)); // 00:00 EST or 01:00 EDT
+  const hour = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/New_York',
+    hour: '2-digit',
+    hourCycle: 'h23',
+  }).format(probe);
+  return hour === '01' ? new Date(Date.UTC(y, m - 1, d, 4)) : probe;
 }
 function growth(cur: number, prev: number | null): number | null {
   if (prev === null || prev <= 0) return null;
@@ -94,58 +109,60 @@ async function countVisitors(from: Date, toExclusive: Date): Promise<number | nu
 export async function getVisitorStats(): Promise<VisitorStat[] | null> {
   if (!isVercelAnalyticsConfigured()) return null;
 
-  const today = dayUTC();
-  const tomorrow = dayUTC(1);
-  const jan1 = new Date(Date.UTC(today.getUTCFullYear(), 0, 1));
-  const ytdDays = Math.round((today.getTime() - jan1.getTime()) / 86400000) + 1;
+  const today = ymdTodayET();
+  const tomorrow = ymdShift(today, 1);
+  const jan1 = `${today.slice(0, 4)}-01-01`;
+  const ytdDays = Math.round((Date.parse(today) - Date.parse(jan1)) / 86400000) + 1;
 
-  // [from, toExclusive) triplets: current, sequential-previous, year-ago.
-  const windows: Array<{ key: VisitorStat['key']; spans: Array<[Date, Date]> }> = [
+  // [from, toExclusive) triplets (ET calendar days): current, sequential-
+  // previous, year-ago.
+  const windows: Array<{ key: VisitorStat['key']; spans: Array<[string, string]> }> = [
     {
       key: 'today',
       spans: [
         [today, tomorrow],
-        [dayUTC(-1), today],
-        [yearAgo(today), yearAgo(tomorrow)],
+        [ymdShift(today, -1), today],
+        [ymdYearAgo(today), ymdYearAgo(tomorrow)],
       ],
     },
     {
       key: 'week',
       spans: [
-        [dayUTC(-6), tomorrow],
-        [dayUTC(-13), dayUTC(-6)],
-        [yearAgo(dayUTC(-6)), yearAgo(tomorrow)],
+        [ymdShift(today, -6), tomorrow],
+        [ymdShift(today, -13), ymdShift(today, -6)],
+        [ymdYearAgo(ymdShift(today, -6)), ymdYearAgo(tomorrow)],
       ],
     },
     {
       key: 'month',
       spans: [
-        [dayUTC(-29), tomorrow],
-        [dayUTC(-59), dayUTC(-29)],
-        [yearAgo(dayUTC(-29)), yearAgo(tomorrow)],
+        [ymdShift(today, -29), tomorrow],
+        [ymdShift(today, -59), ymdShift(today, -29)],
+        [ymdYearAgo(ymdShift(today, -29)), ymdYearAgo(tomorrow)],
       ],
     },
     {
       key: 'ytd',
       spans: [
         [jan1, tomorrow],
-        [dayUTC(-ytdDays, jan1), jan1],
-        [yearAgo(jan1), yearAgo(tomorrow)],
+        [ymdShift(jan1, -ytdDays), jan1],
+        [ymdYearAgo(jan1), ymdYearAgo(tomorrow)],
       ],
     },
   ];
 
   const stats = await Promise.all(
     windows.map(async (w) => {
-      const [cur, seq, yoy] = await Promise.all(w.spans.map(([f, t]) => countVisitors(f, t)));
+      const [cur, seq, yoy] = await Promise.all(
+        w.spans.map(([f, t]) => countVisitors(etMidnight(f), etMidnight(t)))
+      );
       if (cur === null) return null;
-      const windowStart = w.spans[0][0].toISOString().slice(0, 10);
       return {
         key: w.key,
         visitors: cur,
         seqGrowth: growth(cur, seq),
         yoyGrowth: growth(cur, yoy),
-        partial: windowStart < VERCEL_COLLECTION_START,
+        partial: w.spans[0][0] < VERCEL_COLLECTION_START,
       } satisfies VisitorStat;
     })
   );
@@ -162,10 +179,11 @@ export async function getVisitorStats(): Promise<VisitorStat[] | null> {
  *  excluded; this table only ranks traffic from links we tagged. */
 export async function getTopSources(): Promise<SourceRow[] | null> {
   if (!isVercelAnalyticsConfigured()) return null;
+  const today = ymdTodayET();
   const json = (await api('visits/aggregate', {
     by: 'utmSource',
-    since: dayUTC(-29).toISOString(),
-    until: dayUTC(1).toISOString(),
+    since: etMidnight(ymdShift(today, -29)).toISOString(),
+    until: etMidnight(ymdShift(today, 1)).toISOString(),
     limit: '10',
   })) as { data?: Array<Record<string, unknown>> } | null;
   if (!json?.data) return null;
@@ -181,10 +199,11 @@ export async function getTopSources(): Promise<SourceRow[] | null> {
 /** Top referrer hostnames by unique visitors, trailing 30 days. */
 export async function getTopReferrers(): Promise<ReferrerRow[] | null> {
   if (!isVercelAnalyticsConfigured()) return null;
+  const today = ymdTodayET();
   const json = (await api('visits/aggregate', {
     by: 'referrerHostname',
-    since: dayUTC(-29).toISOString(),
-    until: dayUTC(1).toISOString(),
+    since: etMidnight(ymdShift(today, -29)).toISOString(),
+    until: etMidnight(ymdShift(today, 1)).toISOString(),
     limit: '10',
   })) as { data?: Array<Record<string, unknown>> } | null;
   if (!json?.data) return null;

@@ -13,6 +13,10 @@ export const dynamic = 'force-dynamic';
  * automatically alongside the Digital Paper archive. Guarded by the print
  * token like /api/ingest/digital-paper.
  *
+ *   {action:'pages'}  → which printed page numbers are Legal Notices pages
+ *                       (1-based ordinals among the active variant's included
+ *                       pages, in page_order — the same list /print/issue
+ *                       renders, so they match the exported PDF 1:1)
  *   {action:'sign'}   → signed Storage upload URL in the public legals bucket
  *   {action:'record', legal_date, storage_path, file_name}
  *                     → files the row; any existing rows for that date are
@@ -40,6 +44,32 @@ export async function POST(req: Request) {
     file_name?: string;
   };
   const admin = createAdminClient();
+
+  if (body.action === 'pages') {
+    const { data: rows, error } = await admin
+      .from('np_pages')
+      .select('kind, page_order, include_in_paper, variant')
+      .order('page_order', { ascending: true });
+    if (error) {
+      console.error('[ingest/legals] pages', error);
+      return NextResponse.json({ error: 'Could not read the page list.' }, { status: 500 });
+    }
+    const { data: setting } = await admin
+      .from('np_settings')
+      .select('value')
+      .eq('key', 'active_variant')
+      .maybeSingle();
+    const activeVariant = setting?.value === 'election' ? 'election' : 'standard';
+    const included = ((rows ?? []) as Array<{
+      kind: string;
+      include_in_paper: boolean | null;
+      variant: string | null;
+    }>).filter((p) => p.include_in_paper !== false && (p.variant ?? 'standard') === activeVariant);
+    const legals = included
+      .map((p, i) => (p.kind === 'legals' ? i + 1 : 0))
+      .filter((n) => n > 0);
+    return NextResponse.json({ ok: true, total: included.length, legals });
+  }
 
   if (body.action === 'sign') {
     const path = `${randomUUID()}.pdf`;

@@ -85,36 +85,60 @@ await api({
 console.log(`Digital Paper published: ${issueDate} (${pageCount} pages, ${(sizeBytes / 1e6).toFixed(1)} MB).`);
 
 // ── Legals section → the public Legals library ──────────────────────────────
-// Detect the legal-notices pages: text pages carrying the LEGAL NOTICES
-// banner near the top, EXTENDED across adjacent image-only pages (uploaded
-// court documents rasterized into the paper carry no text beyond the running
-// header — the 2026-08-26 issue's 8 extra pages taught us this).
+// The authoritative list of legal pages comes from the site itself
+// ({action:'pages'} on /api/ingest/legals): the 1-based ordinals of np_pages
+// rows with kind 'legals' among the active variant's included pages — the
+// exact list /print/issue rendered, so they match this PDF 1:1. That covers
+// the standard two pages AND any extra court-document pages added on the
+// board (all kind 'legals').
+//
+// The old approach sniffed the PDF's text and widened across adjacent
+// "image-only" pages (for rasterized court documents, 2026-08-26 issue) —
+// but a full-page ad next to the legals is also image-only and got swept in
+// (publisher report 2026-11-12: the published legals PDF opened with an ad).
+// Text sniffing survives only as a fallback, with NO image-only widening.
 try {
-  const mupdf = await import('mupdf');
-  const { readFileSync: rf } = await import('node:fs');
-  const doc = mupdf.PDFDocument.openDocument(rf(SRC), 'application/pdf');
-  const n = doc.countPages();
-  const texts = [];
-  for (let i = 0; i < n; i++) {
-    texts.push(doc.loadPage(i).toStructuredText('preserve-whitespace').asText());
+  let legalPages = null; // 1-based page numbers in this PDF
+  try {
+    const resp = await api({ action: 'pages' }, 'legals');
+    if (Array.isArray(resp.legals) && resp.legals.length > 0) {
+      if (resp.total === pageCount) {
+        legalPages = resp.legals;
+      } else {
+        console.warn(
+          `! Board says ${resp.total} included pages but the PDF has ${pageCount} — ` +
+          'the board changed since the export? Falling back to text detection.'
+        );
+      }
+    }
+  } catch (e) {
+    console.warn(`! Could not fetch the legals page list (${e.message}) — falling back to text detection.`);
   }
-  const isCore = (t) =>
-    t.toUpperCase().slice(0, 600).includes('LEGAL NOTICES') &&
-    (t.toUpperCase().match(/NOTICE/g) ?? []).length > 3;
-  const isImageOnly = (t) => t.replace(/\s+/g, ' ').trim().length <= 250;
-  const core = texts.map((t, i) => (isCore(t) ? i : -1)).filter((i) => i >= 0);
-  if (core.length === 0) {
+
+  if (!legalPages) {
+    const mupdf = await import('mupdf');
+    const { readFileSync: rf } = await import('node:fs');
+    const doc = mupdf.PDFDocument.openDocument(rf(SRC), 'application/pdf');
+    const n = doc.countPages();
+    const texts = [];
+    for (let i = 0; i < n; i++) {
+      texts.push(doc.loadPage(i).toStructuredText('preserve-whitespace').asText());
+    }
+    const isCore = (t) =>
+      t.toUpperCase().slice(0, 600).includes('LEGAL NOTICES') &&
+      (t.toUpperCase().match(/NOTICE/g) ?? []).length > 3;
+    const core = texts.map((t, i) => (isCore(t) ? i + 1 : 0)).filter((p) => p > 0);
+    if (core.length > 0) legalPages = core;
+  }
+
+  if (!legalPages) {
     console.log('No legal-notices pages found — skipping Legals publish.');
   } else {
-    let lo = Math.min(...core);
-    let hi = Math.max(...core);
-    while (hi + 1 < n && (core.includes(hi + 1) || isImageOnly(texts[hi + 1]))) hi += 1;
-    while (lo - 1 >= 0 && (core.includes(lo - 1) || isImageOnly(texts[lo - 1]))) lo -= 1;
     const LEGALS_OUT = 'out/issue-legals.pdf';
-    console.log(`Legals section: pages ${lo + 1}-${hi + 1} (${hi - lo + 1} pages). Extracting …`);
+    console.log(`Legals section: page(s) ${legalPages.join(', ')}. Extracting …`);
     execFileSync(GS, [
       '-sDEVICE=pdfwrite', '-dCompatibilityLevel=1.5', '-dPDFSETTINGS=/ebook',
-      `-dFirstPage=${lo + 1}`, `-dLastPage=${hi + 1}`,
+      `-sPageList=${legalPages.join(',')}`,
       '-dColorImageResolution=110', '-dGrayImageResolution=110', '-dMonoImageResolution=300',
       '-dNOPAUSE', '-dBATCH', '-dQUIET', `-sOutputFile=${LEGALS_OUT}`, SRC,
     ], { stdio: 'inherit' });
@@ -132,7 +156,7 @@ try {
       storage_path: lSigned.path,
       file_name: `SSP Legals ${issueDate}.pdf`,
     }, 'legals');
-    console.log(`Legals published: ${issueDate}, ${hi - lo + 1} pages, ${(legalsBytes / 1e6).toFixed(1)} MB.`);
+    console.log(`Legals published: ${issueDate}, ${legalPages.length} pages, ${(legalsBytes / 1e6).toFixed(1)} MB.`);
   }
 } catch (err) {
   // The paper itself is already archived — a legals failure still fails the

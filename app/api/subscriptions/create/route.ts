@@ -3,7 +3,7 @@ import type Stripe from 'stripe';
 import { getStripe } from '@/lib/stripe/server';
 import { getCurrentUser } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { getPriceId, isPlanTier } from '@/lib/stripe/plans';
+import { getPriceId, isPlanTier, RETIRED_TIERS } from '@/lib/stripe/plans';
 import { normalizePhoneForStorage } from '@/lib/phone';
 
 export const dynamic = 'force-dynamic';
@@ -104,6 +104,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Unknown subscription plan.' }, { status: 400 });
   }
   const planTier = body.planTier;
+
+  if (RETIRED_TIERS.includes(planTier)) {
+    return NextResponse.json(
+      { error: 'This offer is no longer available.' },
+      { status: 400 }
+    );
+  }
 
   const priceId = getPriceId(planTier);
   if (!priceId) {

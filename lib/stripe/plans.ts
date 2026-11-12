@@ -73,14 +73,19 @@ export const PLAN_DISPLAY: Record<PlanTier, PlanDisplay> = {
   },
 };
 
-/** DISPLAY order for the plan cards — the three standing plans, then the
- *  introductory offer as the fourth option (publisher direction 2026-07-27). */
+/** DISPLAY order for the plan cards — the three standing plans. The
+ *  introductory offer (added 2026-07-27) was retired from sale on
+ *  2026-11-12 (publisher direction): no card, no new checkouts. Its tier
+ *  stays in PLAN_DISPLAY / PLAN_TIERS so existing subscribers' orders and
+ *  the webhook's price-to-tier mapping keep working. */
 export const PLAN_LIST: readonly PlanDisplay[] = [
   PLAN_DISPLAY.all_access,
   PLAN_DISPLAY.print_annual,
   PLAN_DISPLAY.print_monthly,
-  PLAN_DISPLAY.intro_annual,
 ];
+
+/** Tiers that can no longer be purchased (existing subscriptions unaffected). */
+export const RETIRED_TIERS: readonly PlanTier[] = ['intro_annual'];
 
 /** True if a string is one of our known tiers (input validation). */
 export function isPlanTier(value: unknown): value is PlanTier {

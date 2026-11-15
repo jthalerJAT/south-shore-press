@@ -183,23 +183,41 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
 };
 
 /** The pages seeded for a fresh issue, in order — the standard 40-page South
- *  Shore Press flow (2026-07-11). This is what "Rebuild Pages" lays down at the
- *  start of a new week. Structure:
+ *  Shore Press flow. Rewritten 2026-11-15 from a page-by-page audit of the ten
+ *  most recent issues (Sept 2 – Nov 11 2026, the Oct 13 election issue
+ *  excluded), so "Rebuild Pages" lays down the book the paper actually prints
+ *  instead of a content block followed by a wall of ads.
+ *
  *    1        Front Page
- *    2        Main Op-Ed (Page 2)
- *    3–6      Local News (4)
- *    7–8      Nation & World News (2)
- *    9–10     Business (2)
- *    11–14    Opinion (4)
- *    15–18    Legals & Classifieds (2 + 2)
- *    19–22    Fun Stuff — Box Office / Puzzles / Funny Pages / History (4)
- *    23–24    Professional Sports (2)
- *    25–28    Local Sports (4)
- *    29–39    Ads — fill the remainder (11)
+ *    2        Newsroom / Op-Ed (Page 2)
+ *    3        Local News
+ *    4        Ad
+ *    5–7      Local News (3)
+ *    8–10     Ads (3)
+ *    11–12    Local News (2)
+ *    13–14    Nation & World News (2)
+ *    15–16    Business (2)
+ *    17       Ad — the divider that keeps Business and Opinion isolated
+ *    18–21    Opinion (4)
+ *    22–23    Legal Notices (2)
+ *    24–25    Classifieds (2)
+ *    26–29    Fun Stuff — Box Office / Puzzles / Funny Pages / History (4)
+ *    30–32    Ads (3)
+ *    33–34    Professional Sports (2)
+ *    35–39    Local Sports (5)
  *    40       Back Page (Sports back cover)
+ *
+ *  Page budget matches the median of those ten issues: 6 Local News, 4 Opinion,
+ *  2 Nation & World, 2 Business, 8 ad pages, 2 Pro Sports, 5 Local Sports. Ads
+ *  are DISTRIBUTED the way they run in print — a single on page 4, a three-page
+ *  cluster at 8–10, the Business/Opinion divider at 17, and the fixed block at
+ *  30–32 — never banked at the back, where pages 33–39 are always sports.
+ *
  *  Interior news/opinion/sports pages are flow pages; `section` seeds the
  *  section-flag header. Editors can rename headers, insert, reorder, convert,
- *  and delete pages from here. */
+ *  and delete pages from here — every seeded header is a starting point, not a
+ *  constraint. STATE NEWS also runs some weeks; convert a Local News page's
+ *  header when it does. */
 export const DEFAULT_PAGES: ReadonlyArray<{
   kind: NpKind;
   title: string;
@@ -209,53 +227,55 @@ export const DEFAULT_PAGES: ReadonlyArray<{
 }> = [
   { kind: 'front', title: 'Front Page' },
   { kind: 'page2', title: 'Newsroom / Op-Ed' },
-  // Local News (4)
+  // Local News opens page 3 in every issue audited
   { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
-  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  { kind: 'full_page_ad', title: 'Ad' },
   { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS', colophon: true },
   { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
-  // Nation & World News (2)
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  // The three-page ad cluster that runs mid-local in every issue
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  { kind: 'generic', title: 'Local News', section: 'LOCAL NEWS' },
+  // Nation & World (2)
   { kind: 'generic', title: 'Nation & World News', section: 'NATION & WORLD NEWS' },
   { kind: 'generic', title: 'Nation & World News', section: 'NATION & WORLD NEWS' },
   // Business (2)
   { kind: 'generic', title: 'Business', section: 'BUSINESS' },
   { kind: 'generic', title: 'Business', section: 'BUSINESS' },
+  // Divider ad - keeps the Business and Opinion segments isolated
+  { kind: 'full_page_ad', title: 'Ad' },
   // Opinion (4)
   { kind: 'generic', title: 'Opinion', section: 'OPINION' },
   { kind: 'generic', title: 'Opinion', section: 'OPINION' },
   { kind: 'generic', title: 'Opinion', section: 'OPINION' },
   { kind: 'generic', title: 'Opinion', section: 'OPINION' },
-  // Legals & Classifieds (4)
+  // Legals & Classifieds (2 + 2) - legals expand some weeks; add pages here
   { kind: 'legals', title: 'Legal Notices' },
   { kind: 'legals', title: 'Legal Notices' },
   { kind: 'classifieds', title: 'Classifieds' },
   { kind: 'classifieds', title: 'Classifieds' },
-  // Fun Stuff (4) — each pulls from its own app in a later phase
+  // Fun Stuff (4) - always this order in print
   { kind: 'fun_box_office', title: 'Box Office', section: 'BOX OFFICE' },
   { kind: 'fun_puzzles', title: 'Puzzles', section: 'PUZZLES' },
   { kind: 'fun_comics', title: 'Funny Pages', section: 'FUNNY PAGES' },
   { kind: 'fun_history', title: 'This Week in History', section: 'THIS WEEK IN HISTORY' },
+  // The fixed three-page ad block before sports
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
+  { kind: 'full_page_ad', title: 'Ad' },
   // Professional Sports (2)
   { kind: 'sports', title: 'Professional Sports', section: 'PROFESSIONAL SPORTS' },
   { kind: 'sports', title: 'Professional Sports', section: 'PROFESSIONAL SPORTS' },
-  // Local Sports (4)
+  // Local Sports (5) - runs to the back cover
   { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
   { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
   { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
   { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
-  // Ads — fill the remainder (11)
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  { kind: 'full_page_ad', title: 'Ad' },
-  // Page 40 — the Sports back cover
+  { kind: 'sports', title: 'Local Sports', section: 'LOCAL SPORTS' },
+  // Page 40 - the Sports back cover
   { kind: 'back', title: 'Back Page' },
 ];
 

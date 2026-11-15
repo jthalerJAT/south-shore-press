@@ -20,7 +20,15 @@ import {
   arrayMove,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { GripVertical, Trash2, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import {
+  GripVertical,
+  Trash2,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Megaphone,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { EditorStoryRow } from '@/lib/queries/editor-stories';
 import type { NpPage, NpItemSummary, IssueVariant } from '@/lib/queries/newspaper';
@@ -275,6 +283,35 @@ export function NewspaperBoard({
     )
       return;
     run(() => setPageKind(page.id, kind));
+  }
+
+  /** One-click Full Page Ad <-> content page flip.
+   *
+   *  Ten of the forty seeded pages are ad pages and most weeks several never
+   *  sell, so turning an unsold ad into editorial is the single most common
+   *  board edit of the week. It used to require finding the 11px page-type
+   *  dropdown, which reads as metadata rather than a control - publisher
+   *  report 2026-11-08 ("no clear way to convert them").
+   *
+   *  Nothing is destroyed in either direction: ad artwork lives in
+   *  template_data and stories live in np_items, and setPageKind touches
+   *  neither, so flipping the page back restores it. Only warn when the page
+   *  actually has something on it - confirming ten empty ad pages in a row is
+   *  the friction this is meant to remove. */
+  function handleQuickToggleAd(page: NpPage, ordinal: number, itemCount: number) {
+    const toContent = page.kind === 'full_page_ad';
+    const next: NpKind = toContent ? 'generic' : 'full_page_ad';
+    const td = (page.template_data ?? {}) as { storage_path?: string; business_name?: string };
+    const name = displayTitle(page, ordinal);
+    const warn = toContent
+      ? td.storage_path
+        ? `"${name}" has ad artwork placed${td.business_name ? ` (${td.business_name})` : ''}. Turn it into a content page anyway?`
+        : null
+      : itemCount > 0
+        ? `"${name}" has ${itemCount} ${itemCount === 1 ? 'story' : 'stories'} on it. Turn it into a full-page ad anyway?`
+        : null;
+    if (warn && !confirm(`${warn}\n\nNothing is deleted - switch the page back to restore it.`)) return;
+    run(() => setPageKind(page.id, next));
   }
 
   function toggleInclude(pageId: string, included: boolean) {
@@ -572,6 +609,11 @@ export function NewspaperBoard({
                     onDelete={() => handleDelete(page, i + 1)}
                     onToggleInclude={(v) => toggleInclude(page.id, v)}
                     onSetKind={(k) => handleSetKind(page, i + 1, k)}
+                    onQuickToggleAd={
+                      page.kind === 'full_page_ad' || page.kind === 'generic'
+                        ? () => handleQuickToggleAd(page, i + 1, (summaries[page.id] ?? []).length)
+                        : undefined
+                    }
                     onAddLegal={page.kind === 'legals' ? () => handleAddLegalPage(page) : undefined}
                   />
                 ))}
@@ -654,6 +696,7 @@ function SortablePageRow({
   onDelete,
   onToggleInclude,
   onSetKind,
+  onQuickToggleAd,
   onAddLegal,
 }: {
   page: NpPage;
@@ -663,6 +706,9 @@ function SortablePageRow({
   onDelete: () => void;
   onToggleInclude: (included: boolean) => void;
   onSetKind: (kind: NpKind) => void;
+  /** Present on Full Page Ad and blank content rows: one-click flip between
+   *  the two, the week's most common conversion. */
+  onQuickToggleAd?: () => void;
   /** Present on Legal Notices rows: insert another legals page after this one. */
   onAddLegal?: () => void;
 }) {
@@ -749,12 +795,37 @@ function SortablePageRow({
       >
         {page.status === 'tbd' ? 'TBD' : page.status}
       </span>
-      <Link
-        href={`/portal/all/newspaper-creator/${page.id}`}
-        className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
-      >
-        Edit Page
-      </Link>
+      <div className="flex flex-col items-stretch gap-1">
+        <Link
+          href={`/portal/all/newspaper-creator/${page.id}`}
+          className="inline-flex items-center justify-center px-3 py-1.5 text-xs font-medium text-zinc-700 border border-zinc-300 hover:bg-zinc-50 rounded transition-colors"
+        >
+          Edit Page
+        </Link>
+        {onQuickToggleAd ? (
+          page.kind === 'full_page_ad' ? (
+            <button
+              type="button"
+              onClick={onQuickToggleAd}
+              title="Convert this full-page ad into an editable content page"
+              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-emerald-700 border border-emerald-300 bg-emerald-50/70 hover:bg-emerald-100 rounded transition-colors"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              To Content
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onQuickToggleAd}
+              title="Convert this content page into a full-page ad"
+              className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium text-zinc-500 border border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700 rounded transition-colors"
+            >
+              <Megaphone className="w-3.5 h-3.5" />
+              To Ad
+            </button>
+          )
+        ) : null}
+      </div>
       <div className="flex flex-col items-center gap-1">
         <button
           type="button"
@@ -799,7 +870,7 @@ function PageTypeSelect({ kind, onChange }: { kind: NpKind; onChange: (k: NpKind
       disabled={locked}
       onChange={(e) => onChange(e.target.value as NpKind)}
       title={locked ? 'The Front and Back covers can’t be converted to another page type' : 'Page type / template'}
-      className="mt-1 text-[11px] text-zinc-500 bg-transparent border border-zinc-200 rounded px-1 py-0.5 max-w-full focus:border-brand-red focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+      className="mt-1 text-[11px] font-medium text-zinc-700 bg-white border border-zinc-300 rounded px-1.5 py-0.5 max-w-full cursor-pointer hover:border-zinc-400 focus:border-brand-red focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
     >
       {!inList ? <option value={kind}>{templateFor(kind).label}</option> : null}
       {ASSIGNABLE_KINDS.map((o) => (

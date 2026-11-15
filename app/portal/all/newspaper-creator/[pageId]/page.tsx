@@ -14,6 +14,7 @@ import { normalizeClassifiedPage } from '@/lib/newspaper/classified';
 import { normalizeFunPage, getFunSource } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
 import { normalizeElectionSection } from '@/lib/newspaper/election-page';
+import { normalizeTomsPicks } from '@/lib/newspaper/toms-picks';
 import { electionScope, pageScope } from '@/lib/newspaper/edit-lock';
 import { EditLockBoundary } from '@/components/portal/edit-lock';
 import { PagePager } from '@/components/portal/page-pager';
@@ -34,6 +35,7 @@ import { FullAdEditor } from './full-ad-editor';
 import { FunEditor } from './fun-editor';
 import { LegalEditor } from './legal-editor';
 import { ElectionEditor } from './election-editor';
+import { TomsPicksEditor } from './toms-picks-editor';
 
 export const metadata: Metadata = {
   title: 'Edit Page - Newspaper Creator',
@@ -235,6 +237,29 @@ export default async function NewspaperPageEditorPage({
               initialData={normalizeLegalPage(page.template_data)}
               savedNotices={savedNotices}
               databaseLegals={databaseLegals}
+            />
+          </EditLockBoundary>
+        </PortalShell>
+      );
+    }
+
+    if (tid === 'toms_picks') {
+      const issueDate = await getIssueDate();
+      return (
+        <PortalShell
+          user={user}
+          activeTab="all"
+          hideTabs
+          title={`Edit - ${displayTitle}`}
+          backLink={{ href: '/portal/all/newspaper-creator', label: 'Newspaper Creator' }}
+          headerRight={pager}
+        >
+          <EditLockBoundary scope={pageScope(page.id)}>
+            <TomsPicksEditor
+              pageId={page.id}
+              pageNumber={ordinal}
+              dateLabel={issueDate}
+              initialData={normalizeTomsPicks(page.template_data)}
             />
           </EditLockBoundary>
         </PortalShell>

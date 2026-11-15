@@ -32,6 +32,7 @@ export type NpKind =
   | 'fantasy_baseball'
   | 'betting_barton'
   | 'sports'
+  | 'toms_picks'
   | 'election'
   | 'back';
 
@@ -52,7 +53,16 @@ export type CoverConfig = {
 };
 
 /** Which bespoke template editor/renderer a template-mode page uses. */
-export type TemplateId = 'section_cover' | 'oped' | 'page_four' | 'full_ad' | 'classified' | 'fun' | 'legal' | 'election';
+export type TemplateId =
+  | 'section_cover'
+  | 'oped'
+  | 'page_four'
+  | 'full_ad'
+  | 'classified'
+  | 'fun'
+  | 'legal'
+  | 'toms_picks'
+  | 'election';
 
 export type NpTemplate = {
   label: string;
@@ -156,6 +166,17 @@ export const NEWSPAPER_TEMPLATES: Record<NpKind, NpTemplate> = {
   fantasy_baseball: { label: 'Fantasy Baseball', slots: 'open', mode: 'flow', master: true },
   betting_barton: { label: 'Betting With Barton', slots: 'open', mode: 'flow', master: true },
   sports: { label: 'Sports', slots: 'open', mode: 'flow', master: true },
+  // "Tom's Picks" (publisher direction 2026-11-15): Tom Barton's weekend
+  // handicapping page - circular headshot + standing bio over two columns of
+  // three picks (college / pro), with the gambling disclaimer along the
+  // bottom. Deletable: it runs the weeks Tom files, not every week.
+  toms_picks: {
+    label: "Tom's Picks",
+    slots: 'open',
+    mode: 'template',
+    master: false,
+    template: 'toms_picks',
+  },
   // Election Issue voter-guide page (2026-10-07): race tiles with the SSP
   // verdict + two candidates. The SECTION's content (intro + tiles) is edited
   // once and lives on the FIRST election page; the rest render their slice of
@@ -385,6 +406,7 @@ export const ADDABLE_TEMPLATE_KINDS: ReadonlyArray<{ kind: NpKind; label: string
   { kind: 'oped_page', label: 'Op-Ed Page' },
   { kind: 'sports_cover', label: 'Sports Cover' },
   { kind: 'full_page_ad', label: 'Full Page Ad' },
+  { kind: 'toms_picks', label: "Tom's Picks" },
   { kind: 'election', label: 'Election Page' },
 ];
 
@@ -399,6 +421,7 @@ export const ASSIGNABLE_KINDS: ReadonlyArray<{ kind: NpKind; label: string }> = 
   { kind: 'legals', label: 'Legals' },
   { kind: 'classifieds', label: 'Classifieds' },
   { kind: 'sports', label: 'Sports' },
+  { kind: 'toms_picks', label: "Tom's Picks" },
   { kind: 'election', label: 'Election Page' },
   { kind: 'back', label: 'Back Page (Sports cover)' },
 ];

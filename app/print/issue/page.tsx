@@ -9,7 +9,9 @@ import { normalizeFullAd } from '@/lib/newspaper/full-ad';
 import { normalizeFunPage } from '@/lib/newspaper/fun-page';
 import { normalizeLegalPage } from '@/lib/newspaper/legal-page';
 import { normalizeElectionSection } from '@/lib/newspaper/election-page';
+import { normalizeTomsPicks } from '@/lib/newspaper/toms-picks';
 import { LegalPage } from '@/components/newspaper/legal-page';
+import { TomsPicksPage } from '@/components/newspaper/toms-picks-page';
 import { ElectionPage } from '@/components/newspaper/election-page';
 import { SectionCover } from '@/components/newspaper/section-cover';
 import { PageTwo } from '@/components/newspaper/page-two';
@@ -133,6 +135,8 @@ export default async function PrintIssue({
               <FunPage data={normalizeFunPage(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' && templateId(r.page.kind) === 'legal' ? (
               <LegalPage data={normalizeLegalPage(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
+            ) : r.kind === 'template' && templateId(r.page.kind) === 'toms_picks' ? (
+              <TomsPicksPage data={normalizeTomsPicks(r.page.template_data)} pageNumber={r.ordinal} dateLabel={issueDate} />
             ) : r.kind === 'template' && templateId(r.page.kind) === 'election' ? (
               <ElectionPage
                 data={electionData}

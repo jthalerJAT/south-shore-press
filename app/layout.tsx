@@ -1,5 +1,13 @@
 import type { Metadata } from 'next';
-import { Playfair_Display, Source_Sans_3, Crimson_Text, Montserrat, Anton, Oswald } from 'next/font/google';
+import {
+  Playfair_Display,
+  Source_Sans_3,
+  Crimson_Text,
+  Montserrat,
+  Anton,
+  Oswald,
+  Yellowtail,
+} from 'next/font/google';
 import './globals.css';
 import { SiteHeader } from '@/components/site/site-header';
 import { AdSenseScript } from '@/components/site/adsense-script';
@@ -65,6 +73,17 @@ const newsCondensed = Oswald({
   display: 'swap',
 });
 
+// Yellowtail - the brush script behind the "Tom's Picks" column logotype
+// (publisher direction 2026-11-15). Newspaper only; nothing on the website
+// uses it. Single weight by design - Yellowtail ships 400 and is already
+// heavy enough to carry a banner.
+const scriptLogotype = Yellowtail({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-script',
+  display: 'swap',
+});
+
 // Default metadata applies to every page; individual pages can override
 // any field via their own exported `metadata` object.
 export const metadata: Metadata = {
@@ -116,7 +135,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable} ${newsHeadline.variable} ${newsDisplay.variable} ${newsCondensed.variable}`}
+      className={`${playfair.variable} ${sourceSans.variable} ${crimson.variable} ${newsHeadline.variable} ${newsDisplay.variable} ${newsCondensed.variable} ${scriptLogotype.variable}`}
     >
       <body className="min-h-screen antialiased flex flex-col bg-white text-zinc-900 font-sans">
         {/* Google AdSense loader - PUBLIC pages only (never the portals or

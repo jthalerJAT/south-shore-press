@@ -911,6 +911,24 @@ export async function saveLegalPage(pageId: string, data: Record<string, unknown
   return { ok: true };
 }
 
+/** Persist a "Tom's Picks" page (header, bio, both pick columns, disclaimer)
+ *  and lock it. */
+export async function saveTomsPicks(pageId: string, data: Record<string, unknown>): Promise<Result> {
+  await requireRole([...EDITOR_ROLES], BASE);
+  const supabase = createClient();
+  const { error } = await supabase
+    .from('np_pages')
+    .update({ template_data: data, status: 'locked', updated_at: new Date().toISOString() })
+    .eq('id', pageId);
+  if (error) {
+    console.error('[saveTomsPicks]', error);
+    return { ok: false, error: 'Could not save the page.' };
+  }
+  revalidatePath(BASE);
+  revalidatePath(`${BASE}/${pageId}`);
+  return { ok: true };
+}
+
 /** Persist the Election Issue SECTION (intro + race tiles) and lock its pages.
  *  The section data lives on the FIRST election page's template_data; the
  *  other election pages render their computed slice of the same tile list, so

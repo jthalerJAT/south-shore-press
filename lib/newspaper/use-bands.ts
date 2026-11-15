@@ -19,6 +19,7 @@ import {
   layoutBand,
   photoRectPx,
   type BandGeometry,
+  type PhotoRectPx,
   type CornerAd,
   type LayoutResult,
   type Measurer,
@@ -99,8 +100,15 @@ export function mergeThirdAds(inputs: BandInput[]): BandInput[] {
 /** If the photo's columns intersect the corner ad's columns, shift the photo
  *  to the ad's OPEN side (clamping its span to the open columns) — otherwise
  *  the ad creative draws over the photo. Text runs already avoid both rects. */
+/** Slide a photo sideways out of the corner ad's columns, into the open run
+ *  beside it. Callers must first confirm the two actually overlap VERTICALLY:
+ *  the ad is pinned to the band's bottom, so a photo higher up shares the
+ *  ad's columns quite legally and computeRuns already flows text through the
+ *  gap between them. Shifting on column overlap alone pinned every photo to
+ *  the interior side for the whole life of any page carrying a quarter ad,
+ *  which left it undraggable in Edit Page Layout. */
 function shiftPhotoClearOfAd(
-  photo: ReturnType<typeof photoRectPx>,
+  photo: PhotoRectPx,
   ad: CornerAd,
   columns: number,
   contentWidthPx: number,
@@ -118,6 +126,18 @@ function shiftPhotoClearOfAd(
   const left = colStart0 * (w + gapPx);
   const width = colSpan * w + (colSpan - 1) * gapPx;
   return { ...photo, colStart0, colSpan, left, width };
+}
+
+/** Does the photo actually foul the bottom-corner ad - sharing both some
+ *  column AND some vertical span? Column overlap on its own is no problem: a
+ *  photo up top over an ad in the bottom of the same columns is a layout the
+ *  paper runs every week. */
+function foulsCornerAd(photo: PhotoRectPx, ad: CornerAd, bodyHeightPx: number): boolean {
+  const sharesColumns =
+    photo.colStart0 < ad.colStart0 + ad.colSpan && ad.colStart0 < photo.colStart0 + photo.colSpan;
+  if (!sharesColumns) return false;
+  const adTop = bodyHeightPx - ad.heightPx;
+  return photo.top + photo.height > adTop && photo.top < bodyHeightPx;
 }
 
 /** Resolve a story band's corner ad: the creative gets the FIXED quarter-ad
@@ -161,24 +181,41 @@ function computeStory(
 ): ComputedBand {
   const layout = input.story!;
   const cornerAd = cornerAdRect(input, layout.column_count, contentWidthPx);
-  let photo =
+  const placed =
     layout.photo && input.data.hero_photo_url
       ? photoRectPx(layout.photo, contentWidthPx, layout.column_count, COLUMN_GAP_PX)
       : null;
-  if (photo && cornerAd) {
-    photo = shiftPhotoClearOfAd(photo, cornerAd, layout.column_count, contentWidthPx, COLUMN_GAP_PX);
-  }
-  const base = {
-    contentWidthPx,
-    columns: layout.column_count,
-    gapPx: COLUMN_GAP_PX,
-    photo,
-    cornerAd,
+
+  // Band height depends on where the photo sits (it excludes text) and the
+  // clash test depends on the band height - so measure with the photo where
+  // the editor put it, and re-measure only if it really does foul the ad in
+  // the bottom corner.
+  const measure = (photo: PhotoRectPx | null) => {
+    const base = {
+      contentWidthPx,
+      columns: layout.column_count,
+      gapPx: COLUMN_GAP_PX,
+      photo,
+      cornerAd,
+    };
+    const bodyHeightPx =
+      (layout.band_height != null
+        ? layout.band_height * CONTENT_H_PX
+        : estimateBodyHeight(input.data.body, base, measurer)) + (input.stretchPx ?? 0);
+    return { base, bodyHeightPx };
   };
-  const bodyHeightPx =
-    (layout.band_height != null
-      ? layout.band_height * CONTENT_H_PX
-      : estimateBodyHeight(input.data.body, base, measurer)) + (input.stretchPx ?? 0);
+
+  let { base, bodyHeightPx } = measure(placed);
+  if (placed && cornerAd && foulsCornerAd(placed, cornerAd, bodyHeightPx)) {
+    const shifted = shiftPhotoClearOfAd(
+      placed,
+      cornerAd,
+      layout.column_count,
+      contentWidthPx,
+      COLUMN_GAP_PX
+    );
+    ({ base, bodyHeightPx } = measure(shifted));
+  }
   const geometry: BandGeometry = { ...base, bodyHeightPx };
   const layoutResult = layoutBand(input.data.body, geometry, measurer);
   return { id: input.id, geometry, layoutResult };
@@ -193,10 +230,10 @@ function computeStorySsr(input: BandInput, contentWidthPx: number): ComputedBand
     layout.photo && input.data.hero_photo_url
       ? photoRectPx(layout.photo, contentWidthPx, layout.column_count, COLUMN_GAP_PX)
       : null;
-  if (photo && cornerAd) {
+  const bodyHeightPx = (layout.band_height ?? 0.1) * CONTENT_H_PX + (input.stretchPx ?? 0);
+  if (photo && cornerAd && foulsCornerAd(photo, cornerAd, bodyHeightPx)) {
     photo = shiftPhotoClearOfAd(photo, cornerAd, layout.column_count, contentWidthPx, COLUMN_GAP_PX);
   }
-  const bodyHeightPx = (layout.band_height ?? 0.1) * CONTENT_H_PX + (input.stretchPx ?? 0);
   return {
     id: input.id,
     geometry: {

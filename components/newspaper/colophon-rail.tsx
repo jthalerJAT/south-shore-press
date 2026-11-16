@@ -140,7 +140,7 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
         <p style={{ fontStyle: 'italic' }}>Mailing Address</p>
         <p>P.O. Box 316, Shirley, New York 11967</p>
         <p style={{ fontWeight: 700, marginTop: 3 }}>
-          Tel: (631) 878-0888 • Fax: (631) 784-3377
+          Tel: (631) 213-7901 • Fax: (631) 784-3377
         </p>
         <p style={{ fontStyle: 'italic', marginTop: 3 }}>E-Mail</p>
         <p>

@@ -174,7 +174,7 @@ export function LegalPage({
             EMAIL LEGALS@SOUTHSHOREPRESS.COM
           </div>
           <div style={{ fontFamily: CONDENSED_FONT, fontWeight: 600, fontSize: 22, marginTop: 12 }}>
-            or call (631) 878-0888
+            or call (631) 213-7901
           </div>
         </div>
       ) : null}

@@ -168,7 +168,7 @@ function HouseRail() {
             marginTop: 4,
           }}
         >
-          631-878-0888
+          631-213-7901
         </div>
         <div
           style={{
@@ -316,7 +316,7 @@ export function ClassifiedPage({
             lineHeight: 1.1,
           }}
         >
-          <div style={{ fontFamily: CONDENSED_FONT, fontWeight: 700, fontSize: 19 }}>631-878-0888</div>
+          <div style={{ fontFamily: CONDENSED_FONT, fontWeight: 700, fontSize: 19 }}>631-213-7901</div>
           <div style={{ fontFamily: 'var(--font-crimson), Georgia, serif', fontStyle: 'italic', fontSize: 10.5 }}>
             ads@southshorepress.com
           </div>

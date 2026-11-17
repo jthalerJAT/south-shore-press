@@ -161,12 +161,11 @@ export function ColophonRail({ width = 215 }: { width?: number }) {
         <p style={{ fontWeight: 700 }}>Managing Editor</p>
         <p>Stefan Mychajliw</p>
         <p style={{ fontWeight: 700, marginTop: 3 }}>Senior Reporter</p>
-        <p>Robert Chartuk</p>
+        <p>George Santos</p>
         <p style={{ fontWeight: 700, marginTop: 3 }}>Photographers &amp; Reporters</p>
         <p>
           Howard Roark, Tom Barton, Nancy Burner, Rich Acritelli, Tara D&apos;Amato, Donna Rolando,
-          Karl Grossman, Kathryn Nocerino, Charles Clampet, George Santos, Neil W. McCabe, C.R.
-          Mercer
+          Karl Grossman, Kathryn Nocerino, Charles Clampet, Neil W. McCabe, C.R. Mercer
         </p>
         <p style={{ fontWeight: 700, marginTop: 3 }}>Sales Manager</p>
         <p>Fred Towle</p>
